@@ -1,4 +1,4 @@
-// Trigger deployment - api-gateway
+// Trigger deployment - api-gateway v2
 import 'dotenv/config';
 import express, { Express } from 'express';
 import { createProxyMiddleware } from 'http-proxy-middleware';

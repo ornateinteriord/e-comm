@@ -8,6 +8,7 @@
     "dev:services": "turbo dev --filter=\"./services/*\" --concurrency=15",
     "dev:apps": "turbo dev --filter=\"./apps/*\" --concurrency=5",
     "build": "turbo build",
+    "postinstall": "turbo build --filter=api-gateway...",
     "start": "turbo start",
     "lint": "turbo lint",
     "format": "turbo format",
