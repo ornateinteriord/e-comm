@@ -1,4 +1,3 @@
-import React from 'react';
 import { Container, Typography, Paper, Box, Divider, Stack } from '@mui/material';
 import { Shield as ShieldIcon } from '@mui/icons-material';
 

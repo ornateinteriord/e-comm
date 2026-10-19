@@ -1,4 +1,3 @@
-import React from 'react';
 import { useParams, Link as RouterLink } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 import {

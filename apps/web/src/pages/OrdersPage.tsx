@@ -1,9 +1,8 @@
-import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link as RouterLink } from 'react-router';
 import {
   Box, Container, Typography, Paper, Chip, Button, Grid,
-  CircularProgress, Divider, Stack,
+  CircularProgress, Stack,
 } from '@mui/material';
 import { ShoppingBagOutlined as OrderIcon } from '@mui/icons-material';
 import api from '../api/client';

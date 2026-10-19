@@ -1,14 +1,13 @@
-import React, { useState } from 'react';
+import { useState, type MouseEvent } from 'react';
 import { Link as RouterLink } from 'react-router';
 import {
   Card, CardContent, CardMedia, Typography, Box, Chip,
-  IconButton, Button, Tooltip, Stack,
+  IconButton, Button, Stack,
 } from '@mui/material';
 import {
   ShoppingCart as CartIcon,
   Favorite as FavoriteFilledIcon,
   FavoriteBorder as FavoriteBorderIcon,
-  Star as StarIcon,
   Check as CheckIcon,
 } from '@mui/icons-material';
 import { useCartStore } from '../store/cart.store';
@@ -20,7 +19,7 @@ interface ProductCardProps {
   featured?: boolean;
 }
 
-export default function ProductCard({ product, featured }: ProductCardProps) {
+export default function ProductCard({ product }: ProductCardProps) {
   const addItem = useCartStore((s) => s.addItem);
   const [isWishlisted, setIsWishlisted] = useState(false);
   const [addedAnim, setAddedAnim] = useState(false);
@@ -32,7 +31,7 @@ export default function ProductCard({ product, featured }: ProductCardProps) {
   const isDeal = product.pricing?.dealActive;
   const isLowStock = product.stock > 0 && product.stock <= 5;
 
-  const handleAddToCart = (e: React.MouseEvent) => {
+  const handleAddToCart = (e: MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     addItem({
@@ -50,7 +49,7 @@ export default function ProductCard({ product, featured }: ProductCardProps) {
     setTimeout(() => setAddedAnim(false), 1200);
   };
 
-  const handleToggleWishlist = async (e: React.MouseEvent) => {
+  const handleToggleWishlist = async (e: MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setIsWishlisted(!isWishlisted);

@@ -1,4 +1,3 @@
-import React from 'react';
 import { useParams, Link as RouterLink } from 'react-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
@@ -9,7 +8,6 @@ import {
 import {
   Receipt as InvoiceIcon,
   CancelOutlined as CancelIcon,
-  CheckCircle as SuccessIcon,
   ArrowBack as BackIcon,
 } from '@mui/icons-material';
 import api from '../api/client';

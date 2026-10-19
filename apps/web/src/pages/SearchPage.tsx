@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router';
 import {
   Box, Container, Grid, Typography, Button, TextField, MenuItem,
   FormControl, Select, Slider, FormControlLabel, Checkbox, Pagination,
   CircularProgress, Paper, Divider, Stack, Drawer, IconButton,
-  useMediaQuery, useTheme, Chip,
+  useMediaQuery, useTheme,
 } from '@mui/material';
 import {
   FilterList as FilterIcon,

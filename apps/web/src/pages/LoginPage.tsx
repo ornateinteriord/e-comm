@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import { useState, type FormEvent } from 'react';
 import { useNavigate, Link as RouterLink } from 'react-router';
 import {
   Box, Container, Typography, Paper, TextField, Button,
-  Divider, Alert, Stack, Chip,
+  Divider, Alert, Stack,
 } from '@mui/material';
 import { useAuthStore } from '../store/auth.store';
 import api from '../api/client';
@@ -16,7 +16,7 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleLogin = async (e: FormEvent) => {
     e.preventDefault();
     setError(null);
     setIsLoading(true);

@@ -1,8 +1,8 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, type FormEvent } from 'react';
 import { Outlet, useNavigate, useLocation, Link as RouterLink } from 'react-router';
 import {
   AppBar, Toolbar, IconButton, Typography, InputBase, Badge,
-  Box, Drawer, List, ListItem, ListItemText, ListItemButton, ListItemIcon,
+  Box, Drawer, List, ListItem, ListItemText, ListItemButton,
   BottomNavigation, BottomNavigationAction, Paper, useMediaQuery,
   useTheme, Menu, MenuItem, Divider, Avatar, Chip, Stack, Button,
 } from '@mui/material';
@@ -16,7 +16,6 @@ import {
   Menu as MenuIcon,
   Close as CloseIcon,
   FmdGood as LocationIcon,
-  AutoAwesome as SparklesIcon,
   ChevronRight as ChevronRightIcon,
   Inventory2 as OrdersIcon,
   Logout as LogoutIcon,
@@ -36,7 +35,6 @@ export default function StorefrontLayout() {
   const { user, isAuthenticated, clearAuth } = useAuthStore();
   const itemCount = useCartStore((s) => s.itemCount);
 
-  const [searchOpen, setSearchOpen] = useState(false);
   const [searchValue, setSearchValue] = useState('');
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
@@ -62,11 +60,10 @@ export default function StorefrontLayout() {
   });
 
   const handleSearch = useCallback(
-    (e: React.FormEvent) => {
+    (e: FormEvent) => {
       e.preventDefault();
       if (searchValue.trim()) {
         navigate(`/search?q=${encodeURIComponent(searchValue.trim())}`);
-        setSearchOpen(false);
         setSearchValue('');
       }
     },
@@ -118,15 +115,6 @@ export default function StorefrontLayout() {
           </Box>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>
             <span>Express Shipping on Orders Over ₹500</span>
-            <Divider orientation="vertical" flexItem sx={{ borderColor: '#334155', my: 0.5 }} />
-            <Box
-              component={RouterLink}
-              to="http://localhost:5174"
-              target="_blank"
-              sx={{ color: '#60a5fa', textDecoration: 'none', fontWeight: 600, '&:hover': { color: '#93c5fd' } }}
-            >
-              Merchant Admin
-            </Box>
           </Box>
         </Box>
       )}

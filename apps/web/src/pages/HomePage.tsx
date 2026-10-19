@@ -1,4 +1,3 @@
-import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link as RouterLink, useNavigate } from 'react-router';
 import {

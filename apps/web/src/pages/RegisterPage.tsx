@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import { useState, type FormEvent } from 'react';
 import { useNavigate, Link as RouterLink } from 'react-router';
 import {
-  Box, Container, Typography, Paper, TextField, Button,
+  Container, Typography, Paper, TextField, Button,
   Alert, Stack,
 } from '@mui/material';
 import { useAuthStore } from '../store/auth.store';
@@ -17,7 +17,7 @@ export default function RegisterPage() {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleRegister = async (e: React.FormEvent) => {
+  const handleRegister = async (e: FormEvent) => {
     e.preventDefault();
     setError(null);
     setIsLoading(true);

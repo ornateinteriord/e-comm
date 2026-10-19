@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import {
   Box, Container, Typography, Grid, Paper, TextField, Button,
@@ -7,7 +7,6 @@ import {
 } from '@mui/material';
 import {
   Lock as SecureIcon,
-  CheckCircle as SuccessIcon,
 } from '@mui/icons-material';
 import { useCartStore } from '../store/cart.store';
 import { useAuthStore } from '../store/auth.store';

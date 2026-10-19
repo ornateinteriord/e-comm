@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useParams, useNavigate, Link as RouterLink } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 import {
-  Box, Container, Grid, Typography, Button, Chip, Divider,
+  Box, Container, Grid, Typography, Button, Chip,
   Breadcrumbs, Link, CircularProgress, Paper, Stack, IconButton,
   Table, TableBody, TableCell, TableRow, Alert, useMediaQuery, useTheme,
 } from '@mui/material';
@@ -17,7 +17,6 @@ import {
   LocalShipping as ShippingIcon,
   Shield as WarrantyIcon,
   Autorenew as ReturnIcon,
-  Star as StarIcon,
   CheckCircle as CheckCircleIcon,
 } from '@mui/icons-material';
 import api from '../api/client';
