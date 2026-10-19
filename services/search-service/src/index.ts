@@ -1,3 +1,4 @@
+// Trigger deployment - search-service
 import 'dotenv/config';
 import express, { Express, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
