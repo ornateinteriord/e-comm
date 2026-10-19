@@ -62,6 +62,7 @@ const serviceRoutes: Array<{ path: string; target: string }> = [
   { path: '/api/v1/payments', target: process.env.PAYMENT_SERVICE_URL ?? 'http://localhost:4007' },
   { path: '/api/v1/invoices', target: process.env.INVOICE_SERVICE_URL ?? 'http://localhost:4008' },
   { path: '/api/v1/inventory', target: process.env.INVENTORY_SERVICE_URL ?? 'http://localhost:4009' },
+  { path: '/api/v1/notifications', target: process.env.NOTIFICATION_SERVICE_URL ?? 'http://localhost:4010' },
   // Admin routes — proxied to their respective services
   { path: '/api/v1/admin/products', target: process.env.PRODUCT_SERVICE_URL ?? 'http://localhost:4003' },
   { path: '/api/v1/admin/categories', target: process.env.PRODUCT_SERVICE_URL ?? 'http://localhost:4003' },
@@ -75,6 +76,7 @@ const serviceRoutes: Array<{ path: string; target: string }> = [
   { path: '/api/v1/admin/dashboard', target: process.env.ORDER_SERVICE_URL ?? 'http://localhost:4006' },
   { path: '/api/v1/admin/audit-logs', target: process.env.AUTH_SERVICE_URL ?? 'http://localhost:4001' },
   { path: '/api/v1/admin/coupons', target: process.env.CART_SERVICE_URL ?? 'http://localhost:4005' },
+  { path: '/api/v1/admin/notifications', target: process.env.NOTIFICATION_SERVICE_URL ?? 'http://localhost:4010' },
 ];
 
 // Sort routes so more specific paths match first if needed

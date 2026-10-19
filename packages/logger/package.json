@@ -16,10 +16,6 @@
     "lint": "eslint src/",
     "format": "prettier --write src/"
   },
-  "dependencies": {
-    "pino": "^9.4.0",
-    "pino-pretty": "^11.3.0"
-  },
   "devDependencies": {
     "@ornate/tsconfig": "workspace:*",
     "@types/node": "^22.7.4",
