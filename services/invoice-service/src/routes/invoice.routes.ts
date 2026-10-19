@@ -8,7 +8,7 @@ import {
 } from '../controllers/invoice.controller.js';
 import { attachUser, requireAuth, requireRole } from '../middleware/auth.middleware.js';
 
-const router = Router();
+const router: Router = Router();
 
 router.use(attachUser);
 

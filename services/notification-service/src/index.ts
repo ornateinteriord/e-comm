@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import express, { Request, Response, NextFunction } from 'express';
+import express, { Express, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
@@ -8,7 +8,7 @@ import { createLogger } from '@ornate/logger';
 import notificationRoutes from './routes/notification.routes.js';
 
 const log = createLogger('notification-service');
-const app = express();
+const app: Express = express();
 const PORT = process.env.NOTIFICATION_SERVICE_PORT ?? 4010;
 
 app.use(helmet());

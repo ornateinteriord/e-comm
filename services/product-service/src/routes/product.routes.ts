@@ -9,7 +9,7 @@ import { validate } from '../middleware/validate.middleware.js';
 import { createProductSchema, updateProductSchema } from '../schemas/product.schema.js';
 import { uploadImages, deleteImage } from '../controllers/image.controller.js';
 
-const router = Router();
+const router: Router = Router();
 
 // ---- Public product routes ----
 router.get('/api/v1/products', listProducts);

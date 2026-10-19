@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import express, { Request, Response, NextFunction } from 'express';
+import express, { Express, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
@@ -9,7 +9,7 @@ import searchRoutes from './routes/search.routes.js';
 import { searchProducts, getSuggestions, reindexAll } from './controllers/search.controller.js';
 
 const log = createLogger('search-service');
-const app = express();
+const app: Express = express();
 const PORT = process.env.SEARCH_SERVICE_PORT ?? 4004;
 
 app.use(helmet());

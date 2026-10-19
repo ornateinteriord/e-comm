@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import express, { Request, Response, NextFunction } from 'express';
+import express, { Express, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
@@ -9,7 +9,7 @@ import { createLogger } from '@ornate/logger';
 import authRoutes from './routes/auth.routes.js';
 
 const log = createLogger('auth-service');
-const app = express();
+const app: Express = express();
 const PORT = process.env.AUTH_SERVICE_PORT ?? 4001;
 
 // ---- Middleware ----

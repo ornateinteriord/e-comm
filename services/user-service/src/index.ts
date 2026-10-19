@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import express, { Request, Response, NextFunction } from 'express';
+import express, { Express, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
@@ -23,7 +23,7 @@ import {
 import { attachUser, requireAuth, requireRole } from './middleware/auth.middleware.js';
 
 const log = createLogger('user-service');
-const app = express();
+const app: Express = express();
 const PORT = process.env.USER_SERVICE_PORT ?? 4002;
 
 // ---- Middleware ----

@@ -21,7 +21,7 @@ import {
 } from '../schemas/auth.schema.js';
 import rateLimit from 'express-rate-limit';
 
-const router = Router();
+const router: Router = Router();
 
 // Strict rate limits for auth endpoints
 const authLimiter = rateLimit({

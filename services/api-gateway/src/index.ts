@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import express from 'express';
+import express, { Express } from 'express';
 import { createProxyMiddleware } from 'http-proxy-middleware';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -9,7 +9,7 @@ import { createLogger } from '@ornate/logger';
 
 const log = createLogger('api-gateway');
 
-const app = express();
+const app: Express = express();
 const PORT = process.env.API_GATEWAY_PORT ?? 4000;
 
 // ---- Security middleware ----

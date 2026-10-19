@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import express, { Request, Response, NextFunction } from 'express';
+import express, { Express, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
@@ -8,7 +8,7 @@ import { createLogger } from '@ornate/logger';
 import productRoutes from './routes/product.routes.js';
 
 const log = createLogger('product-service');
-const app = express();
+const app: Express = express();
 const PORT = process.env.PRODUCT_SERVICE_PORT ?? 4003;
 
 app.use(helmet());

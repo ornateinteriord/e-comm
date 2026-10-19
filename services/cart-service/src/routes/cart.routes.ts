@@ -14,7 +14,7 @@ import {
 } from '../controllers/cart.controller.js';
 import { attachUser, requireAuth, requireRole } from '../middleware/auth.middleware.js';
 
-const router = Router();
+const router: Router = Router();
 
 router.use(attachUser);
 

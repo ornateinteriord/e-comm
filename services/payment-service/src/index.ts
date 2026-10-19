@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import express, { Request, Response, NextFunction } from 'express';
+import express, { Express, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
@@ -14,7 +14,7 @@ import {
 import { attachUser, requireAuth, requireRole } from './middleware/auth.middleware.js';
 
 const log = createLogger('payment-service');
-const app = express();
+const app: Express = express();
 const PORT = process.env.PAYMENT_SERVICE_PORT ?? 4007;
 
 app.use(helmet());

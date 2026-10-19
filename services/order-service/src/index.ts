@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import express, { Request, Response, NextFunction } from 'express';
+import express, { Express, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
@@ -19,7 +19,7 @@ import {
 import { attachUser, requireAuth, requireRole } from './middleware/auth.middleware.js';
 
 const log = createLogger('order-service');
-const app = express();
+const app: Express = express();
 const PORT = process.env.ORDER_SERVICE_PORT ?? 4006;
 
 app.use(helmet());

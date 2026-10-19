@@ -5,7 +5,7 @@ import {
   reindexAll,
 } from '../controllers/search.controller.js';
 
-const router = Router();
+const router: Router = Router();
 
 router.get('/', searchProducts);
 router.get('/suggestions', getSuggestions);
