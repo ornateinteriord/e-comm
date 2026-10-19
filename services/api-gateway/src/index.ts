@@ -6,7 +6,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import cookieParser from 'cookie-parser';
-import { createLogger } from '@ornate/logger';
+import { createLogger } from './logger.js';
 
 const log = createLogger('api-gateway');
 
