@@ -15,6 +15,7 @@ import {
 import api from '../api/client';
 import ProductCard from '../components/ProductCard';
 import type { SearchResult } from '@ornate/types';
+import { searchDummyProducts, DUMMY_CATEGORIES } from '../data/dummyData';
 
 export default function SearchPage() {
   const theme = useTheme();
@@ -38,7 +39,7 @@ export default function SearchPage() {
     setQ(queryParam);
   }, [queryParam]);
 
-  const { data: searchData, isLoading } = useQuery<SearchResult>({
+  const { data: apiSearchData, isLoading } = useQuery<SearchResult>({
     queryKey: ['search-products', queryParam, categoryParam, sortParam, page, inStock, priceRange],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -56,13 +57,30 @@ export default function SearchPage() {
     },
   });
 
-  const { data: categories } = useQuery({
+  const { data: apiCategories } = useQuery({
     queryKey: ['all-categories'],
     queryFn: async () => {
       const { data } = await api.get('/categories');
       return data.data as Array<{ id: string; name: string; slug: string }>;
     },
   });
+
+  const categories = apiCategories && apiCategories.length > 0 ? apiCategories : DUMMY_CATEGORIES;
+
+  const fallbackSearch = searchDummyProducts({
+    q: queryParam,
+    category: categoryParam,
+    sort: sortParam,
+    page: pageParam,
+    limit: 12,
+    inStock,
+    minPrice: priceRange[0] > 0 ? priceRange[0] * 100 : undefined,
+    maxPrice: priceRange[1] < 150000 ? priceRange[1] * 100 : undefined,
+  });
+
+  const searchData = apiSearchData?.products && apiSearchData.products.length > 0
+    ? apiSearchData
+    : fallbackSearch;
 
   const applyFilters = () => {
     const next = new URLSearchParams();

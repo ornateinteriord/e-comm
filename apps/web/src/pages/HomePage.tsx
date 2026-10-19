@@ -16,6 +16,7 @@ import {
 import api from '../api/client';
 import ProductCard from '../components/ProductCard';
 import type { PublicProduct } from '@ornate/types';
+import { DUMMY_PRODUCTS, DUMMY_CATEGORIES } from '../data/dummyData';
 
 export default function HomePage() {
   const navigate = useNavigate();
@@ -36,8 +37,11 @@ export default function HomePage() {
     },
   });
 
-  const dealProducts = productsData?.items?.filter((p) => p.pricing?.dealActive || (p.pricing?.savingsPercent ?? 0) > 15) || [];
-  const standardProducts = productsData?.items || [];
+  const finalProducts = productsData?.items && productsData.items.length > 0 ? productsData.items : DUMMY_PRODUCTS;
+  const finalCategories = categories && categories.length > 0 ? categories : DUMMY_CATEGORIES;
+
+  const dealProducts = finalProducts.filter((p) => p.pricing?.dealActive || (p.pricing?.savingsPercent ?? 0) > 15);
+  const standardProducts = finalProducts;
 
   return (
     <Box sx={{ pb: { xs: 6, md: 10 } }}>
@@ -55,7 +59,7 @@ export default function HomePage() {
           '&::-webkit-scrollbar': { display: 'none' },
         }}
       >
-        {categories?.map((cat) => (
+        {finalCategories?.map((cat) => (
           <Box
             key={cat.id}
             component={RouterLink}
@@ -290,7 +294,7 @@ export default function HomePage() {
         </Box>
 
         <Grid container spacing={2.5}>
-          {categories?.map((cat) => (
+          {finalCategories?.map((cat) => (
             <Grid item xs={12} sm={6} md={2} key={cat.id}>
               <Paper
                 component={RouterLink}

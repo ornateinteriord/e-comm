@@ -8,6 +8,7 @@ import { NavigateNext as NextIcon } from '@mui/icons-material';
 import api from '../api/client';
 import ProductCard from '../components/ProductCard';
 import type { PublicProduct } from '@ornate/types';
+import { getDummyCategoryBySlug, getDummyProductsByCategory } from '../data/dummyData';
 
 export default function CategoryPage() {
   const { slug } = useParams();
@@ -30,7 +31,13 @@ export default function CategoryPage() {
     enabled: Boolean(slug),
   });
 
-  const products = productsData?.products || [];
+  const fallbackCategory = slug ? getDummyCategoryBySlug(slug) : undefined;
+  const currentCategory = categoryData || fallbackCategory;
+
+  const fallbackProducts = slug ? getDummyProductsByCategory(slug) : [];
+  const products = productsData?.products && productsData.products.length > 0
+    ? productsData.products
+    : fallbackProducts;
 
   return (
     <Container maxWidth="lg" sx={{ py: { xs: 3, md: 5 } }}>
@@ -43,7 +50,7 @@ export default function CategoryPage() {
           Departments
         </Link>
         <Typography color="text.primary" sx={{ fontSize: '0.85rem', fontWeight: 800 }}>
-          {categoryData?.name || slug}
+          {currentCategory?.name || slug}
         </Typography>
       </Breadcrumbs>
 
@@ -65,10 +72,10 @@ export default function CategoryPage() {
         </Stack>
 
         <Typography variant="h3" fontWeight={900} letterSpacing="-0.03em" sx={{ fontSize: { xs: '1.8rem', md: '2.5rem' }, mb: 1 }}>
-          {categoryData?.name || slug}
+          {currentCategory?.name || slug}
         </Typography>
         <Typography variant="body1" sx={{ color: '#94a3b8', maxWidth: 600, fontSize: { xs: '0.9rem', md: '1rem' } }}>
-          {categoryData?.description || `Explore our curated selection of flagship ${categoryData?.name || slug} with express shipping.`}
+          {currentCategory?.description || `Explore our curated selection of flagship ${currentCategory?.name || slug} with express shipping.`}
         </Typography>
       </Box>
 

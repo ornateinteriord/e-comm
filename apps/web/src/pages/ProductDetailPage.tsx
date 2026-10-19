@@ -22,6 +22,7 @@ import {
 import api from '../api/client';
 import { useCartStore } from '../store/cart.store';
 import type { PublicProduct, ProductVariant } from '@ornate/types';
+import { getDummyProductBySlug } from '../data/dummyData';
 
 export default function ProductDetailPage() {
   const { slug } = useParams();
@@ -36,7 +37,7 @@ export default function ProductDetailPage() {
   const [isWishlisted, setIsWishlisted] = useState(false);
   const [addedNotice, setAddedNotice] = useState(false);
 
-  const { data: product, isLoading, error } = useQuery<PublicProduct>({
+  const { data: apiProduct, isLoading } = useQuery<PublicProduct>({
     queryKey: ['product-detail', slug],
     queryFn: async () => {
       const { data } = await api.get(`/products/${slug}`);
@@ -45,7 +46,9 @@ export default function ProductDetailPage() {
     enabled: Boolean(slug),
   });
 
-  if (isLoading) {
+  const product = apiProduct || (slug ? getDummyProductBySlug(slug) : undefined);
+
+  if (isLoading && !product) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', py: 16 }}>
         <CircularProgress />
@@ -53,7 +56,7 @@ export default function ProductDetailPage() {
     );
   }
 
-  if (error || !product) {
+  if (!product) {
     return (
       <Container maxWidth="md" sx={{ py: 12, textAlign: 'center' }}>
         <Typography variant="h5" fontWeight={800} sx={{ mb: 2 }}>Product Not Found</Typography>

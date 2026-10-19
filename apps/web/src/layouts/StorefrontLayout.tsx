@@ -26,6 +26,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useDebounce } from '../hooks/useDebounce';
 import api from '../api/client';
 import Footer from '../components/Footer.tsx';
+import { DUMMY_CATEGORIES, getDummySuggestions } from '../data/dummyData';
 
 export default function StorefrontLayout() {
   const theme = useTheme();
@@ -41,7 +42,7 @@ export default function StorefrontLayout() {
 
   const debouncedSearch = useDebounce(searchValue, 250);
 
-  const { data: suggestions } = useQuery({
+  const { data: apiSuggestions } = useQuery({
     queryKey: ['search-suggestions', debouncedSearch],
     queryFn: async () => {
       const { data } = await api.get(`/search/suggestions?q=${encodeURIComponent(debouncedSearch)}`);
@@ -50,7 +51,11 @@ export default function StorefrontLayout() {
     enabled: debouncedSearch.length >= 2,
   });
 
-  const { data: categories } = useQuery({
+  const suggestions = apiSuggestions && apiSuggestions.length > 0
+    ? apiSuggestions
+    : getDummySuggestions(debouncedSearch);
+
+  const { data: apiCategories } = useQuery({
     queryKey: ['categories-header'],
     queryFn: async () => {
       const { data } = await api.get('/categories');
@@ -58,6 +63,8 @@ export default function StorefrontLayout() {
     },
     staleTime: 1000 * 60 * 10,
   });
+
+  const categories = apiCategories && apiCategories.length > 0 ? apiCategories : DUMMY_CATEGORIES;
 
   const handleSearch = useCallback(
     (e: FormEvent) => {
