@@ -17,6 +17,7 @@
     "@ornate/logger": "workspace:*",
     "@ornate/pricing-utils": "workspace:*",
     "@ornate/types": "workspace:*",
+    "mongoose": "^8.7.0",
     "@types/jsonwebtoken": "^9.0.7",
     "axios": "^1.7.7",
     "cors": "^2.8.5",

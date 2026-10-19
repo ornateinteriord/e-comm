@@ -17,6 +17,7 @@
     "@ornate/logger": "workspace:*",
     "@ornate/types": "workspace:*",
     "@ornate/pricing-utils": "workspace:*",
+    "mongoose": "^8.7.0",
     "@elastic/elasticsearch": "^8.15.0",
     "express": "^4.21.0",
     "zod": "^3.23.8",
