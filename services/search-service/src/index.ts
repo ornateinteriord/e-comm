@@ -1,0 +1,74 @@
+import 'dotenv/config';
+import express, { Request, Response, NextFunction } from 'express';
+import cors from 'cors';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
+import { connectDB } from '@ornate/db';
+import { createLogger } from '@ornate/logger';
+import searchRoutes from './routes/search.routes.js';
+import { searchProducts, getSuggestions, reindexAll } from './controllers/search.controller.js';
+
+const log = createLogger('search-service');
+const app = express();
+const PORT = process.env.SEARCH_SERVICE_PORT ?? 4004;
+
+app.use(helmet());
+app.use(
+  cors({
+    origin: (process.env.ALLOWED_ORIGINS ?? 'http://localhost:4000,http://localhost:5173').split(',').map((o) => o.trim()),
+    credentials: true,
+  }),
+);
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true }));
+
+const globalLimiter = rateLimit({
+  windowMs: 60_000,
+  max: 300,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use(globalLimiter);
+
+// Health check
+app.get('/health', (_req, res) => {
+  res.json({ status: 'ok', service: 'search-service', timestamp: new Date().toISOString() });
+});
+
+// Mounted paths
+app.use('/api/v1/search', searchRoutes);
+
+// Direct mapping for gateway forwarded subpaths
+app.get('/api/v1/search/suggestions', getSuggestions);
+app.post('/api/v1/admin/search/reindex', reindexAll);
+
+// Error handler
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
+  log.error({ err, path: req.url }, 'Unhandled error in search service');
+  res.status(500).json({
+    success: false,
+    error: {
+      code: 'INTERNAL_ERROR',
+      message: process.env.NODE_ENV === 'production' ? 'An unexpected error occurred.' : err.message,
+    },
+  });
+});
+
+async function start(): Promise<void> {
+  // Connect to the products DB so search can query products directly
+  await connectDB(
+    process.env.MONGODB_URI ?? 'mongodb://localhost:27017',
+    process.env.PRODUCT_DB_NAME ?? 'ornate_products',
+  );
+  app.listen(PORT, () => {
+    log.info({ port: PORT }, 'Search service listening');
+  });
+}
+
+start().catch((err) => {
+  log.error({ err }, 'Failed to start search service');
+  process.exit(1);
+});
+
+export default app;

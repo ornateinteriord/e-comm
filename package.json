@@ -1,0 +1,34 @@
+{
+  "name": "ornate",
+  "private": true,
+  "packageManager": "pnpm@9.12.1",
+  "scripts": {
+    "dev": "turbo dev --concurrency=25",
+    "dev:all": "turbo dev --concurrency=25",
+    "dev:services": "turbo dev --filter=\"./services/*\" --concurrency=15",
+    "dev:apps": "turbo dev --filter=\"./apps/*\" --concurrency=5",
+    "build": "turbo build",
+    "start": "turbo start",
+    "lint": "turbo lint",
+    "format": "turbo format",
+    "test": "turbo test",
+    "test:e2e": "turbo test:e2e",
+    "clean": "turbo clean",
+    "typecheck": "turbo typecheck",
+    "db:seed": "pnpm --filter product-service db:seed",
+    "search:index": "pnpm --filter search-service index:all",
+    "setup:admin": "pnpm --filter auth-service setup:admin"
+  },
+  "devDependencies": {
+    "turbo": "latest",
+    "prettier": "^3.3.3",
+    "eslint": "^9.11.0",
+    "@typescript-eslint/eslint-plugin": "^8.8.0",
+    "@typescript-eslint/parser": "^8.8.0",
+    "typescript": "^5.6.2"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  }
+}
