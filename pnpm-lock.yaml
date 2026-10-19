@@ -291,9 +291,6 @@ importers:
 
   services/api-gateway:
     dependencies:
-      '@ornate/logger':
-        specifier: workspace:*
-        version: link:../../packages/logger
       '@ornate/types':
         specifier: workspace:*
         version: link:../../packages/types
