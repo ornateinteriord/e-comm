@@ -12,11 +12,82 @@ import {
   ArrowForward as ArrowForwardIcon,
   ElectricBolt as BoltIcon,
   Verified as VerifiedIcon,
+  Headphones as HeadphonesIcon,
+  Checkroom as CheckroomIcon,
+  Watch as WatchIcon,
+  Coffee as CoffeeIcon,
+  FitnessCenter as FitnessCenterIcon,
+  MenuBook as MenuBookIcon,
+  AutoAwesome as AutoAwesomeIcon,
 } from '@mui/icons-material';
 import api from '../api/client';
 import ProductCard from '../components/ProductCard';
 import type { PublicProduct } from '@ornate/types';
 import { DUMMY_PRODUCTS, DUMMY_CATEGORIES } from '../data/dummyData';
+
+interface CategoryDisplayMeta {
+  image: string;
+  tag: string;
+  count: string;
+  badge?: string;
+  icon: React.ReactNode;
+  subtitle: string;
+}
+
+const CATEGORY_META: Record<string, CategoryDisplayMeta> = {
+  electronics: {
+    image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=1200&q=85',
+    tag: 'FLAGSHIP AUDIO',
+    count: '32 Items',
+    badge: 'FEATURED SPOTLIGHT',
+    icon: <HeadphonesIcon sx={{ fontSize: 16 }} />,
+    subtitle: 'Studio-grade acoustics, active noise cancellation & tactile gear',
+  },
+  clothing: {
+    image: 'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&w=1000&q=85',
+    tag: 'DESIGNER APPAREL',
+    count: '48 Items',
+    badge: 'NEW SEASON',
+    icon: <CheckroomIcon sx={{ fontSize: 16 }} />,
+    subtitle: 'Tailored luxury essentials, heavyweight cottons & outerwear',
+  },
+  accessories: {
+    image: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=800&q=85',
+    tag: 'PRECISION CRAFT',
+    count: '19 Items',
+    icon: <WatchIcon sx={{ fontSize: 16 }} />,
+    subtitle: 'Chronographs, Italian leather & EDC essentials',
+  },
+  'home-kitchen': {
+    image: 'https://images.unsplash.com/photo-1517668808822-9ebb02f2a0e6?auto=format&fit=crop&w=800&q=85',
+    tag: 'ARTISAN LIVING',
+    count: '25 Items',
+    icon: <CoffeeIcon sx={{ fontSize: 16 }} />,
+    subtitle: 'Specialty pour-over coffee & modern homeware',
+  },
+  sports: {
+    image: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=800&q=85',
+    tag: 'PERFORMANCE',
+    count: '30 Items',
+    icon: <FitnessCenterIcon sx={{ fontSize: 16 }} />,
+    subtitle: 'Technical running shoes & training gear',
+  },
+  books: {
+    image: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=800&q=85',
+    tag: 'PRINT & DESIGN',
+    count: '16 Items',
+    icon: <MenuBookIcon sx={{ fontSize: 16 }} />,
+    subtitle: 'Monographs, design journals & architecture editions',
+  },
+};
+
+const DEFAULT_CATEGORY_META: CategoryDisplayMeta = {
+  image: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=800&q=85',
+  tag: 'CURATED',
+  count: '20+ Items',
+  icon: <AutoAwesomeIcon sx={{ fontSize: 16 }} />,
+  subtitle: 'Hand-picked premium selections',
+};
 
 export default function HomePage() {
   const navigate = useNavigate();
@@ -61,40 +132,59 @@ export default function HomePage() {
           '&::-webkit-scrollbar': { display: 'none' },
         }}
       >
-        {finalCategories?.map((cat) => (
-          <Box
-            key={cat.id}
-            component={RouterLink}
-            to={`/categories/${cat.slug}`}
-            sx={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              textDecoration: 'none',
-              color: 'text.primary',
-              minWidth: 64,
-            }}
-          >
-            <Avatar
+        {finalCategories?.map((cat) => {
+          const meta = CATEGORY_META[cat.slug] || DEFAULT_CATEGORY_META;
+          return (
+            <Box
+              key={cat.id}
+              component={RouterLink}
+              to={`/categories/${cat.slug}`}
               sx={{
-                width: 52,
-                height: 52,
-                bgcolor: isLight ? '#F5F6F7' : '#1E293B',
-                color: isLight ? '#172B30' : '#FFFFFF',
-                fontSize: '1rem',
-                fontWeight: 800,
-                border: '2px solid #FF7900',
-                boxShadow: '0 4px 10px rgba(255, 121, 0, 0.25)',
-                mb: 0.75,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                textDecoration: 'none',
+                color: 'text.primary',
+                minWidth: 68,
+                transition: 'transform 0.2s',
+                '&:active': { transform: 'scale(0.95)' },
               }}
             >
-              {cat.name.charAt(0)}
-            </Avatar>
-            <Typography variant="caption" fontWeight={700} sx={{ fontSize: '0.7rem', textAlign: 'center', lineHeight: 1.2 }}>
-              {cat.name.split(' ')[0]}
-            </Typography>
-          </Box>
-        ))}
+              <Avatar
+                src={meta.image}
+                alt={cat.name}
+                sx={{
+                  width: 56,
+                  height: 56,
+                  bgcolor: isLight ? '#F5F6F7' : '#1E293B',
+                  color: isLight ? '#172B30' : '#FFFFFF',
+                  fontWeight: 800,
+                  fontSize: '1rem',
+                  border: '2.5px solid #FF7900',
+                  boxShadow: '0 4px 12px rgba(255, 121, 0, 0.3)',
+                  mb: 0.75,
+                  '& img': {
+                    objectFit: 'cover',
+                  },
+                }}
+              >
+                {cat.name.charAt(0)}
+              </Avatar>
+              <Typography
+                variant="caption"
+                fontWeight={700}
+                sx={{
+                  fontSize: '0.72rem',
+                  textAlign: 'center',
+                  lineHeight: 1.2,
+                  color: isLight ? '#172B30' : '#F8FAFC',
+                }}
+              >
+                {cat.name.split(' ')[0]}
+              </Typography>
+            </Box>
+          );
+        })}
       </Box>
 
       {/* ---- Hero Stage ---- */}
@@ -306,69 +396,319 @@ export default function HomePage() {
         </Paper>
       </Container>
 
-      {/* ---- Curated Collections (Desktop Grid) ---- */}
-      <Container maxWidth="lg" sx={{ mt: { xs: 6, md: 10 }, display: { xs: 'none', md: 'block' } }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', mb: 4 }}>
+      {/* ---- Curated Collections (Editorial Bento Grid) ---- */}
+      <Container maxWidth="lg" sx={{ mt: { xs: 6, md: 10 } }}>
+        <Box
+          sx={{
+            display: 'flex',
+            flexDirection: { xs: 'column', sm: 'row' },
+            justifyContent: 'space-between',
+            alignItems: { xs: 'flex-start', sm: 'flex-end' },
+            gap: 2,
+            mb: { xs: 3, md: 4.5 },
+          }}
+        >
           <Box>
-            <Typography variant="overline" sx={{ color: '#FF7900', fontWeight: 800, letterSpacing: '0.08em' }}>DEPARTMENTS</Typography>
-            <Typography variant="h4" fontWeight={900} letterSpacing="-0.03em" sx={{ color: isLight ? '#172B30' : '#F8FAFC' }}>Browse by Category</Typography>
+            <Box
+              sx={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 1,
+                px: 1.5,
+                py: 0.5,
+                borderRadius: 50,
+                bgcolor: isLight ? 'rgba(255, 121, 0, 0.08)' : 'rgba(255, 121, 0, 0.15)',
+                border: '1px solid rgba(255, 121, 0, 0.25)',
+                mb: 1.25,
+              }}
+            >
+              <AutoAwesomeIcon sx={{ fontSize: 14, color: '#FF7900' }} />
+              <Typography
+                variant="caption"
+                sx={{
+                  color: '#FF7900',
+                  fontWeight: 800,
+                  letterSpacing: '0.08em',
+                  fontSize: '0.72rem',
+                  textTransform: 'uppercase',
+                }}
+              >
+                CURATED DEPARTMENTS
+              </Typography>
+            </Box>
+            <Typography
+              variant="h4"
+              fontWeight={900}
+              letterSpacing="-0.03em"
+              sx={{
+                color: isLight ? '#172B30' : '#F8FAFC',
+                fontSize: { xs: '1.75rem', md: '2.25rem' },
+                lineHeight: 1.15,
+              }}
+            >
+              Browse by Department
+            </Typography>
+            <Typography
+              variant="body2"
+              sx={{
+                color: isLight ? '#64748B' : '#94A3B8',
+                fontSize: { xs: '0.85rem', md: '0.95rem' },
+                mt: 0.75,
+                maxWidth: 580,
+              }}
+            >
+              Explore verified flagship collections engineered for craftsmanship, modern living, and everyday utility.
+            </Typography>
           </Box>
-          <Button component={RouterLink} to="/search" endIcon={<ArrowForwardIcon />} sx={{ fontWeight: 800, color: '#FF7900' }}>
-            View Full Directory
+          <Button
+            component={RouterLink}
+            to="/search"
+            endIcon={<ArrowForwardIcon />}
+            sx={{
+              fontWeight: 800,
+              color: '#FF7900',
+              px: 2.5,
+              py: 1,
+              borderRadius: 50,
+              bgcolor: isLight ? 'rgba(255, 121, 0, 0.06)' : 'rgba(255, 121, 0, 0.12)',
+              border: '1px solid rgba(255, 121, 0, 0.2)',
+              transition: 'all 0.25s ease',
+              '&:hover': {
+                bgcolor: '#FF7900',
+                color: '#FFFFFF',
+                borderColor: '#FF7900',
+                transform: 'translateX(3px)',
+              },
+            }}
+          >
+            View Full Catalog
           </Button>
         </Box>
 
-        <Grid container spacing={2.5}>
-          {finalCategories?.map((cat) => (
-            <Grid item xs={12} sm={6} md={2} key={cat.id}>
-              <Paper
-                component={RouterLink}
-                to={`/categories/${cat.slug}`}
-                elevation={0}
-                sx={{
-                  p: 3,
-                  textAlign: 'center',
-                  textDecoration: 'none',
-                  color: 'inherit',
-                  borderRadius: 3.5,
-                  bgcolor: 'background.paper',
-                  border: `1px solid ${isLight ? '#E5E7EB' : 'rgba(255, 255, 255, 0.08)'}`,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: 1.5,
-                  transition: 'all 0.25s ease',
-                  '&:hover': {
-                    transform: 'translateY(-6px)',
-                    borderColor: '#FF7900',
-                    boxShadow: '0 16px 28px -8px rgba(255, 121, 0, 0.18)',
-                    '& .cat-avatar': {
-                      bgcolor: '#FF7900',
-                      color: 'white',
-                    },
-                  },
-                }}
-              >
-                <Avatar
-                  className="cat-avatar"
+        <Grid container spacing={{ xs: 2, md: 2.5 }}>
+          {finalCategories?.map((cat, idx) => {
+            const meta = CATEGORY_META[cat.slug] || DEFAULT_CATEGORY_META;
+            const isHero = idx === 0;
+            const isSideHero = idx === 1;
+            const gridSpan = isHero
+              ? { xs: 12, md: 7 }
+              : isSideHero
+              ? { xs: 12, md: 5 }
+              : { xs: 12, sm: 6, md: 3 };
+            const cardHeight = isHero || isSideHero
+              ? { xs: 260, sm: 300, md: 360 }
+              : { xs: 240, sm: 260, md: 300 };
+
+            return (
+              <Grid item key={cat.id} {...gridSpan}>
+                <Paper
+                  component={RouterLink}
+                  to={`/categories/${cat.slug}`}
+                  elevation={0}
                   sx={{
-                    width: 58,
-                    height: 58,
-                    bgcolor: isLight ? '#F5F6F7' : '#1E293B',
-                    color: isLight ? '#172B30' : '#FFFFFF',
-                    fontWeight: 900,
-                    fontSize: '1.25rem',
-                    transition: 'all 0.2s',
+                    position: 'relative',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    height: cardHeight,
+                    p: { xs: 2.5, md: 3 },
+                    borderRadius: 4,
+                    overflow: 'hidden',
+                    textDecoration: 'none',
+                    color: '#FFFFFF',
+                    border: `1px solid ${isLight ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.1)'}`,
+                    transition: 'all 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
+                    cursor: 'pointer',
+                    '&:hover': {
+                      transform: 'translateY(-6px)',
+                      borderColor: '#FF7900',
+                      boxShadow: '0 24px 48px -12px rgba(255, 121, 0, 0.35)',
+                      '& .cat-bg-image': {
+                        transform: 'scale(1.08)',
+                      },
+                      '& .cat-arrow-btn': {
+                        bgcolor: '#FF7900',
+                        color: '#FFFFFF',
+                        transform: 'translateX(4px)',
+                      },
+                      '& .cat-explore-text': {
+                        color: '#FF7900',
+                      },
+                    },
                   }}
                 >
-                  {cat.name.charAt(0)}
-                </Avatar>
-                <Typography variant="subtitle2" fontWeight={800} sx={{ fontSize: '0.85rem', color: isLight ? '#172B30' : '#F8FAFC' }}>
-                  {cat.name}
-                </Typography>
-              </Paper>
-            </Grid>
-          ))}
+                  {/* Background Image with Zoom */}
+                  <Box
+                    className="cat-bg-image"
+                    sx={{
+                      position: 'absolute',
+                      inset: 0,
+                      backgroundImage: `url(${meta.image})`,
+                      backgroundSize: 'cover',
+                      backgroundPosition: 'center',
+                      transition: 'transform 0.6s cubic-bezier(0.16, 1, 0.3, 1)',
+                      zIndex: 0,
+                    }}
+                  />
+
+                  {/* Cinematic Multi-Stop Gradient Scrim */}
+                  <Box
+                    sx={{
+                      position: 'absolute',
+                      inset: 0,
+                      background: isHero || isSideHero
+                        ? 'linear-gradient(180deg, rgba(15, 23, 42, 0.2) 0%, rgba(15, 23, 42, 0.5) 45%, rgba(15, 23, 42, 0.95) 100%)'
+                        : 'linear-gradient(180deg, rgba(15, 23, 42, 0.25) 0%, rgba(15, 23, 42, 0.55) 50%, rgba(15, 23, 42, 0.96) 100%)',
+                      zIndex: 1,
+                      pointerEvents: 'none',
+                    }}
+                  />
+
+                  {/* Top Badges Row */}
+                  <Box
+                    sx={{
+                      position: 'relative',
+                      zIndex: 2,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: 1,
+                    }}
+                  >
+                    {/* Category Tag Pill */}
+                    <Box
+                      sx={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 0.75,
+                        px: 1.5,
+                        py: 0.6,
+                        borderRadius: 50,
+                        bgcolor: 'rgba(15, 23, 42, 0.65)',
+                        backdropFilter: 'blur(10px)',
+                        border: '1px solid rgba(255, 255, 255, 0.18)',
+                        color: '#FFFFFF',
+                        fontSize: '0.72rem',
+                        fontWeight: 800,
+                        letterSpacing: '0.06em',
+                        textTransform: 'uppercase',
+                      }}
+                    >
+                      <Box sx={{ display: 'flex', color: '#FF7900' }}>{meta.icon}</Box>
+                      <span>{meta.tag}</span>
+                    </Box>
+
+                    {/* Count or Badge */}
+                    <Box
+                      sx={{
+                        px: 1.25,
+                        py: 0.4,
+                        borderRadius: 50,
+                        bgcolor: 'rgba(255, 255, 255, 0.15)',
+                        backdropFilter: 'blur(8px)',
+                        border: '1px solid rgba(255, 255, 255, 0.12)',
+                        color: 'rgba(255, 255, 255, 0.9)',
+                        fontSize: '0.7rem',
+                        fontWeight: 700,
+                      }}
+                    >
+                      {meta.count}
+                    </Box>
+                  </Box>
+
+                  {/* Bottom Content Row */}
+                  <Box sx={{ position: 'relative', zIndex: 2 }}>
+                    {meta.badge && (
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          display: 'inline-block',
+                          color: '#FFA04D',
+                          fontWeight: 800,
+                          letterSpacing: '0.08em',
+                          fontSize: '0.68rem',
+                          mb: 0.5,
+                          textTransform: 'uppercase',
+                        }}
+                      >
+                        {meta.badge}
+                      </Typography>
+                    )}
+
+                    <Typography
+                      variant={isHero ? 'h4' : 'h6'}
+                      fontWeight={900}
+                      letterSpacing="-0.02em"
+                      sx={{
+                        color: '#FFFFFF',
+                        mb: 0.75,
+                        lineHeight: 1.15,
+                        fontSize: isHero
+                          ? { xs: '1.4rem', md: '1.85rem' }
+                          : { xs: '1.1rem', md: '1.25rem' },
+                        textShadow: '0 2px 8px rgba(0,0,0,0.4)',
+                      }}
+                    >
+                      {cat.name}
+                    </Typography>
+
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        color: 'rgba(255, 255, 255, 0.82)',
+                        fontSize: isHero ? '0.88rem' : '0.78rem',
+                        lineHeight: 1.35,
+                        mb: 2,
+                        display: '-webkit-box',
+                        WebkitLineClamp: isHero ? 2 : 1,
+                        WebkitBoxOrient: 'vertical',
+                        overflow: 'hidden',
+                        textShadow: '0 1px 4px rgba(0,0,0,0.5)',
+                      }}
+                    >
+                      {meta.subtitle || cat.description}
+                    </Typography>
+
+                    {/* Action Row */}
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <Typography
+                        className="cat-explore-text"
+                        variant="caption"
+                        fontWeight={800}
+                        sx={{
+                          color: 'rgba(255, 255, 255, 0.9)',
+                          letterSpacing: '0.04em',
+                          textTransform: 'uppercase',
+                          fontSize: '0.75rem',
+                          transition: 'color 0.25s ease',
+                        }}
+                      >
+                        Explore Department
+                      </Typography>
+
+                      <Box
+                        className="cat-arrow-btn"
+                        sx={{
+                          width: 32,
+                          height: 32,
+                          borderRadius: '50%',
+                          bgcolor: 'rgba(255, 255, 255, 0.18)',
+                          backdropFilter: 'blur(8px)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: '#FFFFFF',
+                          transition: 'all 0.25s ease',
+                        }}
+                      >
+                        <ArrowForwardIcon sx={{ fontSize: 16 }} />
+                      </Box>
+                    </Box>
+                  </Box>
+                </Paper>
+              </Grid>
+            );
+          })}
         </Grid>
       </Container>
 
