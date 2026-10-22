@@ -170,7 +170,7 @@ export default function CartPage() {
 
         {/* Order Summary */}
         <Grid item xs={12} md={4}>
-          <Paper elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 3, p: 3, bgcolor: '#f8fafc' }}>
+          <Paper elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 3, p: 3, bgcolor: 'background.paper' }}>
             <Typography variant="h6" fontWeight={800} sx={{ mb: 2 }}>
               Order Summary
             </Typography>
@@ -186,14 +186,13 @@ export default function CartPage() {
                   value={couponCode}
                   disabled={Boolean(appliedCoupon)}
                   onChange={(e) => setCouponCode(e.target.value)}
-                  sx={{ bgcolor: 'white' }}
                 />
                 {appliedCoupon ? (
                   <Button variant="outlined" color="error" onClick={handleRemoveCoupon}>
                     Remove
                   </Button>
                 ) : (
-                  <Button variant="contained" onClick={handleApplyCoupon}>
+                  <Button variant="contained" onClick={handleApplyCoupon} sx={{ bgcolor: '#FF7900', '&:hover': { bgcolor: '#E85D04' } }}>
                     Apply
                   </Button>
                 )}
@@ -236,7 +235,7 @@ export default function CartPage() {
 
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
                 <Typography variant="subtitle1" fontWeight={800}>Estimated Total</Typography>
-                <Typography variant="h5" fontWeight={900} color="primary">
+                <Typography variant="h5" fontWeight={900} sx={{ color: '#FF7900' }}>
                   ₹{(grandTotal / 100).toFixed(0)}
                 </Typography>
               </Box>
@@ -252,8 +251,9 @@ export default function CartPage() {
                 py: 1.5,
                 borderRadius: 1,
                 fontWeight: 700,
-                bgcolor: '#2563eb',
-                '&:hover': { bgcolor: '#1d4ed8' },
+                bgcolor: '#FF7900',
+                color: '#FFFFFF',
+                '&:hover': { bgcolor: '#E85D04' },
               }}
             >
               Proceed to Checkout

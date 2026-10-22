@@ -4,7 +4,7 @@ import {
   AppBar, Toolbar, IconButton, Typography, InputBase, Badge,
   Box, Drawer, List, ListItem, ListItemText, ListItemButton,
   BottomNavigation, BottomNavigationAction, Paper, useMediaQuery,
-  useTheme, Menu, MenuItem, Divider, Avatar, Chip, Stack, Button,
+  useTheme, Menu, MenuItem, Divider, Avatar, Chip, Stack, Button, Tooltip,
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -19,9 +19,12 @@ import {
   ChevronRight as ChevronRightIcon,
   Inventory2 as OrdersIcon,
   Logout as LogoutIcon,
+  LightMode as LightModeIcon,
+  DarkMode as DarkModeIcon,
 } from '@mui/icons-material';
 import { useCartStore } from '../store/cart.store';
 import { useAuthStore } from '../store/auth.store';
+import { useThemeStore } from '../store/theme.store';
 import { useQuery } from '@tanstack/react-query';
 import { useDebounce } from '../hooks/useDebounce';
 import api from '../api/client';
@@ -35,6 +38,8 @@ export default function StorefrontLayout() {
   const location = useLocation();
   const { user, isAuthenticated, clearAuth } = useAuthStore();
   const itemCount = useCartStore((s) => s.itemCount);
+  const { mode, toggleTheme } = useThemeStore();
+  const isLight = mode === 'light';
 
   const [searchValue, setSearchValue] = useState('');
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -103,24 +108,24 @@ export default function StorefrontLayout() {
       {!isMobile && (
         <Box
           sx={{
-            bgcolor: '#020617',
-            color: '#94a3b8',
-            py: 0.75,
+            bgcolor: isLight ? '#172B30' : '#0B0F19',
+            color: '#FFFFFF',
+            py: 0.8,
             px: 4,
             fontSize: '0.8125rem',
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
-            borderBottom: '1px solid #1e293b',
+            borderBottom: `1px solid ${isLight ? 'rgba(255,255,255,0.08)' : '#1E293B'}`,
           }}
         >
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: '#e2e8f0' }}>
-              <LocationIcon sx={{ fontSize: 15, color: '#60a5fa' }} />
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, color: '#F3F4F6' }}>
+              <LocationIcon sx={{ fontSize: 16, color: '#FF7900' }} />
               <span>Deliver to <strong>Mumbai 400021</strong> - Next Day Delivery Available</span>
             </Box>
           </Box>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 3, color: '#E5E7EB' }}>
             <span>Express Shipping on Orders Over ₹500</span>
           </Box>
         </Box>
@@ -132,30 +137,40 @@ export default function StorefrontLayout() {
           position="sticky"
           elevation={0}
           sx={{
-            bgcolor: 'rgba(15, 23, 42, 0.95)',
+            bgcolor: isLight ? 'rgba(255, 255, 255, 0.98)' : 'rgba(15, 23, 42, 0.98)',
             backdropFilter: 'blur(16px)',
-            borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+            borderBottom: `1px solid ${isLight ? '#E5E7EB' : 'rgba(255, 255, 255, 0.08)'}`,
+            color: isLight ? '#172B30' : '#FFFFFF',
           }}
         >
-          <Toolbar sx={{ px: { xs: 2, md: 5 }, py: 1, gap: 3 }}>
+          <Toolbar sx={{ px: { xs: 2, md: 5 }, py: 1.25, gap: 3 }}>
             {/* Brand Logo */}
-            <Typography
+            <Box
               component={RouterLink}
               to="/"
-              variant="h5"
               sx={{
-                color: 'white',
-                textDecoration: 'none',
-                fontWeight: 900,
-                letterSpacing: '-0.04em',
-                fontSize: '1.6rem',
                 display: 'flex',
                 alignItems: 'center',
+                textDecoration: 'none',
                 mr: 2,
+                '&:hover img': {
+                  transform: 'scale(1.04)',
+                },
               }}
             >
-              ORNATE<Box component="span" sx={{ color: '#6366f1' }}>.</Box>
-            </Typography>
+              <Box
+                component="img"
+                src={isLight ? '/logo.svg' : '/logo-dark.svg'}
+                alt="E-Shophy"
+                sx={{
+                  height: 42,
+                  width: 'auto',
+                  maxWidth: 170,
+                  objectFit: 'contain',
+                  transition: 'transform 0.2s ease',
+                }}
+              />
+            </Box>
 
             {/* Category Navigation Links */}
             <Box sx={{ display: 'flex', gap: 0.5, mr: 'auto' }}>
@@ -165,17 +180,21 @@ export default function StorefrontLayout() {
                   component={RouterLink}
                   to={`/categories/${cat.slug}`}
                   sx={{
-                    color: location.pathname === `/categories/${cat.slug}` ? '#ffffff' : 'rgba(255,255,255,0.75)',
+                    color: location.pathname === `/categories/${cat.slug}`
+                      ? '#FF7900'
+                      : isLight ? '#374151' : 'rgba(255,255,255,0.75)',
                     textDecoration: 'none',
                     fontSize: '0.875rem',
                     fontWeight: 600,
                     px: 1.75,
                     py: 1,
                     borderRadius: 2,
-                    bgcolor: location.pathname === `/categories/${cat.slug}` ? 'rgba(255,255,255,0.1)' : 'transparent',
+                    bgcolor: location.pathname === `/categories/${cat.slug}`
+                      ? (isLight ? 'rgba(255, 121, 0, 0.08)' : 'rgba(255, 121, 0, 0.15)')
+                      : 'transparent',
                     '&:hover': {
-                      color: 'white',
-                      bgcolor: 'rgba(255,255,255,0.08)',
+                      color: '#FF7900',
+                      bgcolor: isLight ? '#F5F6F7' : 'rgba(255,255,255,0.08)',
                     },
                     transition: 'all 0.15s',
                   }}
@@ -193,29 +212,29 @@ export default function StorefrontLayout() {
                 sx={{
                   display: 'flex',
                   alignItems: 'center',
-                  bgcolor: 'rgba(255, 255, 255, 0.08)',
-                  borderRadius: 3,
+                  bgcolor: isLight ? '#F5F6F7' : 'rgba(255, 255, 255, 0.08)',
+                  borderRadius: 2.5,
                   px: 2,
                   py: 0.8,
-                  border: '1px solid rgba(255, 255, 255, 0.12)',
+                  border: `1px solid ${isLight ? '#E5E7EB' : 'rgba(255, 255, 255, 0.12)'}`,
                   '&:focus-within': {
-                    bgcolor: 'rgba(255, 255, 255, 0.14)',
-                    borderColor: '#818cf8',
-                    boxShadow: '0 0 0 3px rgba(129, 140, 248, 0.2)',
+                    bgcolor: isLight ? '#FFFFFF' : 'rgba(255, 255, 255, 0.14)',
+                    borderColor: '#FF7900',
+                    boxShadow: '0 0 0 3px rgba(255, 121, 0, 0.15)',
                   },
                   transition: 'all 0.2s',
                 }}
               >
-                <SearchIcon sx={{ color: 'rgba(255,255,255,0.6)', mr: 1.5, fontSize: 20 }} />
+                <SearchIcon sx={{ color: isLight ? '#9CA3AF' : 'rgba(255,255,255,0.6)', mr: 1.5, fontSize: 20 }} />
                 <InputBase
                   placeholder="Search flagship gear, watches, apparel…"
                   value={searchValue}
                   onChange={(e) => setSearchValue(e.target.value)}
                   fullWidth
                   sx={{
-                    color: 'white',
+                    color: isLight ? '#172B30' : 'white',
                     fontSize: '0.875rem',
-                    '& input::placeholder': { color: 'rgba(255,255,255,0.5)', opacity: 1 },
+                    '& input::placeholder': { color: isLight ? '#9CA3AF' : 'rgba(255,255,255,0.5)', opacity: 1 },
                   }}
                 />
               </Box>
@@ -223,42 +242,41 @@ export default function StorefrontLayout() {
               {/* Autocomplete Suggestions Dropdown */}
               {suggestions && suggestions.length > 0 && debouncedSearch.length >= 2 && (
                 <Paper
-                  elevation={6}
+                  elevation={8}
                   sx={{
                     position: 'absolute',
-                    top: '100%',
+                    top: 'calc(100% + 8px)',
                     left: 0,
                     right: 0,
-                    mt: 1,
-                    p: 1,
-                    bgcolor: '#1e293b',
-                    color: 'white',
-                    border: '1px solid #334155',
-                    borderRadius: 2,
                     zIndex: 1300,
+                    bgcolor: isLight ? '#FFFFFF' : '#1e293b',
+                    color: isLight ? '#172B30' : 'white',
+                    borderRadius: 3,
+                    border: `1px solid ${isLight ? '#E5E7EB' : 'rgba(255,255,255,0.1)'}`,
+                    overflow: 'hidden',
+                    p: 1,
                   }}
                 >
-                  {suggestions.map((sug, i) => (
+                  {suggestions.slice(0, 5).map((sug, idx) => (
                     <Box
-                      key={i}
+                      key={`${sug.type}-${sug.label}-${idx}`}
                       onClick={() => {
-                        navigate(sug.slug ? `/products/${sug.slug}` : `/search?q=${encodeURIComponent(sug.label)}`);
-                        setSearchValue('');
+                        setSearchValue(sug.label);
+                        navigate(`/search?q=${encodeURIComponent(sug.label)}`);
                       }}
                       sx={{
-                        px: 2,
-                        py: 1,
-                        borderRadius: 1,
+                        p: 1.5,
+                        borderRadius: 2,
                         cursor: 'pointer',
-                        fontSize: '0.875rem',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'space-between',
-                        '&:hover': { bgcolor: 'rgba(255,255,255,0.08)', color: '#818cf8' },
+                        fontSize: '0.875rem',
+                        '&:hover': { bgcolor: isLight ? '#F5F6F7' : 'rgba(255,255,255,0.08)' },
                       }}
                     >
                       <span>{sug.label}</span>
-                      <Chip label={sug.type} size="small" sx={{ height: 18, fontSize: 10, bgcolor: '#334155', color: '#cbd5e1' }} />
+                      <Chip label={sug.type} size="small" sx={{ height: 18, fontSize: 10, bgcolor: isLight ? '#E5E7EB' : '#334155', color: isLight ? '#374151' : '#cbd5e1' }} />
                     </Box>
                   ))}
                 </Paper>
@@ -267,13 +285,33 @@ export default function StorefrontLayout() {
 
             {/* Quick Actions */}
             <Stack direction="row" spacing={1.5} alignItems="center">
+              {/* Theme Toggle Button */}
+              <Tooltip title={isLight ? 'Switch to Dark Mode' : 'Switch to Light Mode'}>
+                <IconButton
+                  onClick={toggleTheme}
+                  sx={{
+                    color: isLight ? '#374151' : '#F8FAFC',
+                    bgcolor: isLight ? '#F5F6F7' : 'rgba(255,255,255,0.06)',
+                    border: `1px solid ${isLight ? '#E5E7EB' : 'rgba(255,255,255,0.1)'}`,
+                    '&:hover': {
+                      bgcolor: isLight ? '#E5E7EB' : 'rgba(255,255,255,0.14)',
+                      color: '#FF7900',
+                    },
+                    transition: 'all 0.2s',
+                  }}
+                >
+                  {isLight ? <DarkModeIcon fontSize="small" /> : <LightModeIcon fontSize="small" sx={{ color: '#FF7900' }} />}
+                </IconButton>
+              </Tooltip>
+
               <IconButton
                 component={RouterLink}
                 to="/wishlist"
                 sx={{
-                  color: 'white',
-                  bgcolor: 'rgba(255,255,255,0.05)',
-                  '&:hover': { bgcolor: 'rgba(255,255,255,0.12)' },
+                  color: isLight ? '#374151' : 'white',
+                  bgcolor: isLight ? '#F5F6F7' : 'rgba(255,255,255,0.05)',
+                  border: `1px solid ${isLight ? '#E5E7EB' : 'transparent'}`,
+                  '&:hover': { bgcolor: isLight ? '#E5E7EB' : 'rgba(255,255,255,0.12)', color: '#FF7900' },
                 }}
               >
                 <WishlistIcon fontSize="small" />
@@ -283,21 +321,22 @@ export default function StorefrontLayout() {
                 component={RouterLink}
                 to="/cart"
                 sx={{
-                  color: 'white',
-                  bgcolor: 'rgba(255,255,255,0.05)',
-                  '&:hover': { bgcolor: 'rgba(255,255,255,0.12)' },
+                  color: isLight ? '#374151' : 'white',
+                  bgcolor: isLight ? '#F5F6F7' : 'rgba(255,255,255,0.05)',
+                  border: `1px solid ${isLight ? '#E5E7EB' : 'transparent'}`,
+                  '&:hover': { bgcolor: isLight ? '#E5E7EB' : 'rgba(255,255,255,0.12)', color: '#FF7900' },
                 }}
               >
                 <Badge
                   badgeContent={itemCount}
-                  color="secondary"
                   sx={{
                     '& .MuiBadge-badge': {
                       fontWeight: 800,
                       fontSize: '0.75rem',
                       height: 20,
                       minWidth: 20,
-                      bgcolor: '#6366f1',
+                      bgcolor: '#FF7900',
+                      color: 'white',
                     },
                   }}
                 >
@@ -314,7 +353,9 @@ export default function StorefrontLayout() {
                   sx={{
                     width: 36,
                     height: 36,
-                    bgcolor: isAuthenticated ? '#4f46e5' : '#334155',
+                    bgcolor: isAuthenticated ? '#FF7900' : isLight ? '#F5F6F7' : '#334155',
+                    color: isAuthenticated ? '#FFFFFF' : isLight ? '#172B30' : '#FFFFFF',
+                    border: `1px solid ${isLight ? '#E5E7EB' : 'transparent'}`,
                     fontSize: '0.9rem',
                     fontWeight: 700,
                   }}
@@ -334,49 +375,69 @@ export default function StorefrontLayout() {
             position="static"
             elevation={0}
             sx={{
-              bgcolor: '#0f172a',
-              borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+              bgcolor: isLight ? '#FFFFFF' : '#0F172A',
+              color: isLight ? '#172B30' : '#FFFFFF',
+              borderBottom: `1px solid ${isLight ? '#E5E7EB' : 'rgba(255, 255, 255, 0.08)'}`,
             }}
           >
-            <Toolbar sx={{ px: 2, minHeight: 56, display: 'flex', justifyContent: 'space-between' }}>
+            <Toolbar sx={{ px: 2, minHeight: 56, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <IconButton
-                sx={{ color: 'white', p: 1 }}
+                sx={{ color: isLight ? '#172B30' : 'white', p: 1 }}
                 onClick={() => setDrawerOpen(true)}
               >
                 <MenuIcon />
               </IconButton>
 
-              <Typography
+              <Box
                 component={RouterLink}
                 to="/"
-                variant="h6"
                 sx={{
-                  color: 'white',
-                  textDecoration: 'none',
-                  fontWeight: 900,
-                  letterSpacing: '-0.03em',
-                  fontSize: '1.25rem',
                   display: 'flex',
                   alignItems: 'center',
+                  textDecoration: 'none',
                 }}
               >
-                ORNATE<Box component="span" sx={{ color: '#6366f1' }}>.</Box>
-              </Typography>
+                <Box
+                  component="img"
+                  src={isLight ? '/logo.svg' : '/logo-dark.svg'}
+                  alt="E-Shophy"
+                  sx={{
+                    height: 32,
+                    width: 'auto',
+                    maxWidth: 130,
+                    objectFit: 'contain',
+                  }}
+                />
+              </Box>
 
-              <Stack direction="row" spacing={1}>
+              <Stack direction="row" spacing={0.5} alignItems="center">
                 <IconButton
-                  component={RouterLink}
-                  to="/wishlist"
-                  sx={{ color: 'white', p: 1 }}
+                  onClick={toggleTheme}
+                  size="small"
+                  sx={{
+                    color: isLight ? '#374151' : '#F8FAFC',
+                    p: 1,
+                  }}
                 >
-                  <WishlistIcon fontSize="small" />
+                  {isLight ? <DarkModeIcon fontSize="small" /> : <LightModeIcon fontSize="small" sx={{ color: '#FF7900' }} />}
                 </IconButton>
+
                 <IconButton
                   component={RouterLink}
                   to="/cart"
-                  sx={{ color: 'white', p: 1 }}
+                  sx={{ color: isLight ? '#172B30' : 'white', p: 1 }}
                 >
-                  <Badge badgeContent={itemCount} color="secondary">
+                  <Badge
+                    badgeContent={itemCount}
+                    sx={{
+                      '& .MuiBadge-badge': {
+                        bgcolor: '#FF7900',
+                        color: 'white',
+                        fontWeight: 800,
+                        fontSize: '0.7rem',
+                      },
+                    }}
+                  >
                     <CartIcon fontSize="small" />
                   </Badge>
                 </IconButton>
@@ -391,22 +452,23 @@ export default function StorefrontLayout() {
                 sx={{
                   display: 'flex',
                   alignItems: 'center',
-                  bgcolor: 'rgba(255, 255, 255, 0.1)',
+                  bgcolor: isLight ? '#F5F6F7' : 'rgba(255, 255, 255, 0.1)',
                   borderRadius: 2.5,
                   px: 1.5,
                   py: 0.6,
+                  border: `1px solid ${isLight ? '#E5E7EB' : 'transparent'}`,
                 }}
               >
-                <SearchIcon sx={{ color: 'rgba(255,255,255,0.6)', mr: 1, fontSize: 18 }} />
+                <SearchIcon sx={{ color: isLight ? '#9CA3AF' : 'rgba(255,255,255,0.6)', mr: 1, fontSize: 18 }} />
                 <InputBase
-                  placeholder="Search 12+ flagship products…"
+                  placeholder="Search products…"
                   value={searchValue}
                   onChange={(e) => setSearchValue(e.target.value)}
                   fullWidth
                   sx={{
-                    color: 'white',
+                    color: isLight ? '#172B30' : 'white',
                     fontSize: '0.85rem',
-                    '& input::placeholder': { color: 'rgba(255,255,255,0.6)' },
+                    '& input::placeholder': { color: isLight ? '#9CA3AF' : 'rgba(255,255,255,0.6)' },
                   }}
                 />
               </Box>
@@ -423,37 +485,45 @@ export default function StorefrontLayout() {
         PaperProps={{
           sx: {
             width: 290,
-            bgcolor: '#0f172a',
-            color: 'white',
+            bgcolor: isLight ? '#FFFFFF' : '#0F172A',
+            color: isLight ? '#172B30' : 'white',
             display: 'flex',
             flexDirection: 'column',
           },
         }}
       >
-        <Box sx={{ p: 2.5, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #1e293b' }}>
-          <Typography variant="h6" fontWeight={900}>
-            ORNATE<Box component="span" sx={{ color: '#6366f1' }}>.</Box>
-          </Typography>
-          <IconButton sx={{ color: '#94a3b8' }} onClick={() => setDrawerOpen(false)}>
+        <Box sx={{ p: 2.5, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: `1px solid ${isLight ? '#E5E7EB' : '#1E293B'}` }}>
+          <Box
+            component="img"
+            src={isLight ? '/logo.svg' : '/logo-dark.svg'}
+            alt="E-Shophy"
+            sx={{
+              height: 32,
+              width: 'auto',
+              maxWidth: 130,
+              objectFit: 'contain',
+            }}
+          />
+          <IconButton sx={{ color: isLight ? '#64748B' : '#94A3B8' }} onClick={() => setDrawerOpen(false)}>
             <CloseIcon fontSize="small" />
           </IconButton>
         </Box>
 
         {/* User Card in Drawer */}
-        <Box sx={{ p: 2.5, bgcolor: '#1e293b', borderBottom: '1px solid #334155' }}>
+        <Box sx={{ p: 2.5, bgcolor: isLight ? '#F5F6F7' : '#1E293B', borderBottom: `1px solid ${isLight ? '#E5E7EB' : '#334155'}` }}>
           {isAuthenticated ? (
             <Stack direction="row" spacing={1.5} alignItems="center">
-              <Avatar sx={{ bgcolor: '#4f46e5', width: 44, height: 44, fontWeight: 700 }}>
+              <Avatar sx={{ bgcolor: '#FF7900', color: 'white', width: 44, height: 44, fontWeight: 700 }}>
                 {user?.name?.[0]?.toUpperCase()}
               </Avatar>
               <Box>
-                <Typography variant="subtitle2" fontWeight={800}>{user?.name}</Typography>
-                <Typography variant="caption" sx={{ color: '#94a3b8' }}>{user?.email}</Typography>
+                <Typography variant="subtitle2" fontWeight={800} color={isLight ? '#172B30' : 'white'}>{user?.name}</Typography>
+                <Typography variant="caption" sx={{ color: isLight ? '#64748B' : '#94A3B8' }}>{user?.email}</Typography>
               </Box>
             </Stack>
           ) : (
             <Box>
-              <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 1 }}>Welcome to Ornate</Typography>
+              <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 1, color: isLight ? '#172B30' : 'white' }}>Welcome to E-Shophy</Typography>
               <Button
                 variant="contained"
                 size="small"
@@ -461,7 +531,7 @@ export default function StorefrontLayout() {
                 component={RouterLink}
                 to="/login"
                 onClick={() => setDrawerOpen(false)}
-                sx={{ bgcolor: '#2563eb', fontWeight: 700, borderRadius: 1, py: 1, '&:hover': { bgcolor: '#1d4ed8' } }}
+                sx={{ bgcolor: '#FF7900', color: 'white', fontWeight: 700, borderRadius: 1, py: 1, '&:hover': { bgcolor: '#E85D04' } }}
               >
                 Sign In / Register
               </Button>
@@ -471,7 +541,7 @@ export default function StorefrontLayout() {
 
         {/* Category Links */}
         <List sx={{ px: 1.5, py: 2 }}>
-          <Typography variant="caption" sx={{ px: 2, color: '#64748b', fontWeight: 800, letterSpacing: '0.05em' }}>
+          <Typography variant="caption" sx={{ px: 2, color: isLight ? '#6B7280' : '#64748b', fontWeight: 800, letterSpacing: '0.05em' }}>
             DEPARTMENTS
           </Typography>
           {categories?.map((cat) => (
@@ -483,20 +553,20 @@ export default function StorefrontLayout() {
                 sx={{
                   borderRadius: 2,
                   py: 1,
-                  '&:hover': { bgcolor: 'rgba(255,255,255,0.06)' },
+                  '&:hover': { bgcolor: isLight ? '#F5F6F7' : 'rgba(255,255,255,0.06)' },
                 }}
               >
                 <ListItemText
                   primary={cat.name}
-                  primaryTypographyProps={{ fontSize: '0.9rem', fontWeight: 600 }}
+                  primaryTypographyProps={{ fontSize: '0.9rem', fontWeight: 600, color: isLight ? '#172B30' : 'white' }}
                 />
-                <ChevronRightIcon sx={{ color: '#64748b', fontSize: 18 }} />
+                <ChevronRightIcon sx={{ color: isLight ? '#9CA3AF' : '#64748b', fontSize: 18 }} />
               </ListItemButton>
             </ListItem>
           ))}
         </List>
 
-        <Box sx={{ mt: 'auto', p: 2, borderTop: '1px solid #1e293b' }}>
+        <Box sx={{ mt: 'auto', p: 2, borderTop: `1px solid ${isLight ? '#E5E7EB' : '#1E293B'}` }}>
           <Button
             component={RouterLink}
             to="http://localhost:5174"
@@ -504,7 +574,7 @@ export default function StorefrontLayout() {
             fullWidth
             variant="outlined"
             size="small"
-            sx={{ borderColor: '#334155', color: '#94a3b8', borderRadius: 1, fontWeight: 600, py: 1 }}
+            sx={{ borderColor: isLight ? '#E5E7EB' : '#334155', color: isLight ? '#6B7280' : '#94A3B8', borderRadius: 1, fontWeight: 600, py: 1 }}
           >
             Admin Management Console
           </Button>
@@ -555,7 +625,7 @@ export default function StorefrontLayout() {
           </MenuItem>,
         ] : [
           <MenuItem key="login" component={RouterLink} to="/login" onClick={() => setAnchorEl(null)} sx={{ borderRadius: 1.5, fontWeight: 700 }}>
-            Sign In to Ornate
+            Sign In to E-Shophy
           </MenuItem>,
           <MenuItem key="register" component={RouterLink} to="/register" onClick={() => setAnchorEl(null)} sx={{ borderRadius: 1.5 }}>
             Create New Account
@@ -581,9 +651,9 @@ export default function StorefrontLayout() {
             left: 0,
             right: 0,
             zIndex: 1100,
-            bgcolor: 'rgba(255, 255, 255, 0.95)',
+            bgcolor: isLight ? 'rgba(255, 255, 255, 0.95)' : 'rgba(15, 23, 42, 0.95)',
             backdropFilter: 'blur(20px)',
-            borderTop: '1px solid rgba(0, 0, 0, 0.08)',
+            borderTop: `1px solid ${isLight ? '#E5E7EB' : 'rgba(255, 255, 255, 0.08)'}`,
             paddingBottom: 'env(safe-area-inset-bottom, 8px)',
           }}
         >
@@ -594,11 +664,11 @@ export default function StorefrontLayout() {
               height: 60,
               bgcolor: 'transparent',
               '& .MuiBottomNavigationAction-root': {
-                color: '#64748b',
+                color: isLight ? '#64748B' : '#94A3B8',
                 minWidth: 'auto',
                 py: 0.5,
                 '&.Mui-selected': {
-                  color: '#4f46e5',
+                  color: '#FF7900',
                   fontWeight: 800,
                 },
                 '& .MuiBottomNavigationAction-label': {

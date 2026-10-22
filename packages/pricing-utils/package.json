@@ -18,11 +18,11 @@
     "format": "prettier --write src/"
   },
   "dependencies": {
-    "@ornate/types": "workspace:*"
+    "@ornate/types": "workspace:*",
+    "typescript": "^5.6.2"
   },
   "devDependencies": {
     "@ornate/tsconfig": "workspace:*",
-    "typescript": "^5.6.2",
     "vitest": "^2.1.1"
   }
 }

@@ -40,6 +40,14 @@ export default function LoginPage() {
   return (
     <Container maxWidth="xs" sx={{ py: 10 }}>
       <Paper elevation={0} sx={{ p: 4, borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
+        <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
+          <Box
+            component="img"
+            src="/logo.svg"
+            alt="E-Shophy Logo"
+            sx={{ width: 48, height: 48, objectFit: 'contain', borderRadius: '10px' }}
+          />
+        </Box>
         <Typography variant="h5" fontWeight={800} textAlign="center" letterSpacing="-0.02em" sx={{ mb: 1 }}>
           Welcome back
         </Typography>

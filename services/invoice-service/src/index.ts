@@ -42,8 +42,17 @@ const globalLimiter = rateLimit({
 });
 app.use(globalLimiter);
 
-// Health check
-app.get('/health', (_req, res) => {
+// Health check & Root
+app.get('/', (_req: Request, res: Response) => {
+  res.json({
+    status: 'ok',
+    message: 'Invoice service running successfully',
+    service: 'invoice-service',
+    timestamp: new Date().toISOString(),
+  });
+});
+
+app.get('/health', (_req: Request, res: Response) => {
   res.json({ status: 'ok', service: 'invoice-service', timestamp: new Date().toISOString() });
 });
 

@@ -2,7 +2,7 @@ import { useParams, Link as RouterLink } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 import {
   Box, Container, Typography, Breadcrumbs, Link, Grid,
-  CircularProgress, Chip, Stack,
+  CircularProgress, Chip, Stack, useTheme,
 } from '@mui/material';
 import { NavigateNext as NextIcon } from '@mui/icons-material';
 import api from '../api/client';
@@ -12,6 +12,8 @@ import { getDummyCategoryBySlug, getDummyProductsByCategory } from '../data/dumm
 
 export default function CategoryPage() {
   const { slug } = useParams();
+  const theme = useTheme();
+  const isLight = theme.palette.mode === 'light';
 
   const { data: categoryData } = useQuery({
     queryKey: ['category-detail', slug],
@@ -60,21 +62,21 @@ export default function CategoryPage() {
           mb: 4,
           p: { xs: 3, md: 4 },
           borderRadius: 2,
-          bgcolor: '#0f172a',
-          border: '1px solid #1e293b',
+          bgcolor: isLight ? '#172B30' : '#111827',
+          border: `1px solid ${isLight ? 'transparent' : 'rgba(255, 255, 255, 0.08)'}`,
           color: 'white',
           position: 'relative',
         }}
       >
         <Stack direction="row" spacing={1} sx={{ mb: 1.5 }}>
-          <Chip label="DEPARTMENT" size="small" sx={{ bgcolor: 'rgba(255,255,255,0.1)', color: '#e2e8f0', fontWeight: 700, fontSize: 11, borderRadius: 1 }} />
-          <Chip label={`${products.length} Products`} size="small" sx={{ bgcolor: '#2563eb', color: 'white', fontWeight: 700, fontSize: 11, borderRadius: 1 }} />
+          <Chip label="DEPARTMENT" size="small" sx={{ bgcolor: 'rgba(255,255,255,0.12)', color: '#FFFFFF', fontWeight: 700, fontSize: 11, borderRadius: 1 }} />
+          <Chip label={`${products.length} Products`} size="small" sx={{ bgcolor: '#FF7900', color: 'white', fontWeight: 700, fontSize: 11, borderRadius: 1 }} />
         </Stack>
 
-        <Typography variant="h3" fontWeight={900} letterSpacing="-0.03em" sx={{ fontSize: { xs: '1.8rem', md: '2.5rem' }, mb: 1 }}>
+        <Typography variant="h3" fontWeight={900} letterSpacing="-0.03em" sx={{ fontSize: { xs: '1.8rem', md: '2.5rem' }, mb: 1, color: '#FFFFFF' }}>
           {currentCategory?.name || slug}
         </Typography>
-        <Typography variant="body1" sx={{ color: '#94a3b8', maxWidth: 600, fontSize: { xs: '0.9rem', md: '1rem' } }}>
+        <Typography variant="body1" sx={{ color: '#E2E8F0', maxWidth: 600, fontSize: { xs: '0.9rem', md: '1rem' } }}>
           {currentCategory?.description || `Explore our curated selection of flagship ${currentCategory?.name || slug} with express shipping.`}
         </Typography>
       </Box>
@@ -82,7 +84,7 @@ export default function CategoryPage() {
       {/* Products Grid */}
       {isLoading ? (
         <Box sx={{ display: 'flex', justifyContent: 'center', py: 12 }}>
-          <CircularProgress />
+          <CircularProgress sx={{ color: '#FF7900' }} />
         </Box>
       ) : products.length === 0 ? (
         <Box sx={{ py: 10, textAlign: 'center' }}>

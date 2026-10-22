@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { useNavigate, Link as RouterLink } from 'react-router';
 import {
-  Container, Typography, Paper, TextField, Button,
+  Box, Container, Typography, Paper, TextField, Button,
   Alert, Stack,
 } from '@mui/material';
 import { useAuthStore } from '../store/auth.store';
@@ -36,11 +36,19 @@ export default function RegisterPage() {
   return (
     <Container maxWidth="xs" sx={{ py: 10 }}>
       <Paper elevation={0} sx={{ p: 4, borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
+        <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
+          <Box
+            component="img"
+            src="/logo.svg"
+            alt="E-Shophy Logo"
+            sx={{ width: 48, height: 48, objectFit: 'contain', borderRadius: '10px' }}
+          />
+        </Box>
         <Typography variant="h5" fontWeight={800} textAlign="center" letterSpacing="-0.02em" sx={{ mb: 1 }}>
           Create an account
         </Typography>
         <Typography variant="body2" color="text.secondary" textAlign="center" sx={{ mb: 3 }}>
-          Join Ornate today
+          Join E-Shophy today
         </Typography>
 
         {error && (

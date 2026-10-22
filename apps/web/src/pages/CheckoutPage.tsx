@@ -330,8 +330,9 @@ export default function CheckoutPage() {
                   borderRadius: 1,
                   fontWeight: 700,
                   fontSize: '0.95rem',
-                  bgcolor: '#2563eb',
-                  '&:hover': { bgcolor: '#1d4ed8' },
+                  bgcolor: '#FF7900',
+                  color: '#FFFFFF',
+                  '&:hover': { bgcolor: '#E85D04' },
                 }}
               >
                 {isSubmitting ? 'Placing Order…' : `Pay ₹${(grandTotal / 100).toFixed(0)} & Confirm`}

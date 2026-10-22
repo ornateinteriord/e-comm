@@ -9,7 +9,6 @@
     "dev:apps": "turbo dev --filter=\"./apps/*\" --concurrency=5",
     "build": "turbo build",
     "vercel-build": "turbo build",
-    "postinstall": "turbo build --filter=\"./packages/*\" --filter=\"./services/*\"",
     "start": "turbo start",
     "lint": "turbo lint",
     "format": "turbo format",

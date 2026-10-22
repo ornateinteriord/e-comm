@@ -9,13 +9,14 @@ export default function TermsPage() {
         sx={{
           p: { xs: 3, md: 6 },
           borderRadius: 2,
-          border: '1px solid #e2e8f0',
-          bgcolor: '#ffffff',
+          border: '1px solid',
+          borderColor: 'divider',
+          bgcolor: 'background.paper',
         }}
       >
         <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 2 }}>
-          <GavelIcon sx={{ color: '#2563eb', fontSize: 28 }} />
-          <Typography variant="h4" fontWeight={800} sx={{ color: '#0f172a', letterSpacing: '-0.02em' }}>
+          <GavelIcon sx={{ color: '#FF7900', fontSize: 28 }} />
+          <Typography variant="h4" fontWeight={800} sx={{ color: 'text.primary', letterSpacing: '-0.02em' }}>
             Terms & Conditions
           </Typography>
         </Stack>
@@ -27,16 +28,16 @@ export default function TermsPage() {
 
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
           <Box>
-            <Typography variant="h6" fontWeight={700} sx={{ color: '#0f172a', mb: 1 }}>
+            <Typography variant="h6" fontWeight={700} sx={{ color: 'text.primary', mb: 1 }}>
               1. Acceptance of Terms
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.8 }}>
-              These Terms and Conditions constitute a legally binding agreement between you and Ornate Store Private Limited ("Ornate", "we", "us"). By registering an account, browsing products, or completing an order on this platform, you acknowledge and agree to comply with all provisions detailed herein.
+              These Terms and Conditions constitute a legally binding agreement between you and E-Shophy Store Private Limited ("E-Shophy", "we", "us"). By registering an account, browsing products, or completing an order on this platform, you acknowledge and agree to comply with all provisions detailed herein.
             </Typography>
           </Box>
 
           <Box>
-            <Typography variant="h6" fontWeight={700} sx={{ color: '#0f172a', mb: 1 }}>
+            <Typography variant="h6" fontWeight={700} sx={{ color: 'text.primary', mb: 1 }}>
               2. Catalog Pricing, Taxes & 4-Tier Structure
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.8 }}>
@@ -45,7 +46,7 @@ export default function TermsPage() {
           </Box>
 
           <Box>
-            <Typography variant="h6" fontWeight={700} sx={{ color: '#0f172a', mb: 1 }}>
+            <Typography variant="h6" fontWeight={700} sx={{ color: 'text.primary', mb: 1 }}>
               3. Order Placement, Verification & Invoicing
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.8 }}>
@@ -54,7 +55,7 @@ export default function TermsPage() {
           </Box>
 
           <Box>
-            <Typography variant="h6" fontWeight={700} sx={{ color: '#0f172a', mb: 1 }}>
+            <Typography variant="h6" fontWeight={700} sx={{ color: 'text.primary', mb: 1 }}>
               4. Inventory Allocation & Fulfillment
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.8 }}>
@@ -63,7 +64,7 @@ export default function TermsPage() {
           </Box>
 
           <Box>
-            <Typography variant="h6" fontWeight={700} sx={{ color: '#0f172a', mb: 1 }}>
+            <Typography variant="h6" fontWeight={700} sx={{ color: 'text.primary', mb: 1 }}>
               5. Returns, Replacements & Warranty
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.8 }}>
@@ -72,7 +73,7 @@ export default function TermsPage() {
           </Box>
 
           <Box>
-            <Typography variant="h6" fontWeight={700} sx={{ color: '#0f172a', mb: 1 }}>
+            <Typography variant="h6" fontWeight={700} sx={{ color: 'text.primary', mb: 1 }}>
               6. Governing Law & Jurisdiction
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.8 }}>

@@ -39,8 +39,17 @@ const globalLimiter = rateLimit({
 });
 app.use(globalLimiter);
 
-// Health check
-app.get('/health', (_req, res) => {
+// Health check & Root
+app.get('/', (_req: Request, res: Response) => {
+  res.json({
+    status: 'ok',
+    message: 'Inventory service running successfully',
+    service: 'inventory-service',
+    timestamp: new Date().toISOString(),
+  });
+});
+
+app.get('/health', (_req: Request, res: Response) => {
   res.json({ status: 'ok', service: 'inventory-service', timestamp: new Date().toISOString() });
 });
 

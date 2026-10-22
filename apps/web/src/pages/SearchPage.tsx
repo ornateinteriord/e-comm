@@ -19,6 +19,7 @@ import { searchDummyProducts, DUMMY_CATEGORIES } from '../data/dummyData';
 
 export default function SearchPage() {
   const theme = useTheme();
+  const isLight = theme.palette.mode === 'light';
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -108,8 +109,8 @@ export default function SearchPage() {
     <Box sx={{ p: { xs: 2.5, md: 3 } }}>
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <FilterIcon sx={{ color: '#4f46e5' }} />
-          <Typography variant="subtitle1" fontWeight={800}>Filter Catalog</Typography>
+          <FilterIcon sx={{ color: '#FF7900' }} />
+          <Typography variant="subtitle1" fontWeight={800} sx={{ color: isLight ? '#172B30' : '#F8FAFC' }}>Filter Catalog</Typography>
         </Box>
         {isMobile && (
           <IconButton size="small" onClick={() => setMobileFilterOpen(false)}>
@@ -160,12 +161,12 @@ export default function SearchPage() {
         min={1000}
         max={150000}
         step={2000}
-        sx={{ color: '#4f46e5', mb: 2 }}
+        sx={{ color: '#FF7900', mb: 2 }}
       />
 
       {/* In Stock */}
       <FormControlLabel
-        control={<Checkbox checked={inStock} onChange={(e) => setInStock(e.target.checked)} sx={{ color: '#2563eb', '&.Mui-checked': { color: '#2563eb' } }} />}
+        control={<Checkbox checked={inStock} onChange={(e) => setInStock(e.target.checked)} sx={{ color: '#FF7900', '&.Mui-checked': { color: '#FF7900' } }} />}
         label={<Typography variant="body2" fontWeight={600}>In Stock Only</Typography>}
         sx={{ mb: 3 }}
       />
@@ -176,7 +177,7 @@ export default function SearchPage() {
           variant="contained"
           fullWidth
           onClick={applyFilters}
-          sx={{ bgcolor: '#0f172a', fontWeight: 700, borderRadius: 1, py: 1.2, '&:hover': { bgcolor: '#1e293b' } }}
+          sx={{ bgcolor: '#FF7900', color: '#FFFFFF', fontWeight: 700, borderRadius: 1, py: 1.2, '&:hover': { bgcolor: '#E85D04' } }}
         >
           Apply Filters
         </Button>
@@ -197,7 +198,7 @@ export default function SearchPage() {
       {/* Search Header Bar */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 2, mb: 3 }}>
         <Box>
-          <Typography variant="h4" fontWeight={900} letterSpacing="-0.03em" sx={{ fontSize: { xs: '1.6rem', md: '2.25rem' } }}>
+          <Typography variant="h4" fontWeight={900} letterSpacing="-0.03em" sx={{ fontSize: { xs: '1.6rem', md: '2.25rem' }, color: isLight ? '#172B30' : '#F8FAFC' }}>
             {queryParam ? `Results for "${queryParam}"` : 'Browse Flagship Catalog'}
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
@@ -213,7 +214,13 @@ export default function SearchPage() {
               size="small"
               startIcon={<TuneIcon />}
               onClick={() => setMobileFilterOpen(true)}
-              sx={{ borderColor: '#cbd5e1', color: '#0f172a', fontWeight: 700, borderRadius: 1 }}
+              sx={{
+                borderColor: isLight ? '#E5E7EB' : 'rgba(255, 255, 255, 0.2)',
+                color: isLight ? '#172B30' : '#FFFFFF',
+                fontWeight: 700,
+                borderRadius: 1,
+                '&:hover': { borderColor: '#FF7900', color: '#FF7900' },
+              }}
             >
               Filters
             </Button>
@@ -243,7 +250,7 @@ export default function SearchPage() {
         {/* Desktop Sidebar */}
         {!isMobile && (
           <Grid item xs={12} md={3.2}>
-            <Paper elevation={0} sx={{ border: '1px solid #e2e8f0', borderRadius: 4, bgcolor: 'background.paper', position: 'sticky', top: 90 }}>
+            <Paper elevation={0} sx={{ border: `1px solid ${isLight ? '#E5E7EB' : 'rgba(255, 255, 255, 0.08)'}`, borderRadius: 4, bgcolor: 'background.paper', position: 'sticky', top: 90 }}>
               {filterSidebarContent}
             </Paper>
           </Grid>

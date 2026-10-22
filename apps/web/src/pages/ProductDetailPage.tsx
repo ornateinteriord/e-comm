@@ -28,6 +28,7 @@ export default function ProductDetailPage() {
   const { slug } = useParams();
   const navigate = useNavigate();
   const theme = useTheme();
+  const isLight = theme.palette.mode === 'light';
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const addItem = useCartStore((s) => s.addItem);
 
@@ -164,13 +165,13 @@ export default function ProductDetailPage() {
                   {hasDiscount && (
                     <Chip
                       label={`${savingsPercent}% OFF`}
-                      sx={{ bgcolor: isDeal ? '#f43f5e' : '#0f172a', color: 'white', fontWeight: 800, fontSize: '0.75rem' }}
+                      sx={{ bgcolor: '#D92D20', color: 'white', fontWeight: 800, fontSize: '0.75rem' }}
                     />
                   )}
                   {isDeal && (
                     <Chip
                       label="SPECIAL DEAL"
-                      sx={{ bgcolor: '#2563eb', color: 'white', fontWeight: 800, fontSize: '0.75rem', borderRadius: 1 }}
+                      sx={{ bgcolor: '#FF7900', color: 'white', fontWeight: 800, fontSize: '0.75rem', borderRadius: 1 }}
                     />
                   )}
                 </Stack>
@@ -181,10 +182,10 @@ export default function ProductDetailPage() {
                     position: 'absolute',
                     top: 16,
                     right: 16,
-                    bgcolor: 'rgba(255,255,255,0.9)',
+                    bgcolor: isLight ? 'rgba(255,255,255,0.9)' : 'rgba(15, 23, 42, 0.85)',
                     backdropFilter: 'blur(8px)',
-                    color: isWishlisted ? '#f43f5e' : '#64748b',
-                    '&:hover': { bgcolor: 'white' },
+                    color: isWishlisted ? '#D92D20' : (isLight ? '#64748B' : '#94A3B8'),
+                    '&:hover': { bgcolor: isLight ? 'white' : '#1E293B' },
                   }}
                 >
                   {isWishlisted ? <WishlistFilledIcon /> : <WishlistIcon />}
@@ -205,7 +206,7 @@ export default function ProductDetailPage() {
                         overflow: 'hidden',
                         cursor: 'pointer',
                         border: '2px solid',
-                        borderColor: selectedImageIndex === idx ? '#4f46e5' : 'transparent',
+                        borderColor: selectedImageIndex === idx ? '#FF7900' : 'transparent',
                         opacity: selectedImageIndex === idx ? 1 : 0.65,
                         transition: 'all 0.2s',
                         flexShrink: 0,
@@ -225,15 +226,15 @@ export default function ProductDetailPage() {
             <Box>
               {/* Brand & Stock Pill */}
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-                <Typography variant="overline" sx={{ color: '#6366f1', fontWeight: 800, letterSpacing: '0.08em' }}>
+                <Typography variant="overline" sx={{ color: '#FF7900', fontWeight: 800, letterSpacing: '0.08em' }}>
                   {product.brand || 'PREMIUM COLLECTION'}
                 </Typography>
                 <Chip
                   label={product.stock > 0 ? `In Stock (${product.stock} units)` : 'Out of Stock'}
                   size="small"
                   sx={{
-                    bgcolor: product.stock > 0 ? '#dcfce7' : '#fee2e2',
-                    color: product.stock > 0 ? '#15803d' : '#b91c1c',
+                    bgcolor: product.stock > 0 ? (isLight ? '#dcfce7' : 'rgba(21, 128, 61, 0.25)') : (isLight ? '#fee2e2' : 'rgba(185, 28, 28, 0.25)'),
+                    color: product.stock > 0 ? (isLight ? '#15803d' : '#4ade80') : (isLight ? '#b91c1c' : '#f87171'),
                     fontWeight: 800,
                   }}
                 />
@@ -246,7 +247,7 @@ export default function ProductDetailPage() {
                 sx={{
                   fontWeight: 900,
                   letterSpacing: '-0.03em',
-                  color: '#0f172a',
+                  color: isLight ? '#172B30' : '#F8FAFC',
                   lineHeight: 1.25,
                   mb: 1.5,
                   fontSize: { xs: '1.5rem', sm: '2rem', md: '2.25rem' },
@@ -273,12 +274,12 @@ export default function ProductDetailPage() {
                   p: 3,
                   mb: 3.5,
                   borderRadius: 3.5,
-                  bgcolor: '#f8fafc',
-                  border: '1px solid #e2e8f0',
+                  bgcolor: isLight ? '#F5F6F7' : 'rgba(255, 255, 255, 0.04)',
+                  border: `1px solid ${isLight ? '#E5E7EB' : 'rgba(255, 255, 255, 0.08)'}`,
                 }}
               >
                 <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 2, flexWrap: 'wrap' }}>
-                  <Typography variant="h3" fontWeight={900} sx={{ color: isDeal ? '#e11d48' : '#0f172a', letterSpacing: '-0.03em' }}>
+                  <Typography variant="h3" fontWeight={900} sx={{ color: isDeal ? '#D92D20' : (isLight ? '#172B30' : '#F8FAFC'), letterSpacing: '-0.03em' }}>
                     ₹{(applicablePrice / 100).toLocaleString('en-IN')}
                   </Typography>
 
@@ -294,9 +295,8 @@ export default function ProductDetailPage() {
                   {hasDiscount && (
                     <Chip
                       label={`Save ₹${(savingsAmount / 100).toLocaleString('en-IN')} (${savingsPercent}%)`}
-                      color="success"
                       size="small"
-                      sx={{ fontWeight: 800 }}
+                      sx={{ bgcolor: '#FEE4E2', color: '#D92D20', fontWeight: 800 }}
                     />
                   )}
                 </Box>
@@ -306,14 +306,14 @@ export default function ProductDetailPage() {
               </Paper>
 
               {/* Short Description */}
-              <Typography variant="body1" sx={{ color: '#475569', lineHeight: 1.7, mb: 3.5 }}>
+              <Typography variant="body1" sx={{ color: isLight ? '#374151' : '#94A3B8', lineHeight: 1.7, mb: 3.5 }}>
                 {product.shortDescription || product.longDescription}
               </Typography>
 
               {/* Variants Selector */}
               {product.variants && product.variants.length > 0 && (
                 <Box sx={{ mb: 3.5 }}>
-                  <Typography variant="subtitle2" fontWeight={800} sx={{ mb: 1.5 }}>
+                  <Typography variant="subtitle2" fontWeight={800} sx={{ mb: 1.5, color: isLight ? '#172B30' : '#F8FAFC' }}>
                     Select Option / Variant:
                   </Typography>
                   <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
@@ -331,9 +331,9 @@ export default function ProductDetailPage() {
                             borderRadius: 2,
                             py: 2,
                             px: 1,
-                            bgcolor: isSelected ? '#0f172a !important' : 'transparent',
-                            color: isSelected ? 'white !important' : '#0f172a',
-                            borderColor: isSelected ? '#0f172a' : '#cbd5e1',
+                            bgcolor: isSelected ? '#FF7900 !important' : 'transparent',
+                            color: isSelected ? 'white !important' : (isLight ? '#172B30' : '#F8FAFC'),
+                            borderColor: isSelected ? '#FF7900' : (isLight ? '#E5E7EB' : 'rgba(255, 255, 255, 0.15)'),
                           }}
                         />
                       );
@@ -346,12 +346,12 @@ export default function ProductDetailPage() {
               {!isMobile && (
                 <Box sx={{ mb: 4 }}>
                   <Stack direction="row" spacing={3} alignItems="center" sx={{ mb: 3 }}>
-                    <Typography variant="subtitle2" fontWeight={800}>Quantity:</Typography>
+                    <Typography variant="subtitle2" fontWeight={800} sx={{ color: isLight ? '#172B30' : '#F8FAFC' }}>Quantity:</Typography>
                     <Box
                       sx={{
                         display: 'flex',
                         alignItems: 'center',
-                        border: '1px solid #cbd5e1',
+                        border: `1px solid ${isLight ? '#E5E7EB' : 'rgba(255, 255, 255, 0.15)'}`,
                         borderRadius: 2.5,
                         bgcolor: 'background.paper',
                       }}
@@ -368,18 +368,23 @@ export default function ProductDetailPage() {
 
                   <Stack direction="row" spacing={2}>
                     <Button
-                      variant="contained"
+                      variant="outlined"
                       size="large"
                       fullWidth
                       startIcon={<CartIcon />}
                       onClick={handleAddToCart}
                       sx={{
-                        bgcolor: '#0f172a',
+                        borderColor: isLight ? '#172B30' : 'rgba(255, 255, 255, 0.3)',
+                        color: isLight ? '#172B30' : '#FFFFFF',
                         py: 1.5,
                         borderRadius: 1,
                         fontWeight: 700,
                         fontSize: '0.95rem',
-                        '&:hover': { bgcolor: '#1e293b' },
+                        '&:hover': {
+                          borderColor: '#FF7900',
+                          color: '#FF7900',
+                          bgcolor: isLight ? 'rgba(255, 121, 0, 0.04)' : 'rgba(255, 121, 0, 0.1)',
+                        },
                       }}
                     >
                       Add to Shopping Bag
@@ -391,12 +396,13 @@ export default function ProductDetailPage() {
                       startIcon={<BuyNowIcon />}
                       onClick={handleBuyNow}
                       sx={{
-                        bgcolor: '#2563eb',
+                        bgcolor: '#FF7900',
+                        color: '#FFFFFF',
                         py: 1.5,
                         borderRadius: 1,
                         fontWeight: 700,
                         fontSize: '0.95rem',
-                        '&:hover': { bgcolor: '#1d4ed8' },
+                        '&:hover': { bgcolor: '#E85D04' },
                       }}
                     >
                       Buy Now
@@ -406,26 +412,26 @@ export default function ProductDetailPage() {
               )}
 
               {/* Trust Value Cards */}
-              <Paper elevation={0} sx={{ p: 2.5, borderRadius: 3, bgcolor: '#f8fafc', border: '1px solid #e2e8f0', mb: 4 }}>
+              <Paper elevation={0} sx={{ p: 2.5, borderRadius: 3, bgcolor: isLight ? '#F5F6F7' : 'rgba(255, 255, 255, 0.04)', border: `1px solid ${isLight ? '#E5E7EB' : 'rgba(255, 255, 255, 0.08)'}`, mb: 4 }}>
                 <Grid container spacing={2}>
                   <Grid item xs={4}>
                     <Stack spacing={0.5} alignItems="center" textAlign="center">
-                      <ShippingIcon sx={{ color: '#4f46e5', fontSize: 24 }} />
-                      <Typography variant="caption" fontWeight={800}>Free Express Delivery</Typography>
+                      <ShippingIcon sx={{ color: '#FF7900', fontSize: 24 }} />
+                      <Typography variant="caption" fontWeight={800} sx={{ color: isLight ? '#172B30' : '#F8FAFC' }}>Free Express Delivery</Typography>
                       <Typography variant="caption" color="text.secondary" sx={{ fontSize: 11 }}>Above ₹500</Typography>
                     </Stack>
                   </Grid>
                   <Grid item xs={4}>
                     <Stack spacing={0.5} alignItems="center" textAlign="center">
-                      <WarrantyIcon sx={{ color: '#10b981', fontSize: 24 }} />
-                      <Typography variant="caption" fontWeight={800}>Verified Warranty</Typography>
+                      <WarrantyIcon sx={{ color: '#10B981', fontSize: 24 }} />
+                      <Typography variant="caption" fontWeight={800} sx={{ color: isLight ? '#172B30' : '#F8FAFC' }}>Verified Warranty</Typography>
                       <Typography variant="caption" color="text.secondary" sx={{ fontSize: 11 }}>Official Guarantee</Typography>
                     </Stack>
                   </Grid>
                   <Grid item xs={4}>
                     <Stack spacing={0.5} alignItems="center" textAlign="center">
-                      <ReturnIcon sx={{ color: '#f59e0b', fontSize: 24 }} />
-                      <Typography variant="caption" fontWeight={800}>7-Day Returns</Typography>
+                      <ReturnIcon sx={{ color: '#F59E0B', fontSize: 24 }} />
+                      <Typography variant="caption" fontWeight={800} sx={{ color: isLight ? '#172B30' : '#F8FAFC' }}>7-Day Returns</Typography>
                       <Typography variant="caption" color="text.secondary" sx={{ fontSize: 11 }}>Hassle-Free</Typography>
                     </Stack>
                   </Grid>
@@ -467,9 +473,9 @@ export default function ProductDetailPage() {
             zIndex: 1050,
             p: 1.5,
             px: 2,
-            bgcolor: 'rgba(255, 255, 255, 0.98)',
+            bgcolor: isLight ? 'rgba(255, 255, 255, 0.98)' : 'rgba(15, 23, 42, 0.98)',
             backdropFilter: 'blur(16px)',
-            borderTop: '1px solid #e2e8f0',
+            borderTop: `1px solid ${isLight ? '#E5E7EB' : 'rgba(255, 255, 255, 0.08)'}`,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -478,7 +484,7 @@ export default function ProductDetailPage() {
         >
           <Box>
             <Typography variant="caption" color="text.secondary" fontWeight={700}>TOTAL PRICE</Typography>
-            <Typography variant="h6" fontWeight={900} sx={{ color: isDeal ? '#e11d48' : '#0f172a', lineHeight: 1.1 }}>
+            <Typography variant="h6" fontWeight={900} sx={{ color: isDeal ? '#D92D20' : (isLight ? '#172B30' : '#F8FAFC'), lineHeight: 1.1 }}>
               ₹{(applicablePrice / 100).toLocaleString('en-IN')}
             </Typography>
           </Box>
@@ -493,9 +499,13 @@ export default function ProductDetailPage() {
                 px: 2,
                 borderRadius: 1,
                 fontWeight: 700,
-                color: '#0f172a',
-                borderColor: '#0f172a',
+                color: isLight ? '#172B30' : '#FFFFFF',
+                borderColor: isLight ? '#172B30' : 'rgba(255, 255, 255, 0.25)',
                 fontSize: '0.8rem',
+                '&:hover': {
+                  borderColor: '#FF7900',
+                  color: '#FF7900',
+                },
               }}
             >
               Add to Bag
@@ -509,9 +519,10 @@ export default function ProductDetailPage() {
                 px: 2.5,
                 borderRadius: 1,
                 fontWeight: 700,
-                bgcolor: '#2563eb',
+                bgcolor: '#FF7900',
+                color: '#FFFFFF',
                 fontSize: '0.8rem',
-                '&:hover': { bgcolor: '#1d4ed8' },
+                '&:hover': { bgcolor: '#E85D04' },
               }}
             >
               Buy Now

@@ -68,7 +68,7 @@ function setupListeners(): void {
     log.info('MongoDB reconnected');
   });
 
-  mongoose.connection.on('error', (err) => {
+  mongoose.connection.on('error', (err: unknown) => {
     log.error({ err }, 'MongoDB runtime error');
   });
 }

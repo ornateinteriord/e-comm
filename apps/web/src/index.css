@@ -9,12 +9,14 @@
 }
 
 :root {
-  --color-primary: #1a1a2e;
-  --color-accent: #e94560;
-  --color-surface: #f8f8f8;
-  --color-border: #e5e7eb;
-  --color-text: #111111;
-  --color-muted: #6b7280;
+  --color-primary: #FF7900;
+  --color-primary-hover: #E85D04;
+  --color-heading: #172B30;
+  --color-body: #374151;
+  --color-surface: #FFFFFF;
+  --color-section: #F5F6F7;
+  --color-border: #E5E7EB;
+  --color-discount: #D92D20;
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --safe-left: env(safe-area-inset-left, 0px);
@@ -22,15 +24,15 @@
 }
 
 html {
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-family: 'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   scroll-behavior: smooth;
 }
 
 body {
-  background-color: #f8f8f8;
-  color: #111111;
+  background-color: var(--color-surface);
+  color: var(--color-body);
   line-height: 1.6;
   padding-top: var(--safe-top);
   padding-bottom: var(--safe-bottom);
@@ -100,24 +102,24 @@ a,
 
 .price-mrp {
   text-decoration: line-through;
-  color: var(--color-muted);
+  color: #9CA3AF;
 }
 
 .price-current {
-  color: var(--color-text);
-  font-weight: 600;
-}
-
-.price-deal {
-  color: #e94560;
+  color: var(--color-heading);
   font-weight: 700;
 }
 
+.price-deal {
+  color: var(--color-discount);
+  font-weight: 800;
+}
+
 .savings-badge {
-  background-color: #fef2f2;
-  color: #e94560;
+  background-color: #FEE4E2;
+  color: var(--color-discount);
   font-size: 0.75rem;
-  font-weight: 600;
-  padding: 2px 8px;
-  border-radius: 4px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 6px;
 }

@@ -53,13 +53,21 @@ export default function AdminLayout() {
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', bgcolor: '#0f172a', color: '#f8fafc' }}>
       {/* Brand Header */}
       <Toolbar sx={{ px: 3, py: 2.5, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Box>
-          <Typography variant="h6" fontWeight={900} sx={{ letterSpacing: '-0.04em', color: '#818cf8', fontSize: '1.35rem' }}>
-            ORNATE<Box component="span" sx={{ color: 'white' }}>.</Box>
-          </Typography>
-          <Typography variant="caption" sx={{ color: '#94a3b8', fontWeight: 700, letterSpacing: '0.06em' }}>
-            MANAGEMENT CONSOLE
-          </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
+          <Box
+            component="img"
+            src="/logo.svg"
+            alt="E-Shophy Logo"
+            sx={{ width: 34, height: 34, objectFit: 'contain', borderRadius: '6px' }}
+          />
+          <Box>
+            <Typography variant="h6" fontWeight={900} sx={{ letterSpacing: '-0.04em', color: '#818cf8', fontSize: '1.35rem', lineHeight: 1.1 }}>
+              E-Shophy<Box component="span" sx={{ color: 'white' }}>.</Box>
+            </Typography>
+            <Typography variant="caption" sx={{ color: '#94a3b8', fontWeight: 700, letterSpacing: '0.06em', fontSize: '0.65rem' }}>
+              MANAGEMENT CONSOLE
+            </Typography>
+          </Box>
         </Box>
         {isMobile && (
           <IconButton onClick={() => setMobileDrawerOpen(false)} sx={{ color: '#94a3b8' }}>

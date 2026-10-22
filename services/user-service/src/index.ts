@@ -49,8 +49,17 @@ app.use(globalLimiter);
 
 app.use(attachUser);
 
-// ---- Health ----
-app.get('/health', (_req, res) => {
+// ---- Health & Root ----
+app.get('/', (_req: Request, res: Response) => {
+  res.json({
+    status: 'ok',
+    message: 'User service running successfully',
+    service: 'user-service',
+    timestamp: new Date().toISOString(),
+  });
+});
+
+app.get('/health', (_req: Request, res: Response) => {
   res.json({ status: 'ok', service: 'user-service', timestamp: new Date().toISOString() });
 });
 

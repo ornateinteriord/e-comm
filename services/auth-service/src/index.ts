@@ -34,7 +34,16 @@ const globalLimiter = rateLimit({
 app.use(globalLimiter);
 
 // ---- Routes ----
-app.get('/health', (_req, res) => {
+app.get('/', (_req: Request, res: Response) => {
+  res.json({
+    status: 'ok',
+    message: 'Auth service running successfully',
+    service: 'auth-service',
+    timestamp: new Date().toISOString(),
+  });
+});
+
+app.get('/health', (_req: Request, res: Response) => {
   res.json({ status: 'ok', service: 'auth-service', timestamp: new Date().toISOString() });
 });
 

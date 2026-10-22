@@ -23,7 +23,16 @@ app.use(express.urlencoded({ extended: true }));
 const limiter = rateLimit({ windowMs: 60_000, max: 300, standardHeaders: true, legacyHeaders: false });
 app.use(limiter);
 
-app.get('/health', (_req, res) => res.json({ status: 'ok', service: 'product-service' }));
+app.get('/', (_req: Request, res: Response) => {
+  res.json({
+    status: 'ok',
+    message: 'Product service running successfully',
+    service: 'product-service',
+    timestamp: new Date().toISOString(),
+  });
+});
+
+app.get('/health', (_req: Request, res: Response) => res.json({ status: 'ok', service: 'product-service' }));
 app.use(productRoutes);
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars

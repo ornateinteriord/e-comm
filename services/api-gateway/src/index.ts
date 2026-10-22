@@ -1,6 +1,6 @@
 // Trigger deployment - api-gateway v2
 import 'dotenv/config';
-import express, { Express } from 'express';
+import express, { Express, Request, Response } from 'express';
 import { createProxyMiddleware } from 'http-proxy-middleware';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -42,8 +42,17 @@ const globalLimiter = rateLimit({
 });
 app.use(globalLimiter);
 
-// ---- Health ----
-app.get('/health', (_req, res) => {
+// ---- Health & Root ----
+app.get('/', (_req: Request, res: Response) => {
+  res.json({
+    status: 'ok',
+    message: 'API Gateway running successfully',
+    service: 'api-gateway',
+    timestamp: new Date().toISOString(),
+  });
+});
+
+app.get('/health', (_req: Request, res: Response) => {
   res.json({ status: 'ok', service: 'api-gateway', timestamp: new Date().toISOString() });
 });
 

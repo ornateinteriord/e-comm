@@ -9,13 +9,14 @@ export default function PrivacyPolicyPage() {
         sx={{
           p: { xs: 3, md: 6 },
           borderRadius: 2,
-          border: '1px solid #e2e8f0',
-          bgcolor: '#ffffff',
+          border: '1px solid',
+          borderColor: 'divider',
+          bgcolor: 'background.paper',
         }}
       >
         <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 2 }}>
-          <ShieldIcon sx={{ color: '#2563eb', fontSize: 28 }} />
-          <Typography variant="h4" fontWeight={800} sx={{ color: '#0f172a', letterSpacing: '-0.02em' }}>
+          <ShieldIcon sx={{ color: '#FF7900', fontSize: 28 }} />
+          <Typography variant="h4" fontWeight={800} sx={{ color: 'text.primary', letterSpacing: '-0.02em' }}>
             Privacy Policy
           </Typography>
         </Stack>
@@ -27,16 +28,16 @@ export default function PrivacyPolicyPage() {
 
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
           <Box>
-            <Typography variant="h6" fontWeight={700} sx={{ color: '#0f172a', mb: 1 }}>
+            <Typography variant="h6" fontWeight={700} sx={{ color: 'text.primary', mb: 1 }}>
               1. Overview and Scope
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.8 }}>
-              Ornate Store Private Limited ("Ornate", "we", "us", or "our") respects your privacy and is dedicated to safeguarding your personal data. This Privacy Policy details how we collect, process, store, and protect your information when you access our customer storefront, admin interfaces, and API services.
+              E-Shophy Store Private Limited ("E-Shophy", "we", "us", or "our") respects your privacy and is dedicated to safeguarding your personal data. This Privacy Policy details how we collect, process, store, and protect your information when you access our customer storefront, admin interfaces, and API services.
             </Typography>
           </Box>
 
           <Box>
-            <Typography variant="h6" fontWeight={700} sx={{ color: '#0f172a', mb: 1 }}>
+            <Typography variant="h6" fontWeight={700} sx={{ color: 'text.primary', mb: 1 }}>
               2. Information We Collect
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.8 }}>
@@ -51,7 +52,7 @@ export default function PrivacyPolicyPage() {
           </Box>
 
           <Box>
-            <Typography variant="h6" fontWeight={700} sx={{ color: '#0f172a', mb: 1 }}>
+            <Typography variant="h6" fontWeight={700} sx={{ color: 'text.primary', mb: 1 }}>
               3. Purpose and Legal Basis for Processing
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.8 }}>
@@ -66,16 +67,16 @@ export default function PrivacyPolicyPage() {
           </Box>
 
           <Box>
-            <Typography variant="h6" fontWeight={700} sx={{ color: '#0f172a', mb: 1 }}>
+            <Typography variant="h6" fontWeight={700} sx={{ color: 'text.primary', mb: 1 }}>
               4. Payment Security & Data Transmission
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.8 }}>
-              Ornate does not store complete credit card or debit card numbers on our local databases. All electronic payments are processed directly through PCI-DSS Level 1 compliant gateway partners (Razorpay). Sensitive transmission data is secured using industry standard Transport Layer Security (TLS 1.3) with encrypted database connections.
+              E-Shophy does not store complete credit card or debit card numbers on our local databases. All electronic payments are processed directly through PCI-DSS Level 1 compliant gateway partners (Razorpay). Sensitive transmission data is secured using industry standard Transport Layer Security (TLS 1.3) with encrypted database connections.
             </Typography>
           </Box>
 
           <Box>
-            <Typography variant="h6" fontWeight={700} sx={{ color: '#0f172a', mb: 1 }}>
+            <Typography variant="h6" fontWeight={700} sx={{ color: 'text.primary', mb: 1 }}>
               5. Data Retention & User Rights
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.8 }}>
@@ -84,7 +85,7 @@ export default function PrivacyPolicyPage() {
           </Box>
 
           <Box>
-            <Typography variant="h6" fontWeight={700} sx={{ color: '#0f172a', mb: 1 }}>
+            <Typography variant="h6" fontWeight={700} sx={{ color: 'text.primary', mb: 1 }}>
               6. Grievance Officer & Contact
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.8 }}>
@@ -92,9 +93,9 @@ export default function PrivacyPolicyPage() {
               <br />
               <strong>Grievance Officer:</strong> Legal & Compliance Desk
               <br />
-              <strong>Address:</strong> Ornate Store Pvt Ltd, Bandra Kurla Complex, Mumbai, Maharashtra 400051
+              <strong>Address:</strong> E-Shophy Store Pvt Ltd, Bandra Kurla Complex, Mumbai, Maharashtra 400051
               <br />
-              <strong>Email:</strong> legal@ornate.dev
+              <strong>Email:</strong> legal@e-shophy.dev
             </Typography>
           </Box>
         </Box>

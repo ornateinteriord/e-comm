@@ -30,8 +30,17 @@ const globalLimiter = rateLimit({
 });
 app.use(globalLimiter);
 
-// Health check
-app.get('/health', (_req, res) => {
+// Health check & Root
+app.get('/', (_req: Request, res: Response) => {
+  res.json({
+    status: 'ok',
+    message: 'Notification service running successfully',
+    service: 'notification-service',
+    timestamp: new Date().toISOString(),
+  });
+});
+
+app.get('/health', (_req: Request, res: Response) => {
   res.json({ status: 'ok', service: 'notification-service', timestamp: new Date().toISOString() });
 });
 

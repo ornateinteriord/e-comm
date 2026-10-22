@@ -74,15 +74,15 @@ export default function ProductCard({ product }: ProductCardProps) {
         flexDirection: 'column',
         borderRadius: { xs: 3, sm: 4 },
         border: '1px solid',
-        borderColor: '#e2e8f0',
+        borderColor: 'divider',
         bgcolor: 'background.paper',
         overflow: 'hidden',
         position: 'relative',
         transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
         '&:hover': {
           transform: { xs: 'none', sm: 'translateY(-6px)' },
-          boxShadow: '0 20px 30px -10px rgba(15, 23, 42, 0.1)',
-          borderColor: '#818cf8',
+          boxShadow: '0 20px 30px -10px rgba(255, 121, 0, 0.12)',
+          borderColor: '#FF7900',
           '& .product-image': {
             transform: 'scale(1.05)',
           },
@@ -96,7 +96,7 @@ export default function ProductCard({ product }: ProductCardProps) {
         sx={{
           position: 'relative',
           pt: { xs: '105%', sm: '100%' },
-          bgcolor: '#f1f5f9',
+          bgcolor: (theme) => theme.palette.mode === 'light' ? '#F5F6F7' : '#1e293b',
           overflow: 'hidden',
           display: 'block',
         }}
@@ -134,7 +134,7 @@ export default function ProductCard({ product }: ProductCardProps) {
               label={`${savingsPercent}% OFF`}
               size="small"
               sx={{
-                bgcolor: isDeal ? '#dc2626' : '#0f172a',
+                bgcolor: '#D92D20', // Discount label #D92D20
                 color: 'white',
                 fontWeight: 800,
                 fontSize: { xs: '0.65rem', sm: '0.72rem' },
@@ -149,7 +149,7 @@ export default function ProductCard({ product }: ProductCardProps) {
               label="SPECIAL DEAL"
               size="small"
               sx={{
-                bgcolor: '#2563eb',
+                bgcolor: '#FF7900',
                 color: 'white',
                 fontWeight: 800,
                 fontSize: '0.65rem',
@@ -213,7 +213,7 @@ export default function ProductCard({ product }: ProductCardProps) {
           <Typography
             variant="caption"
             sx={{
-              color: '#2563eb',
+              color: '#FF7900',
               fontWeight: 800,
               letterSpacing: '0.04em',
               textTransform: 'uppercase',
@@ -234,7 +234,7 @@ export default function ProductCard({ product }: ProductCardProps) {
           to={`/products/${product.slug}`}
           variant="subtitle2"
           sx={{
-            color: '#0f172a',
+            color: 'text.primary',
             textDecoration: 'none',
             fontWeight: 700,
             fontSize: { xs: '0.85rem', sm: '0.95rem' },
@@ -245,7 +245,7 @@ export default function ProductCard({ product }: ProductCardProps) {
             WebkitBoxOrient: 'vertical',
             overflow: 'hidden',
             minHeight: { xs: 36, sm: 42 },
-            '&:hover': { color: '#4f46e5' },
+            '&:hover': { color: '#FF7900' },
           }}
         >
           {product.name}
@@ -258,7 +258,7 @@ export default function ProductCard({ product }: ProductCardProps) {
               variant="h6"
               fontWeight={900}
               sx={{
-                color: isDeal ? '#e11d48' : '#0f172a',
+                color: isDeal ? '#D92D20' : 'text.primary',
                 fontSize: { xs: '1rem', sm: '1.25rem' },
                 letterSpacing: '-0.02em',
               }}
@@ -290,24 +290,23 @@ export default function ProductCard({ product }: ProductCardProps) {
 
         {/* Fast Add to Cart Button */}
         <Button
-          variant={addedAnim ? 'contained' : 'outlined'}
+          variant="contained"
           fullWidth
           size="small"
           onClick={handleAddToCart}
           startIcon={addedAnim ? <CheckIcon fontSize="small" /> : <CartIcon fontSize="small" />}
           sx={{
             mt: 2,
-            py: { xs: 0.75, sm: 1 },
-            borderRadius: 1,
+            py: { xs: 0.85, sm: 1 },
+            borderRadius: 1.5,
             fontWeight: 700,
             fontSize: { xs: '0.75rem', sm: '0.85rem' },
-            bgcolor: addedAnim ? '#16a34a' : 'transparent',
-            borderColor: addedAnim ? '#16a34a' : '#0f172a',
-            color: addedAnim ? 'white' : '#0f172a',
+            bgcolor: addedAnim ? '#16a34a' : '#FF7900',
+            color: 'white',
+            boxShadow: 'none',
             '&:hover': {
-              bgcolor: addedAnim ? '#15803d' : '#0f172a',
-              color: 'white',
-              borderColor: '#0f172a',
+              bgcolor: addedAnim ? '#15803d' : '#E85D04',
+              boxShadow: '0 4px 12px rgba(255, 121, 0, 0.25)',
             },
           }}
         >

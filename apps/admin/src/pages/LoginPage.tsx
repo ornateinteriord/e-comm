@@ -51,10 +51,15 @@ export default function LoginPage() {
                 mb: 1.5,
               }}
             >
-              <LockIcon />
+              <Box
+                component="img"
+                src="/logo.svg"
+                alt="E-Shophy Logo"
+                sx={{ width: 48, height: 48, objectFit: 'contain', borderRadius: '10px' }}
+              />
             </Box>
             <Typography variant="h5" fontWeight={900} letterSpacing="-0.02em">
-              Ornate Admin
+              E-Shophy Admin
             </Typography>
             <Typography variant="body2" color="text.secondary">
               Sign in with your administrative credentials
