@@ -73,7 +73,7 @@ export default function CartPage() {
       <Grid container spacing={4}>
         {/* Cart Items List */}
         <Grid item xs={12} md={8}>
-          <Paper elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 3, p: 3 }}>
+          <Paper elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: '8px', p: 3 }}>
             {items.map((item, idx) => (
               <React.Fragment key={`${item.productId}_${item.variantId || 'base'}`}>
                 <Box sx={{ display: 'flex', gap: 3, py: 2.5, alignItems: 'center' }}>
@@ -82,7 +82,7 @@ export default function CartPage() {
                     sx={{
                       width: 80,
                       height: 80,
-                      borderRadius: 2,
+                      borderRadius: '6px',
                       overflow: 'hidden',
                       bgcolor: '#f8fafc',
                       flexShrink: 0,
@@ -170,7 +170,7 @@ export default function CartPage() {
 
         {/* Order Summary */}
         <Grid item xs={12} md={4}>
-          <Paper elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 3, p: 3, bgcolor: 'background.paper' }}>
+          <Paper elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: '8px', p: 3, bgcolor: 'background.paper' }}>
             <Typography variant="h6" fontWeight={800} sx={{ mb: 2 }}>
               Order Summary
             </Typography>
@@ -249,7 +249,7 @@ export default function CartPage() {
               onClick={() => navigate('/checkout')}
               sx={{
                 py: 1.5,
-                borderRadius: 1,
+                borderRadius: '6px',
                 fontWeight: 700,
                 bgcolor: '#FF7900',
                 color: '#FFFFFF',

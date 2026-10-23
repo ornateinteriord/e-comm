@@ -64,7 +64,7 @@ export default function ProductDetailPage() {
         <Typography variant="body2" color="text.secondary" sx={{ mb: 4 }}>
           The product you are looking for does not exist or may have been unlisted.
         </Typography>
-        <Button variant="contained" component={RouterLink} to="/" sx={{ borderRadius: 2.5, px: 4 }}>
+        <Button variant="contained" component={RouterLink} to="/" sx={{ borderRadius: '6px', px: 4 }}>
           Back to Storefront
         </Button>
       </Container>
@@ -123,7 +123,7 @@ export default function ProductDetailPage() {
           <Alert
             icon={<CheckCircleIcon fontSize="inherit" />}
             severity="success"
-            sx={{ mb: 3, borderRadius: 2.5, fontWeight: 700 }}
+            sx={{ mb: 3, borderRadius: '6px', fontWeight: 700 }}
           >
             Successfully added to your shopping bag!
           </Alert>
@@ -140,7 +140,7 @@ export default function ProductDetailPage() {
                   width: '100%',
                   pt: '100%',
                   bgcolor: '#f1f5f9',
-                  borderRadius: { xs: 3, md: 4 },
+                  borderRadius: '8px',
                   overflow: 'hidden',
                   border: '1px solid #e2e8f0',
                   boxShadow: '0 8px 30px -10px rgba(0,0,0,0.06)',
@@ -273,7 +273,7 @@ export default function ProductDetailPage() {
                 sx={{
                   p: 3,
                   mb: 3.5,
-                  borderRadius: 3.5,
+                  borderRadius: '8px',
                   bgcolor: isLight ? '#F5F6F7' : 'rgba(255, 255, 255, 0.04)',
                   border: `1px solid ${isLight ? '#E5E7EB' : 'rgba(255, 255, 255, 0.08)'}`,
                 }}
@@ -328,7 +328,7 @@ export default function ProductDetailPage() {
                           variant={isSelected ? 'filled' : 'outlined'}
                           sx={{
                             fontWeight: 700,
-                            borderRadius: 2,
+                            borderRadius: '6px',
                             py: 2,
                             px: 1,
                             bgcolor: isSelected ? '#FF7900 !important' : 'transparent',
@@ -352,7 +352,7 @@ export default function ProductDetailPage() {
                         display: 'flex',
                         alignItems: 'center',
                         border: `1px solid ${isLight ? '#E5E7EB' : 'rgba(255, 255, 255, 0.15)'}`,
-                        borderRadius: 2.5,
+                        borderRadius: '6px',
                         bgcolor: 'background.paper',
                       }}
                     >
@@ -412,7 +412,7 @@ export default function ProductDetailPage() {
               )}
 
               {/* Trust Value Cards */}
-              <Paper elevation={0} sx={{ p: 2.5, borderRadius: 3, bgcolor: isLight ? '#F5F6F7' : 'rgba(255, 255, 255, 0.04)', border: `1px solid ${isLight ? '#E5E7EB' : 'rgba(255, 255, 255, 0.08)'}`, mb: 4 }}>
+              <Paper elevation={0} sx={{ p: 2.5, borderRadius: '8px', bgcolor: isLight ? '#F5F6F7' : 'rgba(255, 255, 255, 0.04)', border: `1px solid ${isLight ? '#E5E7EB' : 'rgba(255, 255, 255, 0.08)'}`, mb: 4 }}>
                 <Grid container spacing={2}>
                   <Grid item xs={4}>
                     <Stack spacing={0.5} alignItems="center" textAlign="center">
@@ -442,7 +442,7 @@ export default function ProductDetailPage() {
               {product.attributes && product.attributes.length > 0 && (
                 <Box sx={{ mt: 4 }}>
                   <Typography variant="h6" fontWeight={800} sx={{ mb: 2 }}>Specifications & Details</Typography>
-                  <Paper elevation={0} sx={{ borderRadius: 3, border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+                  <Paper elevation={0} sx={{ borderRadius: '8px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
                     <Table size="small">
                       <TableBody>
                         {product.attributes.map((attr, idx) => (

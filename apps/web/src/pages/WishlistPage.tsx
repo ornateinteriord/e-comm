@@ -66,13 +66,13 @@ export default function WishlistPage() {
           <CircularProgress />
         </Box>
       ) : !products || products.length === 0 ? (
-        <Paper elevation={0} sx={{ p: 8, textAlign: 'center', borderRadius: 3, border: '1px dashed', borderColor: 'divider' }}>
+        <Paper elevation={0} sx={{ p: 8, textAlign: 'center', borderRadius: '8px', border: '1px dashed', borderColor: 'divider' }}>
           <WishlistEmptyIcon sx={{ fontSize: 64, color: 'text.disabled', mb: 2 }} />
           <Typography variant="h6" fontWeight={700} sx={{ mb: 1 }}>Your wishlist is empty</Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 4 }}>
             Save items that you like and want to buy later.
           </Typography>
-          <Button variant="contained" component={RouterLink} to="/search" sx={{ borderRadius: 2, fontWeight: 700 }}>
+          <Button variant="contained" component={RouterLink} to="/search" sx={{ borderRadius: '6px', fontWeight: 700 }}>
             Discover Products
           </Button>
         </Paper>
@@ -84,7 +84,7 @@ export default function WishlistPage() {
 
             return (
               <Grid item xs={12} sm={6} md={3} key={product.id}>
-                <Card sx={{ borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
+                <Card sx={{ borderRadius: '8px', border: '1px solid', borderColor: 'divider' }}>
                   <Box sx={{ position: 'relative', pt: '80%', bgcolor: '#f8fafc' }}>
                     <CardMedia
                       component="img"
@@ -123,7 +123,7 @@ export default function WishlistPage() {
                       fullWidth
                       startIcon={<CartIcon />}
                       size="small"
-                      sx={{ borderRadius: 2, fontWeight: 700 }}
+                      sx={{ borderRadius: '6px', fontWeight: 700 }}
                       onClick={() => {
                         addItem({
                           productId: product.id,

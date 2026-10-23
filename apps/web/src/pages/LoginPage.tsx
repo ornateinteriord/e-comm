@@ -39,13 +39,13 @@ export default function LoginPage() {
 
   return (
     <Container maxWidth="xs" sx={{ py: 10 }}>
-      <Paper elevation={0} sx={{ p: 4, borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
-        <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
+      <Paper elevation={0} sx={{ p: 4, borderRadius: '10px', border: '1px solid', borderColor: 'divider' }}>
+        <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2.5 }}>
           <Box
             component="img"
             src="/logo.svg"
-            alt="E-Shophy Logo"
-            sx={{ width: 48, height: 48, objectFit: 'contain', borderRadius: '10px' }}
+            alt="E-Shophy"
+            sx={{ height: 44, width: 'auto', maxWidth: 180, objectFit: 'contain' }}
           />
         </Box>
         <Typography variant="h5" fontWeight={800} textAlign="center" letterSpacing="-0.02em" sx={{ mb: 1 }}>
@@ -85,7 +85,7 @@ export default function LoginPage() {
               fullWidth
               size="large"
               disabled={isLoading}
-              sx={{ py: 1.5, borderRadius: 2, fontWeight: 700 }}
+              sx={{ py: 1.5, borderRadius: '6px', fontWeight: 700 }}
             >
               {isLoading ? 'Signing in…' : 'Sign In'}
             </Button>
@@ -101,7 +101,7 @@ export default function LoginPage() {
             variant="outlined"
             size="small"
             onClick={fillDemoAdmin}
-            sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600 }}
+            sx={{ borderRadius: '6px', textTransform: 'none', fontWeight: 600 }}
           >
             Fill Super Admin Demo (admin@ornate.dev)
           </Button>

@@ -61,7 +61,7 @@ export default function CategoryPage() {
         sx={{
           mb: 4,
           p: { xs: 3, md: 4 },
-          borderRadius: 2,
+          borderRadius: '8px',
           bgcolor: isLight ? '#172B30' : '#111827',
           border: `1px solid ${isLight ? 'transparent' : 'rgba(255, 255, 255, 0.08)'}`,
           color: 'white',
@@ -69,8 +69,8 @@ export default function CategoryPage() {
         }}
       >
         <Stack direction="row" spacing={1} sx={{ mb: 1.5 }}>
-          <Chip label="DEPARTMENT" size="small" sx={{ bgcolor: 'rgba(255,255,255,0.12)', color: '#FFFFFF', fontWeight: 700, fontSize: 11, borderRadius: 1 }} />
-          <Chip label={`${products.length} Products`} size="small" sx={{ bgcolor: '#FF7900', color: 'white', fontWeight: 700, fontSize: 11, borderRadius: 1 }} />
+          <Chip label="DEPARTMENT" size="small" sx={{ bgcolor: 'rgba(255,255,255,0.12)', color: '#FFFFFF', fontWeight: 700, fontSize: 11, borderRadius: '4px' }} />
+          <Chip label={`${products.length} Products`} size="small" sx={{ bgcolor: '#FF7900', color: 'white', fontWeight: 700, fontSize: 11, borderRadius: '4px' }} />
         </Stack>
 
         <Typography variant="h3" fontWeight={900} letterSpacing="-0.03em" sx={{ fontSize: { xs: '1.8rem', md: '2.5rem' }, mb: 1, color: '#FFFFFF' }}>

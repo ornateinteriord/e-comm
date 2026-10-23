@@ -72,7 +72,7 @@ export const getTheme = (mode: 'light' | 'dark' = 'light'): Theme => {
       button: { fontWeight: 700, textTransform: 'none', letterSpacing: '0.01em' },
     },
     shape: {
-      borderRadius: 12,
+      borderRadius: 8,
     },
     shadows: [
       'none',
@@ -105,7 +105,7 @@ export const getTheme = (mode: 'light' | 'dark' = 'light'): Theme => {
       MuiButton: {
         styleOverrides: {
           root: {
-            borderRadius: 10,
+            borderRadius: 6,
             padding: '10px 22px',
             fontWeight: 700,
             transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
@@ -141,7 +141,7 @@ export const getTheme = (mode: 'light' | 'dark' = 'light'): Theme => {
       MuiCard: {
         styleOverrides: {
           root: {
-            borderRadius: 16,
+            borderRadius: 8,
             border: `1px solid ${isLight ? '#E5E7EB' : '#1E293B'}`,
             backgroundColor: isLight ? '#FFFFFF' : '#111827',
             boxShadow: isLight ? '0 1px 3px 0 rgba(0, 0, 0, 0.04)' : '0 1px 3px 0 rgba(0, 0, 0, 0.4)',
@@ -155,7 +155,7 @@ export const getTheme = (mode: 'light' | 'dark' = 'light'): Theme => {
       MuiChip: {
         styleOverrides: {
           root: {
-            borderRadius: 8,
+            borderRadius: 4,
             fontWeight: 700,
             fontSize: '0.75rem',
           },
@@ -167,7 +167,7 @@ export const getTheme = (mode: 'light' | 'dark' = 'light'): Theme => {
             backgroundImage: 'none',
           },
           rounded: {
-            borderRadius: 16,
+            borderRadius: 8,
           },
         },
       },

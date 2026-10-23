@@ -65,13 +65,13 @@ export default function CategoriesPage() {
           variant="contained"
           startIcon={<AddIcon />}
           onClick={() => setDialogOpen(true)}
-          sx={{ borderRadius: 2, fontWeight: 700 }}
+          sx={{ borderRadius: '6px', fontWeight: 700 }}
         >
           Add Category
         </Button>
       </Box>
 
-      <Paper elevation={0} sx={{ borderRadius: 3, border: '1px solid', borderColor: 'divider', overflow: 'hidden' }}>
+      <Paper elevation={0} sx={{ borderRadius: '8px', border: '1px solid', borderColor: 'divider', overflow: 'hidden' }}>
         {isLoading ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
             <CircularProgress />

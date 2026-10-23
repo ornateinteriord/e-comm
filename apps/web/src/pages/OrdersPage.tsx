@@ -38,13 +38,13 @@ export default function OrdersPage() {
           <CircularProgress />
         </Box>
       ) : !data?.items || data.items.length === 0 ? (
-        <Paper elevation={0} sx={{ p: 8, textAlign: 'center', borderRadius: 3, border: '1px dashed', borderColor: 'divider' }}>
+        <Paper elevation={0} sx={{ p: 8, textAlign: 'center', borderRadius: '8px', border: '1px dashed', borderColor: 'divider' }}>
           <OrderIcon sx={{ fontSize: 64, color: 'text.disabled', mb: 2 }} />
           <Typography variant="h6" fontWeight={700} sx={{ mb: 1 }}>No orders placed yet</Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 4 }}>
             Explore our curated products and place your first order today.
           </Typography>
-          <Button variant="contained" component={RouterLink} to="/search" sx={{ borderRadius: 2, fontWeight: 700 }}>
+          <Button variant="contained" component={RouterLink} to="/search" sx={{ borderRadius: '6px', fontWeight: 700 }}>
             Start Shopping
           </Button>
         </Paper>
@@ -56,7 +56,7 @@ export default function OrdersPage() {
               elevation={0}
               sx={{
                 p: 3,
-                borderRadius: 3,
+                borderRadius: '8px',
                 border: '1px solid',
                 borderColor: 'divider',
                 transition: 'box-shadow 0.2s',
@@ -99,7 +99,7 @@ export default function OrdersPage() {
                     variant="outlined"
                     component={RouterLink}
                     to={`/orders/${order.id || order.orderNumber}`}
-                    sx={{ borderRadius: 2, fontWeight: 700 }}
+                    sx={{ borderRadius: '6px', fontWeight: 700 }}
                   >
                     View Details
                   </Button>

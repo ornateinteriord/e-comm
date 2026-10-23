@@ -131,7 +131,7 @@ export default function CheckoutPage() {
           {/* Left Column: Address & Payment */}
           <Grid item xs={12} md={7}>
             {/* Step 1: Shipping Address */}
-            <Paper elevation={0} sx={{ p: 4, borderRadius: 3, border: '1px solid', borderColor: 'divider', mb: 4 }}>
+            <Paper elevation={0} sx={{ p: 4, borderRadius: '8px', border: '1px solid', borderColor: 'divider', mb: 4 }}>
               <Typography variant="h6" fontWeight={800} sx={{ mb: 3 }}>
                 1. Shipping Address
               </Typography>
@@ -209,7 +209,7 @@ export default function CheckoutPage() {
             </Paper>
 
             {/* Step 2: Payment Method */}
-            <Paper elevation={0} sx={{ p: 4, borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
+            <Paper elevation={0} sx={{ p: 4, borderRadius: '8px', border: '1px solid', borderColor: 'divider' }}>
               <Typography variant="h6" fontWeight={800} sx={{ mb: 3 }}>
                 2. Select Payment Method
               </Typography>
@@ -222,7 +222,7 @@ export default function CheckoutPage() {
                   sx={{
                     p: 2,
                     mb: 2,
-                    borderRadius: 2,
+                    borderRadius: '6px',
                     borderColor: paymentMethod === 'razorpay_simulator' ? 'primary.main' : 'divider',
                     bgcolor: paymentMethod === 'razorpay_simulator' ? 'action.hover' : 'transparent',
                   }}
@@ -247,7 +247,7 @@ export default function CheckoutPage() {
                   variant="outlined"
                   sx={{
                     p: 2,
-                    borderRadius: 2,
+                    borderRadius: '6px',
                     borderColor: paymentMethod === 'cod' ? 'primary.main' : 'divider',
                     bgcolor: paymentMethod === 'cod' ? 'action.hover' : 'transparent',
                   }}
@@ -273,7 +273,7 @@ export default function CheckoutPage() {
 
           {/* Right Column: Order Summary */}
           <Grid item xs={12} md={5}>
-            <Paper elevation={0} sx={{ p: 4, borderRadius: 3, border: '1px solid', borderColor: 'divider', bgcolor: '#f8fafc' }}>
+            <Paper elevation={0} sx={{ p: 4, borderRadius: '8px', border: '1px solid', borderColor: 'divider', bgcolor: '#f8fafc' }}>
               <Typography variant="h6" fontWeight={800} sx={{ mb: 2 }}>
                 Items in Order ({items.length})
               </Typography>
@@ -327,7 +327,7 @@ export default function CheckoutPage() {
                 startIcon={isSubmitting ? <CircularProgress size={20} color="inherit" /> : <SecureIcon />}
                 sx={{
                   py: 1.5,
-                  borderRadius: 1,
+                  borderRadius: '6px',
                   fontWeight: 700,
                   fontSize: '0.95rem',
                   bgcolor: '#FF7900',

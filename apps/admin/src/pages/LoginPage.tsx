@@ -36,29 +36,17 @@ export default function LoginPage() {
   return (
     <Box sx={{ minHeight: '100vh', display: 'flex', alignItems: 'center', bgcolor: '#0f172a' }}>
       <Container maxWidth="xs">
-        <Paper elevation={0} sx={{ p: 5, borderRadius: 3, bgcolor: '#ffffff' }}>
+        <Paper elevation={0} sx={{ p: 5, borderRadius: '10px', bgcolor: '#ffffff', border: '1px solid #e2e8f0' }}>
           <Box sx={{ textAlign: 'center', mb: 3 }}>
-            <Box
-              sx={{
-                width: 48,
-                height: 48,
-                borderRadius: '50%',
-                bgcolor: 'primary.light',
-                color: 'primary.dark',
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                mb: 1.5,
-              }}
-            >
+            <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
               <Box
                 component="img"
                 src="/logo.svg"
-                alt="E-Shophy Logo"
-                sx={{ width: 48, height: 48, objectFit: 'contain', borderRadius: '10px' }}
+                alt="E-Shophy"
+                sx={{ height: 46, width: 'auto', maxWidth: 180, objectFit: 'contain' }}
               />
             </Box>
-            <Typography variant="h5" fontWeight={900} letterSpacing="-0.02em">
+            <Typography variant="h5" fontWeight={900} letterSpacing="-0.02em" sx={{ color: '#172B30' }}>
               E-Shophy Admin
             </Typography>
             <Typography variant="body2" color="text.secondary">
@@ -104,12 +92,6 @@ export default function LoginPage() {
               </Button>
             </Stack>
           </form>
-
-          <Box sx={{ mt: 3, textAlign: 'center' }}>
-            <Typography variant="caption" color="text.secondary">
-              Pre-filled with seeded super_admin credentials
-            </Typography>
-          </Box>
         </Paper>
       </Container>
     </Box>

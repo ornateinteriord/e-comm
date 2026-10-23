@@ -216,7 +216,7 @@ export default function ProductsPage() {
       </Box>
 
       {/* Filter / Search Bar */}
-      <Paper elevation={0} sx={{ p: 2, mb: 3, borderRadius: 3, border: '1px solid #e2e8f0', bgcolor: 'background.paper', display: 'flex', alignItems: 'center', gap: 2 }}>
+      <Paper elevation={0} sx={{ p: 2, mb: 3, borderRadius: '8px', border: '1px solid #e2e8f0', bgcolor: 'background.paper', display: 'flex', alignItems: 'center', gap: 2 }}>
         <TextField
           size="small"
           placeholder="Filter by name, brand, or SKU…"
@@ -237,7 +237,7 @@ export default function ProductsPage() {
       </Paper>
 
       {/* Products Table with Responsive Container */}
-      <Paper elevation={0} sx={{ borderRadius: 3.5, border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+      <Paper elevation={0} sx={{ borderRadius: '8px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
         {isLoading ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', py: 12 }}>
             <CircularProgress />
@@ -270,7 +270,7 @@ export default function ProductsPage() {
                     <TableRow key={product.id} hover sx={{ '&:last-child td': { border: 0 } }}>
                       <TableCell sx={{ minWidth: 240 }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                          <Box sx={{ width: 44, height: 44, borderRadius: 2, overflow: 'hidden', bgcolor: '#f1f5f9', flexShrink: 0 }}>
+                          <Box sx={{ width: 44, height: 44, borderRadius: '6px', overflow: 'hidden', bgcolor: '#f1f5f9', flexShrink: 0 }}>
                             <img
                               src={product.images?.[0]?.url || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=100&q=80'}
                               alt=""
@@ -368,13 +368,13 @@ export default function ProductsPage() {
       </Paper>
 
       {/* Create / Edit Dialog with Live Margin Calculator */}
-      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="md" fullWidth PaperProps={{ sx: { borderRadius: 4 } }}>
+      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="md" fullWidth PaperProps={{ sx: { borderRadius: '10px' } }}>
         <DialogTitle sx={{ fontWeight: 900, pb: 1 }}>
           {editingProduct ? 'Edit Product & Pricing' : 'Add New Flagship Product'}
         </DialogTitle>
         <DialogContent dividers sx={{ p: 3 }}>
           {formError && (
-            <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }}>{formError}</Alert>
+            <Alert severity="error" sx={{ mb: 3, borderRadius: '6px' }}>{formError}</Alert>
           )}
 
           <Grid container spacing={3}>
@@ -425,7 +425,7 @@ export default function ProductsPage() {
 
             {/* 4-Tier Pricing Configuration */}
             <Grid item xs={12}>
-              <Paper elevation={0} sx={{ p: 2.5, bgcolor: '#f8fafc', borderRadius: 3, border: '1px solid #e2e8f0' }}>
+              <Paper elevation={0} sx={{ p: 2.5, bgcolor: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                   <Typography variant="subtitle2" fontWeight={900} color="#0f172a">
                     4-TIER PRICING & MARGIN ANALYSIS
@@ -557,7 +557,7 @@ export default function ProductsPage() {
             variant="contained"
             onClick={() => saveMutation.mutate()}
             disabled={saveMutation.isPending}
-            sx={{ bgcolor: '#4f46e5', fontWeight: 800, borderRadius: 2, px: 3, '&:hover': { bgcolor: '#4338ca' } }}
+            sx={{ bgcolor: '#FF7900', fontWeight: 800, borderRadius: '6px', px: 3, '&:hover': { bgcolor: '#E85D04' } }}
           >
             {saveMutation.isPending ? 'Saving…' : 'Save & Publish Product'}
           </Button>

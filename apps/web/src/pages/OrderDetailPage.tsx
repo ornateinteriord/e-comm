@@ -79,7 +79,7 @@ export default function OrderDetailPage() {
             startIcon={<InvoiceIcon />}
             href={`/api/v1/invoices/${order.id || order.orderNumber}/html`}
             target="_blank"
-            sx={{ borderRadius: 2, fontWeight: 700 }}
+            sx={{ borderRadius: '6px', fontWeight: 700 }}
           >
             View Tax Invoice
           </Button>
@@ -95,7 +95,7 @@ export default function OrderDetailPage() {
                 }
               }}
               disabled={cancelMutation.isPending}
-              sx={{ borderRadius: 2, fontWeight: 700 }}
+              sx={{ borderRadius: '6px', fontWeight: 700 }}
             >
               Cancel Order
             </Button>
@@ -104,7 +104,7 @@ export default function OrderDetailPage() {
       </Box>
 
       {/* Status Stepper */}
-      <Paper elevation={0} sx={{ p: 4, borderRadius: 3, border: '1px solid', borderColor: 'divider', mb: 4 }}>
+      <Paper elevation={0} sx={{ p: 4, borderRadius: '8px', border: '1px solid', borderColor: 'divider', mb: 4 }}>
         <Typography variant="subtitle2" fontWeight={800} sx={{ mb: 3 }}>
           FULFILMENT PROGRESS
         </Typography>
@@ -131,7 +131,7 @@ export default function OrderDetailPage() {
       <Grid container spacing={4}>
         {/* Items */}
         <Grid item xs={12} md={8}>
-          <Paper elevation={0} sx={{ p: 3, borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
+          <Paper elevation={0} sx={{ p: 3, borderRadius: '8px', border: '1px solid', borderColor: 'divider' }}>
             <Typography variant="h6" fontWeight={800} sx={{ mb: 3 }}>
               Ordered Items ({order.items?.length || 0})
             </Typography>
@@ -139,7 +139,7 @@ export default function OrderDetailPage() {
             <Stack spacing={2}>
               {order.items?.map((item, idx) => (
                 <Box key={idx} sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-                  <Box sx={{ width: 64, height: 64, borderRadius: 2, overflow: 'hidden', bgcolor: '#f8fafc', flexShrink: 0 }}>
+                  <Box sx={{ width: 64, height: 64, borderRadius: '6px', overflow: 'hidden', bgcolor: '#f8fafc', flexShrink: 0 }}>
                     <img
                       src={item.image || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=200&q=80'}
                       alt={item.name}
@@ -161,7 +161,7 @@ export default function OrderDetailPage() {
 
         {/* Shipping & Payment Details */}
         <Grid item xs={12} md={4}>
-          <Paper elevation={0} sx={{ p: 3, borderRadius: 3, border: '1px solid', borderColor: 'divider', mb: 3 }}>
+          <Paper elevation={0} sx={{ p: 3, borderRadius: '8px', border: '1px solid', borderColor: 'divider', mb: 3 }}>
             <Typography variant="subtitle2" fontWeight={800} sx={{ mb: 2 }}>
               SHIPPING ADDRESS
             </Typography>
@@ -177,7 +177,7 @@ export default function OrderDetailPage() {
             </Typography>
           </Paper>
 
-          <Paper elevation={0} sx={{ p: 3, borderRadius: 3, border: '1px solid', borderColor: 'divider', bgcolor: '#f8fafc' }}>
+          <Paper elevation={0} sx={{ p: 3, borderRadius: '8px', border: '1px solid', borderColor: 'divider', bgcolor: '#f8fafc' }}>
             <Typography variant="subtitle2" fontWeight={800} sx={{ mb: 2 }}>
               PAYMENT BREAKDOWN
             </Typography>

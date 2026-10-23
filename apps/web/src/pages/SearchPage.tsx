@@ -250,7 +250,7 @@ export default function SearchPage() {
         {/* Desktop Sidebar */}
         {!isMobile && (
           <Grid item xs={12} md={3.2}>
-            <Paper elevation={0} sx={{ border: `1px solid ${isLight ? '#E5E7EB' : 'rgba(255, 255, 255, 0.08)'}`, borderRadius: 4, bgcolor: 'background.paper', position: 'sticky', top: 90 }}>
+            <Paper elevation={0} sx={{ border: `1px solid ${isLight ? '#E5E7EB' : 'rgba(255, 255, 255, 0.08)'}`, borderRadius: '8px', bgcolor: 'background.paper', position: 'sticky', top: 90 }}>
               {filterSidebarContent}
             </Paper>
           </Grid>
@@ -263,12 +263,12 @@ export default function SearchPage() {
               <CircularProgress />
             </Box>
           ) : !searchData?.products?.length ? (
-            <Box sx={{ py: 10, textAlign: 'center', bgcolor: 'background.paper', borderRadius: 4, border: '1px solid #e2e8f0', p: 4 }}>
+            <Box sx={{ py: 10, textAlign: 'center', bgcolor: 'background.paper', borderRadius: '8px', border: '1px solid #e2e8f0', p: 4 }}>
               <Typography variant="h6" fontWeight={800}>No matching products found</Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mt: 1, mb: 3 }}>
                 Try relaxing your price filters or searching with different keywords.
               </Typography>
-              <Button variant="outlined" onClick={handleClearFilters} sx={{ borderRadius: 2, fontWeight: 700 }}>
+              <Button variant="outlined" onClick={handleClearFilters} sx={{ borderRadius: '6px', fontWeight: 700 }}>
                 Clear All Filters
               </Button>
             </Box>

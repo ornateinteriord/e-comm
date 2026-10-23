@@ -72,7 +72,7 @@ export default function InventoryPage() {
       </Tabs>
 
       {tab === 0 && (
-        <Paper elevation={0} sx={{ borderRadius: 2, border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+        <Paper elevation={0} sx={{ borderRadius: '8px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
           {isLoading ? (
             <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
               <CircularProgress />
@@ -143,7 +143,7 @@ export default function InventoryPage() {
       )}
 
       {tab === 1 && (
-        <Paper elevation={0} sx={{ borderRadius: 2, border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+        <Paper elevation={0} sx={{ borderRadius: '8px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
           <TableContainer sx={{ overflowX: 'auto' }}>
             <Table size="small">
               <TableHead sx={{ bgcolor: '#f8fafc' }}>
