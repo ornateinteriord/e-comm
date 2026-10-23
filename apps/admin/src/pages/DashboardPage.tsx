@@ -143,7 +143,7 @@ export default function DashboardPage() {
               elevation={0}
               sx={{
                 p: 2.5,
-                borderRadius: 2,
+                borderRadius: '8px',
                 border: '1px solid #e2e8f0',
                 bgcolor: '#ffffff',
                 height: '100%',
@@ -187,7 +187,7 @@ export default function DashboardPage() {
       {/* Operational Summary Strip (Utilizing screen space cleanly) */}
       <Grid container spacing={2.5} sx={{ mb: 3 }}>
         <Grid item xs={12} md={4}>
-          <Paper elevation={0} sx={{ p: 2.5, borderRadius: 2, border: '1px solid #e2e8f0', bgcolor: '#ffffff', height: '100%' }}>
+          <Paper elevation={0} sx={{ p: 2.5, borderRadius: '8px', border: '1px solid #e2e8f0', bgcolor: '#ffffff', height: '100%' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1.5 }}>
               <ShippingIcon sx={{ color: '#2563eb', fontSize: 22 }} />
               <Typography variant="subtitle2" fontWeight={800} color="#0f172a">
@@ -215,7 +215,7 @@ export default function DashboardPage() {
         </Grid>
 
         <Grid item xs={12} md={4}>
-          <Paper elevation={0} sx={{ p: 2.5, borderRadius: 2, border: '1px solid #e2e8f0', bgcolor: '#ffffff', height: '100%' }}>
+          <Paper elevation={0} sx={{ p: 2.5, borderRadius: '8px', border: '1px solid #e2e8f0', bgcolor: '#ffffff', height: '100%' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1.5 }}>
               <InventoryIcon sx={{ color: '#d97706', fontSize: 22 }} />
               <Typography variant="subtitle2" fontWeight={800} color="#0f172a">
@@ -243,7 +243,7 @@ export default function DashboardPage() {
         </Grid>
 
         <Grid item xs={12} md={4}>
-          <Paper elevation={0} sx={{ p: 2.5, borderRadius: 2, border: '1px solid #e2e8f0', bgcolor: '#ffffff', height: '100%' }}>
+          <Paper elevation={0} sx={{ p: 2.5, borderRadius: '8px', border: '1px solid #e2e8f0', bgcolor: '#ffffff', height: '100%' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1.5 }}>
               <InvoiceIcon sx={{ color: '#0f172a', fontSize: 22 }} />
               <Typography variant="subtitle2" fontWeight={800} color="#0f172a">
@@ -272,7 +272,7 @@ export default function DashboardPage() {
       </Grid>
 
       {/* Full-width Recent Customer Orders Section */}
-      <Paper elevation={0} sx={{ borderRadius: 2, border: '1px solid #e2e8f0', bgcolor: '#ffffff', overflow: 'hidden' }}>
+      <Paper elevation={0} sx={{ borderRadius: '8px', border: '1px solid #e2e8f0', bgcolor: '#ffffff', overflow: 'hidden' }}>
         <Box sx={{ p: 2.5, display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0' }}>
           <Box>
             <Typography variant="subtitle1" fontWeight={800} color="#0f172a">
@@ -287,7 +287,7 @@ export default function DashboardPage() {
             to="/orders"
             endIcon={<ArrowForwardIcon fontSize="small" />}
             size="small"
-            sx={{ fontWeight: 700, color: '#2563eb', textTransform: 'none' }}
+            sx={{ fontWeight: 700, color: '#FF7900', textTransform: 'none' }}
           >
             All Orders ({metrics?.totalOrders ?? 0})
           </Button>
@@ -363,7 +363,7 @@ export default function DashboardPage() {
                         to="/orders"
                         size="small"
                         sx={{
-                          color: '#2563eb',
+                          color: '#FF7900',
                           fontWeight: 700,
                           fontSize: '0.8rem',
                           textTransform: 'none',

@@ -78,7 +78,7 @@ export default function AccountPage() {
       <Grid container spacing={4}>
         {/* Profile Card */}
         <Grid item xs={12} md={5}>
-          <Paper elevation={0} sx={{ p: 4, borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
+          <Paper elevation={0} sx={{ p: 4, borderRadius: '8px', border: '1px solid', borderColor: 'divider' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
               <Box sx={{ p: 1.5, borderRadius: '50%', bgcolor: 'primary.light', color: 'primary.dark' }}>
                 <UserIcon sx={{ fontSize: 32 }} />
@@ -114,7 +114,7 @@ export default function AccountPage() {
               />
               <Button
                 variant="contained"
-                sx={{ borderRadius: 2, fontWeight: 700 }}
+                sx={{ borderRadius: '6px', fontWeight: 700 }}
                 onClick={async () => {
                   try {
                     await api.put('/users/profile', { name });
@@ -133,14 +133,14 @@ export default function AccountPage() {
 
         {/* Addresses */}
         <Grid item xs={12} md={7}>
-          <Paper elevation={0} sx={{ p: 4, borderRadius: 3, border: '1px solid', borderColor: 'divider', mb: 4 }}>
+          <Paper elevation={0} sx={{ p: 4, borderRadius: '8px', border: '1px solid', borderColor: 'divider', mb: 4 }}>
             <Typography variant="h6" fontWeight={800} sx={{ mb: 3 }}>
               Saved Addresses
             </Typography>
 
             <Stack spacing={2} sx={{ mb: 4 }}>
               {addresses?.map((addr) => (
-                <Card key={addr.id} variant="outlined" sx={{ borderRadius: 2, p: 1 }}>
+                <Card key={addr.id} variant="outlined" sx={{ borderRadius: '6px', p: 1 }}>
                   <CardContent sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: '8px !important' }}>
                     <Box>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -224,7 +224,7 @@ export default function AccountPage() {
                   startIcon={<AddIcon />}
                   onClick={() => addAddressMutation.mutate()}
                   disabled={!newAddress.line1}
-                  sx={{ borderRadius: 2, fontWeight: 700 }}
+                  sx={{ borderRadius: '6px', fontWeight: 700 }}
                 >
                   Save Address
                 </Button>

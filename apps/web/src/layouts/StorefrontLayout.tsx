@@ -188,7 +188,7 @@ export default function StorefrontLayout() {
                     fontWeight: 600,
                     px: 1.75,
                     py: 1,
-                    borderRadius: 2,
+                    borderRadius: '6px',
                     bgcolor: location.pathname === `/categories/${cat.slug}`
                       ? (isLight ? 'rgba(255, 121, 0, 0.08)' : 'rgba(255, 121, 0, 0.15)')
                       : 'transparent',
@@ -251,7 +251,7 @@ export default function StorefrontLayout() {
                     zIndex: 1300,
                     bgcolor: isLight ? '#FFFFFF' : '#1e293b',
                     color: isLight ? '#172B30' : 'white',
-                    borderRadius: 3,
+                    borderRadius: '8px',
                     border: `1px solid ${isLight ? '#E5E7EB' : 'rgba(255,255,255,0.1)'}`,
                     overflow: 'hidden',
                     p: 1,
@@ -266,7 +266,7 @@ export default function StorefrontLayout() {
                       }}
                       sx={{
                         p: 1.5,
-                        borderRadius: 2,
+                        borderRadius: '6px',
                         cursor: 'pointer',
                         display: 'flex',
                         alignItems: 'center',
@@ -399,7 +399,7 @@ export default function StorefrontLayout() {
               >
                 <Box
                   component="img"
-                  src={isLight ? '/logo.svg' : '/logo-dark.svg'}
+                  src="/logo.svg"
                   alt="E-Shophy"
                   sx={{
                     height: 32,
@@ -495,7 +495,7 @@ export default function StorefrontLayout() {
         <Box sx={{ p: 2.5, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: `1px solid ${isLight ? '#E5E7EB' : '#1E293B'}` }}>
           <Box
             component="img"
-            src={isLight ? '/logo.svg' : '/logo-dark.svg'}
+            src="/logo.svg"
             alt="E-Shophy"
             sx={{
               height: 32,
@@ -594,7 +594,7 @@ export default function StorefrontLayout() {
           sx: {
             mt: 1.5,
             minWidth: 220,
-            borderRadius: 3,
+            borderRadius: '8px',
             p: 1,
             border: '1px solid #e2e8f0',
           },

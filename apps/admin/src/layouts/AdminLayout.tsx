@@ -56,18 +56,10 @@ export default function AdminLayout() {
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
           <Box
             component="img"
-            src="/logo.svg"
-            alt="E-Shophy Logo"
-            sx={{ width: 34, height: 34, objectFit: 'contain', borderRadius: '6px' }}
+            src="/logo-dark.svg"
+            alt="E-Shophy"
+            sx={{ height: 35, width: 180, objectFit: 'contain' }}
           />
-          <Box>
-            <Typography variant="h6" fontWeight={900} sx={{ letterSpacing: '-0.04em', color: '#818cf8', fontSize: '1.35rem', lineHeight: 1.1 }}>
-              E-Shophy<Box component="span" sx={{ color: 'white' }}>.</Box>
-            </Typography>
-            <Typography variant="caption" sx={{ color: '#94a3b8', fontWeight: 700, letterSpacing: '0.06em', fontSize: '0.65rem' }}>
-              MANAGEMENT CONSOLE
-            </Typography>
-          </Box>
         </Box>
         {isMobile && (
           <IconButton onClick={() => setMobileDrawerOpen(false)} sx={{ color: '#94a3b8' }}>
@@ -92,20 +84,20 @@ export default function AdminLayout() {
                 to={item.path}
                 onClick={() => isMobile && setMobileDrawerOpen(false)}
                 sx={{
-                  borderRadius: 2.5,
+                  borderRadius: '6px',
                   py: 1.25,
                   px: 2,
-                  bgcolor: isSelected ? '#4f46e5' : 'transparent',
+                  bgcolor: isSelected ? '#FF7900' : 'transparent',
                   color: isSelected ? '#ffffff' : '#94a3b8',
-                  boxShadow: isSelected ? '0 4px 12px rgba(79, 70, 229, 0.4)' : 'none',
+                  boxShadow: isSelected ? '0 4px 12px rgba(255, 121, 0, 0.35)' : 'none',
                   '&:hover': {
-                    bgcolor: isSelected ? '#4338ca' : '#1e293b',
+                    bgcolor: isSelected ? '#E85D04' : '#1e293b',
                     color: '#ffffff',
                   },
                   transition: 'all 0.15s ease',
                 }}
               >
-                <ListItemIcon sx={{ color: isSelected ? '#ffffff' : '#818cf8', minWidth: 38 }}>
+                <ListItemIcon sx={{ color: isSelected ? '#ffffff' : '#94a3b8', minWidth: 38 }}>
                   {item.icon}
                 </ListItemIcon>
                 <ListItemText
@@ -136,7 +128,7 @@ export default function AdminLayout() {
           sx={{
             borderColor: '#334155',
             color: '#cbd5e1',
-            borderRadius: 1,
+            borderRadius: '6px',
             mb: 2,
             fontWeight: 700,
             textTransform: 'none',
@@ -146,8 +138,8 @@ export default function AdminLayout() {
           View Live Storefront
         </Button>
 
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, px: 1, py: 1, bgcolor: '#1e293b', borderRadius: 2 }}>
-          <Avatar sx={{ width: 34, height: 34, bgcolor: '#4f46e5', fontSize: '0.85rem', fontWeight: 800 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, px: 1, py: 1, bgcolor: '#1e293b', borderRadius: '6px' }}>
+          <Avatar sx={{ width: 34, height: 34, bgcolor: '#FF7900', fontSize: '0.85rem', fontWeight: 800 }}>
             {user?.name?.[0]?.toUpperCase() || 'A'}
           </Avatar>
           <Box sx={{ flexGrow: 1, minWidth: 0 }}>
@@ -240,16 +232,6 @@ export default function AdminLayout() {
                   fontWeight: 800,
                   fontSize: 11,
                   display: { xs: 'none', sm: 'inline-flex' },
-                }}
-              />
-              <Chip
-                label="● LIVE ATLAS CLUSTER"
-                size="small"
-                sx={{
-                  bgcolor: '#dcfce7',
-                  color: '#15803d',
-                  fontWeight: 800,
-                  fontSize: 11,
                 }}
               />
             </Stack>

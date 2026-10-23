@@ -4,9 +4,9 @@ export const adminTheme = createTheme({
   palette: {
     mode: 'light',
     primary: {
-      main: '#4f46e5',
-      light: '#818cf8',
-      dark: '#3730a3',
+      main: '#FF7900',
+      light: '#FFA04D',
+      dark: '#E85D04',
       contrastText: '#ffffff',
     },
     secondary: {
@@ -34,13 +34,13 @@ export const adminTheme = createTheme({
     button: { textTransform: 'none', fontWeight: 600 },
   },
   shape: {
-    borderRadius: 10,
+    borderRadius: 6,
   },
   components: {
     MuiButton: {
       styleOverrides: {
         root: {
-          borderRadius: 8,
+          borderRadius: 6,
           boxShadow: 'none',
           '&:hover': { boxShadow: 'none' },
         },
@@ -50,6 +50,9 @@ export const adminTheme = createTheme({
       styleOverrides: {
         root: {
           backgroundImage: 'none',
+        },
+        rounded: {
+          borderRadius: 8,
         },
       },
     },

@@ -34,7 +34,7 @@ export default function Footer() {
             >
               <Box
                 component="img"
-                src="/logo-dark.svg"
+                src="/logo.svg"
                 alt="E-Shophy"
                 sx={{
                   height: 42,

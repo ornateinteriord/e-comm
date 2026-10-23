@@ -72,7 +72,7 @@ export default function ProductCard({ product }: ProductCardProps) {
         height: '100%',
         display: 'flex',
         flexDirection: 'column',
-        borderRadius: { xs: 3, sm: 4 },
+        borderRadius: '8px',
         border: '1px solid',
         borderColor: 'divider',
         bgcolor: 'background.paper',
@@ -298,7 +298,7 @@ export default function ProductCard({ product }: ProductCardProps) {
           sx={{
             mt: 2,
             py: { xs: 0.85, sm: 1 },
-            borderRadius: 1.5,
+            borderRadius: '6px',
             fontWeight: 700,
             fontSize: { xs: '0.75rem', sm: '0.85rem' },
             bgcolor: addedAnim ? '#16a34a' : '#FF7900',
