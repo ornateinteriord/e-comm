@@ -115,20 +115,28 @@ async function seedCoupons(): Promise<void> {
   }
 }
 
+const DEFAULT_MONGODB_URI =
+  'mongodb+srv://ornateinteriord:22k3ZVbQMZDpybDP@cluster0.plzr559.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0';
+
 async function start(): Promise<void> {
-  await connectDB(
-    process.env.MONGODB_URI ?? 'mongodb://localhost:27017',
-    process.env.CART_DB_NAME ?? 'ornate_cart',
-  );
-  await seedCoupons();
-  app.listen(PORT, () => {
-    log.info({ port: PORT }, 'Cart service listening');
-  });
+  try {
+    await connectDB(
+      process.env.MONGODB_URI ?? DEFAULT_MONGODB_URI,
+      process.env.CART_DB_NAME ?? 'ornate_cart',
+      { exitOnError: false, maxRetries: 2, serverSelectionTimeoutMS: 5000, connectTimeoutMS: 5000 },
+    );
+    await seedCoupons();
+  } catch (err) {
+    log.error({ err }, 'MongoDB connection warning - will retry on demand');
+  }
+
+  if (process.env.VERCEL !== '1') {
+    app.listen(PORT, () => {
+      log.info({ port: PORT }, 'Cart service listening');
+    });
+  }
 }
 
-start().catch((err) => {
-  log.error({ err }, 'Failed to start cart service');
-  process.exit(1);
-});
+start();
 
 export default app;
