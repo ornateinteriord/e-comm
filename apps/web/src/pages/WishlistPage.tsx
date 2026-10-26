@@ -13,7 +13,6 @@ import api from '../api/client';
 import { useCartStore } from '../store/cart.store';
 import type { PublicProduct } from '@ornate/types';
 
-import { DUMMY_PRODUCTS } from '../data/dummyData';
 
 export default function WishlistPage() {
   const queryClient = useQueryClient();
@@ -37,10 +36,10 @@ export default function WishlistPage() {
       if (!productIds || productIds.length === 0) return [];
       try {
         const { data } = await api.get(`/products?limit=50`);
-        const all = (data?.data?.items?.length ? data.data.items : DUMMY_PRODUCTS) as PublicProduct[];
+        const all = (data?.data?.items ?? []) as PublicProduct[];
         return all.filter((p) => productIds.includes(p.id));
       } catch {
-        return DUMMY_PRODUCTS.filter((p) => productIds.includes(p.id));
+        return [];
       }
     },
     enabled: Boolean(productIds && productIds.length > 0),

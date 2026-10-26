@@ -29,7 +29,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useDebounce } from '../hooks/useDebounce';
 import api from '../api/client';
 import Footer from '../components/Footer.tsx';
-import { DUMMY_CATEGORIES, getDummySuggestions } from '../data/dummyData';
+
 
 export default function StorefrontLayout() {
   const theme = useTheme();
@@ -56,9 +56,7 @@ export default function StorefrontLayout() {
     enabled: debouncedSearch.length >= 2,
   });
 
-  const suggestions = apiSuggestions && apiSuggestions.length > 0
-    ? apiSuggestions
-    : getDummySuggestions(debouncedSearch);
+  const suggestions = apiSuggestions ?? [];
 
   const { data: apiCategories } = useQuery({
     queryKey: ['categories-header'],
@@ -69,7 +67,7 @@ export default function StorefrontLayout() {
     staleTime: 1000 * 60 * 10,
   });
 
-  const categories = apiCategories && apiCategories.length > 0 ? apiCategories : DUMMY_CATEGORIES;
+  const categories = apiCategories ?? [];
 
   const handleSearch = useCallback(
     (e: FormEvent) => {

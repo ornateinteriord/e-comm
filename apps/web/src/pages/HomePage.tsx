@@ -23,7 +23,7 @@ import {
 import api from "../api/client";
 import ProductCard from "../components/ProductCard";
 import type { PublicProduct } from "@ornate/types";
-import { DUMMY_PRODUCTS, DUMMY_CATEGORIES } from "../data/dummyData";
+
 
 interface CategoryDisplayMeta {
   image: string;
@@ -99,8 +99,8 @@ export default function HomePage() {
     },
   });
 
-  const finalProducts = productsData?.items && productsData.items.length > 0 ? productsData.items : DUMMY_PRODUCTS;
-  const finalCategories = categories && categories.length > 0 ? categories : DUMMY_CATEGORIES;
+  const finalProducts = productsData?.items ?? [];
+  const finalCategories = categories ?? [];
 
   const dealProducts = finalProducts.filter((p) => p.pricing?.dealActive || (p.pricing?.savingsPercent ?? 0) > 15);
   const standardProducts = finalProducts;

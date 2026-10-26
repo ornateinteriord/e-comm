@@ -15,7 +15,7 @@ import {
 import api from '../api/client';
 import ProductCard from '../components/ProductCard';
 import type { SearchResult } from '@ornate/types';
-import { searchDummyProducts, DUMMY_CATEGORIES } from '../data/dummyData';
+
 
 export default function SearchPage() {
   const theme = useTheme();
@@ -66,22 +66,9 @@ export default function SearchPage() {
     },
   });
 
-  const categories = apiCategories && apiCategories.length > 0 ? apiCategories : DUMMY_CATEGORIES;
 
-  const fallbackSearch = searchDummyProducts({
-    q: queryParam,
-    category: categoryParam,
-    sort: sortParam,
-    page: pageParam,
-    limit: 12,
-    inStock,
-    minPrice: priceRange[0] > 0 ? priceRange[0] * 100 : undefined,
-    maxPrice: priceRange[1] < 150000 ? priceRange[1] * 100 : undefined,
-  });
-
-  const searchData = apiSearchData?.products && apiSearchData.products.length > 0
-    ? apiSearchData
-    : fallbackSearch;
+  const searchData = apiSearchData;
+  const categories = apiCategories ?? [];
 
   const applyFilters = () => {
     const next = new URLSearchParams();
