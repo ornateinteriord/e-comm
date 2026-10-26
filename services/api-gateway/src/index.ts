@@ -20,31 +20,66 @@ app.use(
   }),
 );
 
-const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS ?? 'http://localhost:5173,http://localhost:5174')
+const staticAllowedOrigins = [
+  'http://localhost:5173',
+  'http://localhost:5174',
+  'http://localhost:3000',
+  'http://localhost:4000',
+  'https://e-shophy-admin.vercel.app',
+  'https://e-shophy-ui.vercel.app',
+  'https://e-comm-three-eta.vercel.app',
+  'https://e-comm-admin-gules.vercel.app',
+];
+
+const envAllowedOrigins = (process.env.ALLOWED_ORIGINS ?? '')
   .split(',')
   .map((o) => o.trim())
   .filter(Boolean);
 
-app.use(
-  cors({
-    origin: (requestOrigin, callback) => {
-      // Allow server-to-server requests (no Origin header) and listed origins
-      if (!requestOrigin || ALLOWED_ORIGINS.includes(requestOrigin)) {
-        callback(null, true);
-      } else {
-        log.warn({ requestOrigin }, 'CORS rejected origin');
-        callback(new Error(`CORS policy: origin ${requestOrigin} not allowed`));
-      }
-    },
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-    optionsSuccessStatus: 200, // some legacy browsers choke on 204
-  }),
-);
+export const isOriginAllowed = (origin?: string): boolean => {
+  if (!origin) return true; // Server-to-server or same-origin
+  if (staticAllowedOrigins.includes(origin) || envAllowedOrigins.includes(origin)) {
+    return true;
+  }
+  try {
+    const { hostname } = new URL(origin);
+    if (hostname.endsWith('.vercel.app')) return true;
+    if (hostname === 'localhost' || hostname === '127.0.0.1') return true;
+  } catch {
+    // Malformed origin
+  }
+  return false;
+};
 
-// Explicit OPTIONS pre-flight for all routes
-app.options('*', cors());
+const corsOptions: cors.CorsOptions = {
+  origin: (requestOrigin, callback) => {
+    if (isOriginAllowed(requestOrigin)) {
+      callback(null, true);
+    } else {
+      log.warn({ requestOrigin }, 'CORS rejected origin');
+      callback(null, false);
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: [
+    'Content-Type',
+    'Authorization',
+    'X-Requested-With',
+    'Accept',
+    'Origin',
+    'Cookie',
+    'X-CSRF-Token',
+  ],
+  exposedHeaders: ['Set-Cookie'],
+  optionsSuccessStatus: 200, // some legacy browsers choke on 204
+};
+
+const corsMiddleware = cors(corsOptions);
+app.use(corsMiddleware);
+
+// Explicit OPTIONS pre-flight for all routes using exact same CORS config
+app.options('*', corsMiddleware);
 
 app.use(cookieParser());
 
@@ -114,6 +149,13 @@ sortedRoutes.forEach(({ path, target }) => {
       changeOrigin: true,
       pathFilter: (pathname) => pathname === path || pathname.startsWith(path + '/') || pathname.startsWith(path + '?'),
       on: {
+        proxyRes: (proxyRes, req) => {
+          const origin = (req as Request).headers?.origin;
+          if (origin && isOriginAllowed(origin)) {
+            proxyRes.headers['access-control-allow-origin'] = origin;
+            proxyRes.headers['access-control-allow-credentials'] = 'true';
+          }
+        },
         error: (err, req, res) => {
           log.error({ err, path: req.url, target }, 'Proxy error');
           if ('headersSent' in res && !res.headersSent) {

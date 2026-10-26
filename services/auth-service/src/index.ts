@@ -15,12 +15,41 @@ const PORT = process.env.AUTH_SERVICE_PORT ?? 4001;
 
 // ---- Middleware ----
 app.use(helmet());
-app.use(
-  cors({
-    origin: (process.env.ALLOWED_ORIGINS ?? 'http://localhost:4000').split(',').map((o) => o.trim()),
-    credentials: true,
-  }),
-);
+const staticAllowed = [
+  'http://localhost:4000',
+  'http://localhost:5173',
+  'http://localhost:5174',
+  'http://localhost:3000',
+  'https://e-shophy-admin.vercel.app',
+  'https://e-shophy-ui.vercel.app',
+  'https://e-comm-three-eta.vercel.app',
+  'https://e-comm-admin-gules.vercel.app',
+];
+const envAllowed = (process.env.ALLOWED_ORIGINS ?? '').split(',').map((o) => o.trim()).filter(Boolean);
+
+const authCors = cors({
+  origin: (requestOrigin, callback) => {
+    if (!requestOrigin) return callback(null, true);
+    if (staticAllowed.includes(requestOrigin) || envAllowed.includes(requestOrigin)) return callback(null, true);
+    try {
+      const { hostname } = new URL(requestOrigin);
+      if (hostname.endsWith('.vercel.app') || hostname === 'localhost' || hostname === '127.0.0.1') {
+        return callback(null, true);
+      }
+    } catch {
+      // Malformed origin
+    }
+    return callback(null, false);
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin', 'Cookie'],
+  exposedHeaders: ['Set-Cookie'],
+  optionsSuccessStatus: 200,
+});
+
+app.use(authCors);
+app.options('*', authCors);
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
