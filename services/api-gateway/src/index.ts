@@ -106,6 +106,101 @@ app.get('/health', (_req: Request, res: Response) => {
   res.json({ status: 'ok', service: 'api-gateway', timestamp: new Date().toISOString() });
 });
 
+// ---- Multi-service Health Check Aggregator ----
+const systemHealthHandler = async (_req: Request, res: Response) => {
+  const services = [
+    { name: 'Auth Service', key: 'auth', path: '/api/v1/auth', target: process.env.AUTH_SERVICE_URL ?? 'http://localhost:4001' },
+    { name: 'User Service', key: 'user', path: '/api/v1/users', target: process.env.USER_SERVICE_URL ?? 'http://localhost:4002' },
+    { name: 'Product Service', key: 'product', path: '/api/v1/products', target: process.env.PRODUCT_SERVICE_URL ?? 'http://localhost:4003' },
+    { name: 'Search Service', key: 'search', path: '/api/v1/search', target: process.env.SEARCH_SERVICE_URL ?? 'http://localhost:4004' },
+    { name: 'Cart Service', key: 'cart', path: '/api/v1/cart', target: process.env.CART_SERVICE_URL ?? 'http://localhost:4005' },
+    { name: 'Order Service', key: 'order', path: '/api/v1/orders', target: process.env.ORDER_SERVICE_URL ?? 'http://localhost:4006' },
+    { name: 'Payment Service', key: 'payment', path: '/api/v1/payments', target: process.env.PAYMENT_SERVICE_URL ?? 'http://localhost:4007' },
+    { name: 'Invoice Service', key: 'invoice', path: '/api/v1/invoices', target: process.env.INVOICE_SERVICE_URL ?? 'http://localhost:4008' },
+    { name: 'Inventory Service', key: 'inventory', path: '/api/v1/inventory', target: process.env.INVENTORY_SERVICE_URL ?? 'http://localhost:4009' },
+    { name: 'Notification Service', key: 'notification', path: '/api/v1/notifications', target: process.env.NOTIFICATION_SERVICE_URL ?? 'http://localhost:4010' },
+  ];
+
+  const results = await Promise.allSettled(
+    services.map(async (svc) => {
+      const startTime = Date.now();
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 6000);
+        const healthUrl = `${svc.target.replace(/\/+$/, '')}/health`;
+        const response = await fetch(healthUrl, { signal: controller.signal });
+        clearTimeout(timeout);
+        const latency = Date.now() - startTime;
+        if (response.ok) {
+          const body = await response.json().catch(() => null);
+          return {
+            ...svc,
+            status: 'HEALTHY',
+            httpStatus: response.status,
+            latency,
+            data: body,
+          };
+        } else {
+          return {
+            ...svc,
+            status: 'DEGRADED',
+            httpStatus: response.status,
+            latency,
+            error: `HTTP ${response.status} ${response.statusText}`,
+          };
+        }
+      } catch (err: any) {
+        return {
+          ...svc,
+          status: 'OFFLINE',
+          httpStatus: 0,
+          latency: Date.now() - startTime,
+          error: err.name === 'AbortError' ? 'Timeout (6s)' : (err.message || 'Connection failed'),
+        };
+      }
+    }),
+  );
+
+  const serviceResults = results.map((r, i) =>
+    r.status === 'fulfilled'
+      ? r.value
+      : {
+          ...services[i],
+          status: 'OFFLINE',
+          httpStatus: 0,
+          latency: 0,
+          error: String((r as PromiseRejectedResult).reason),
+        },
+  );
+
+  const healthyCount = serviceResults.filter((s) => s.status === 'HEALTHY').length;
+
+  res.json({
+    success: true,
+    timestamp: new Date().toISOString(),
+    gateway: {
+      name: 'API Gateway',
+      key: 'gateway',
+      path: '/',
+      target: process.env.API_GATEWAY_URL ?? `http://localhost:${PORT}`,
+      status: 'HEALTHY',
+      httpStatus: 200,
+      latency: 0,
+      data: { status: 'ok', service: 'api-gateway' },
+    },
+    summary: {
+      total: services.length + 1,
+      healthy: healthyCount + 1,
+      degraded: serviceResults.filter((s) => s.status === 'DEGRADED').length,
+      offline: serviceResults.filter((s) => s.status === 'OFFLINE').length,
+    },
+    services: serviceResults,
+  });
+};
+
+app.get('/api/v1/system/health', systemHealthHandler);
+app.get('/health/all', systemHealthHandler);
+
 // ---- Service routing table ----
 const serviceRoutes: Array<{ path: string; target: string }> = [
   { path: '/api/v1/auth', target: process.env.AUTH_SERVICE_URL ?? 'http://localhost:4001' },

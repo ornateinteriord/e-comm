@@ -14,6 +14,7 @@ const InvoicesPage = React.lazy(() => import('./pages/InvoicesPage.tsx'));
 const CustomersPage = React.lazy(() => import('./pages/CustomersPage.tsx'));
 const CouponsPage = React.lazy(() => import('./pages/CouponsPage.tsx'));
 const AuditLogsPage = React.lazy(() => import('./pages/AuditLogsPage.tsx'));
+const SystemHealthPage = React.lazy(() => import('./pages/SystemHealthPage.tsx'));
 
 function PageLoader() {
   return (
@@ -36,6 +37,10 @@ export default function App() {
     <Suspense fallback={<PageLoader />}>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
+        {/* Hidden Developer Diagnostic Route - accessible without login */}
+        <Route path="/system-health" element={<SystemHealthPage />} />
+        <Route path="/dev/health" element={<SystemHealthPage />} />
+
         <Route
           element={
             <RequireAdmin>
@@ -52,6 +57,9 @@ export default function App() {
           <Route path="customers" element={<CustomersPage />} />
           <Route path="coupons" element={<CouponsPage />} />
           <Route path="audit-logs" element={<AuditLogsPage />} />
+          {/* Also accessible inside admin shell if logged in */}
+          <Route path="system-health" element={<SystemHealthPage />} />
+          <Route path="dev/health" element={<SystemHealthPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>
