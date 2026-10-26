@@ -20,16 +20,31 @@ app.use(
   }),
 );
 
+const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS ?? 'http://localhost:5173,http://localhost:5174')
+  .split(',')
+  .map((o) => o.trim())
+  .filter(Boolean);
+
 app.use(
   cors({
-    origin: (process.env.ALLOWED_ORIGINS ?? 'http://localhost:5173,http://localhost:5174')
-      .split(',')
-      .map((o) => o.trim()),
+    origin: (requestOrigin, callback) => {
+      // Allow server-to-server requests (no Origin header) and listed origins
+      if (!requestOrigin || ALLOWED_ORIGINS.includes(requestOrigin)) {
+        callback(null, true);
+      } else {
+        log.warn({ requestOrigin }, 'CORS rejected origin');
+        callback(new Error(`CORS policy: origin ${requestOrigin} not allowed`));
+      }
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+    optionsSuccessStatus: 200, // some legacy browsers choke on 204
   }),
 );
+
+// Explicit OPTIONS pre-flight for all routes
+app.options('*', cors());
 
 app.use(cookieParser());
 
