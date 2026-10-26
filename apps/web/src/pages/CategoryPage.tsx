@@ -8,7 +8,7 @@ import { NavigateNext as NextIcon } from '@mui/icons-material';
 import api from '../api/client';
 import ProductCard from '../components/ProductCard';
 import type { PublicProduct } from '@ornate/types';
-import { getDummyCategoryBySlug, getDummyProductsByCategory } from '../data/dummyData';
+
 
 export default function CategoryPage() {
   const { slug } = useParams();
@@ -33,13 +33,9 @@ export default function CategoryPage() {
     enabled: Boolean(slug),
   });
 
-  const fallbackCategory = slug ? getDummyCategoryBySlug(slug) : undefined;
-  const currentCategory = categoryData || fallbackCategory;
+  const currentCategory = categoryData;
 
-  const fallbackProducts = slug ? getDummyProductsByCategory(slug) : [];
-  const products = productsData?.products && productsData.products.length > 0
-    ? productsData.products
-    : fallbackProducts;
+  const products = productsData?.products ?? [];
 
   return (
     <Container maxWidth="lg" sx={{ py: { xs: 3, md: 5 } }}>

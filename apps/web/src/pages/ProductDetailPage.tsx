@@ -22,7 +22,7 @@ import {
 import api from '../api/client';
 import { useCartStore } from '../store/cart.store';
 import type { PublicProduct, ProductVariant } from '@ornate/types';
-import { getDummyProductBySlug } from '../data/dummyData';
+
 
 export default function ProductDetailPage() {
   const { slug } = useParams();
@@ -47,7 +47,7 @@ export default function ProductDetailPage() {
     enabled: Boolean(slug),
   });
 
-  const product = apiProduct || (slug ? getDummyProductBySlug(slug) : undefined);
+  const product = apiProduct;
 
   if (isLoading && !product) {
     return (
