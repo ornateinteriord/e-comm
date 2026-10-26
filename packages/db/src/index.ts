@@ -89,18 +89,19 @@ export async function connectDB(
 ): Promise<void> {
   if (isConnected) return;
 
+  const isVercel = process.env.VERCEL === '1';
   const uri = prepareUri(rawUri);
-  const maxRetries = options?.maxRetries ?? Number(process.env.MONGODB_MAX_RETRIES ?? 5);
+  const maxRetries = options?.maxRetries ?? (isVercel ? 2 : Number(process.env.MONGODB_MAX_RETRIES ?? 3));
   const serverSelectionTimeoutMS =
     options?.serverSelectionTimeoutMS ??
-    Number(process.env.MONGODB_SERVER_SELECTION_TIMEOUT_MS ?? 30000);
+    (isVercel ? 5000 : Number(process.env.MONGODB_SERVER_SELECTION_TIMEOUT_MS ?? 15000));
   const connectTimeoutMS =
-    options?.connectTimeoutMS ?? Number(process.env.MONGODB_CONNECT_TIMEOUT_MS ?? 30000);
+    options?.connectTimeoutMS ?? (isVercel ? 5000 : Number(process.env.MONGODB_CONNECT_TIMEOUT_MS ?? 15000));
   const socketTimeoutMS =
-    options?.socketTimeoutMS ?? Number(process.env.MONGODB_SOCKET_TIMEOUT_MS ?? 45000);
+    options?.socketTimeoutMS ?? Number(process.env.MONGODB_SOCKET_TIMEOUT_MS ?? 20000);
   const maxPoolSize = options?.maxPoolSize ?? Number(process.env.MONGODB_MAX_POOL_SIZE ?? 10);
   const minPoolSize = options?.minPoolSize ?? Number(process.env.MONGODB_MIN_POOL_SIZE ?? 1);
-  const exitOnError = options?.exitOnError ?? (process.env.NODE_ENV !== 'test');
+  const exitOnError = options?.exitOnError ?? (process.env.NODE_ENV !== 'test' && !isVercel);
 
   let lastError: unknown = null;
 

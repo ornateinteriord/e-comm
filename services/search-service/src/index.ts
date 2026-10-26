@@ -65,20 +65,28 @@ app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
   });
 });
 
+const DEFAULT_MONGODB_URI =
+  'mongodb+srv://ornateinteriord:22k3ZVbQMZDpybDP@cluster0.plzr559.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0';
+
 async function start(): Promise<void> {
-  // Connect to the products DB so search can query products directly
-  await connectDB(
-    process.env.MONGODB_URI ?? 'mongodb://localhost:27017',
-    process.env.PRODUCT_DB_NAME ?? 'ornate_products',
-  );
-  app.listen(PORT, () => {
-    log.info({ port: PORT }, 'Search service listening');
-  });
+  try {
+    // Connect to the products DB so search can query products directly
+    await connectDB(
+      process.env.MONGODB_URI ?? DEFAULT_MONGODB_URI,
+      process.env.PRODUCT_DB_NAME ?? 'ornate_products',
+      { exitOnError: false, maxRetries: 2, serverSelectionTimeoutMS: 5000, connectTimeoutMS: 5000 },
+    );
+  } catch (err) {
+    log.error({ err }, 'MongoDB connection warning - will retry on demand');
+  }
+
+  if (process.env.VERCEL !== '1') {
+    app.listen(PORT, () => {
+      log.info({ port: PORT }, 'Search service listening');
+    });
+  }
 }
 
-start().catch((err) => {
-  log.error({ err }, 'Failed to start search service');
-  process.exit(1);
-});
+start();
 
 export default app;

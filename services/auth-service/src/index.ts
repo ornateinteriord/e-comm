@@ -15,12 +15,41 @@ const PORT = process.env.AUTH_SERVICE_PORT ?? 4001;
 
 // ---- Middleware ----
 app.use(helmet());
-app.use(
-  cors({
-    origin: (process.env.ALLOWED_ORIGINS ?? 'http://localhost:4000').split(',').map((o) => o.trim()),
-    credentials: true,
-  }),
-);
+const staticAllowed = [
+  'http://localhost:4000',
+  'http://localhost:5173',
+  'http://localhost:5174',
+  'http://localhost:3000',
+  'https://e-shophy-admin.vercel.app',
+  'https://e-shophy-ui.vercel.app',
+  'https://e-comm-three-eta.vercel.app',
+  'https://e-comm-admin-gules.vercel.app',
+];
+const envAllowed = (process.env.ALLOWED_ORIGINS ?? '').split(',').map((o) => o.trim()).filter(Boolean);
+
+const authCors = cors({
+  origin: (requestOrigin, callback) => {
+    if (!requestOrigin) return callback(null, true);
+    if (staticAllowed.includes(requestOrigin) || envAllowed.includes(requestOrigin)) return callback(null, true);
+    try {
+      const { hostname } = new URL(requestOrigin);
+      if (hostname.endsWith('.vercel.app') || hostname === 'localhost' || hostname === '127.0.0.1') {
+        return callback(null, true);
+      }
+    } catch {
+      // Malformed origin
+    }
+    return callback(null, false);
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin', 'Cookie'],
+  exposedHeaders: ['Set-Cookie'],
+  optionsSuccessStatus: 200,
+});
+
+app.use(authCors);
+app.options('*', authCors);
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
@@ -68,20 +97,28 @@ app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
   });
 });
 
+const DEFAULT_MONGODB_URI =
+  'mongodb+srv://ornateinteriord:22k3ZVbQMZDpybDP@cluster0.plzr559.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0';
+
 // ---- Start ----
 async function start(): Promise<void> {
-  await connectDB(
-    process.env.MONGODB_URI ?? 'mongodb://localhost:27017',
-    process.env.AUTH_DB_NAME ?? 'ornate_auth',
-  );
-  app.listen(PORT, () => {
-    log.info({ port: PORT }, 'Auth service listening');
-  });
+  try {
+    await connectDB(
+      process.env.MONGODB_URI ?? DEFAULT_MONGODB_URI,
+      process.env.AUTH_DB_NAME ?? 'ornate_auth',
+      { exitOnError: false, maxRetries: 2, serverSelectionTimeoutMS: 5000, connectTimeoutMS: 5000 },
+    );
+  } catch (err) {
+    log.error({ err }, 'MongoDB connection warning - will retry on demand');
+  }
+
+  if (process.env.VERCEL !== '1') {
+    app.listen(PORT, () => {
+      log.info({ port: PORT }, 'Auth service listening');
+    });
+  }
 }
 
-start().catch((err) => {
-  log.error({ err }, 'Failed to start auth service');
-  process.exit(1);
-});
+start();
 
 export default app;

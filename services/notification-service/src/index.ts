@@ -60,19 +60,27 @@ app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
   });
 });
 
+const DEFAULT_MONGODB_URI =
+  'mongodb+srv://ornateinteriord:22k3ZVbQMZDpybDP@cluster0.plzr559.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0';
+
 async function start(): Promise<void> {
-  await connectDB(
-    process.env.MONGODB_URI ?? 'mongodb://localhost:27017',
-    process.env.NOTIFICATION_DB_NAME ?? 'ornate_notifications',
-  );
-  app.listen(PORT, () => {
-    log.info({ port: PORT }, 'Notification service listening');
-  });
+  try {
+    await connectDB(
+      process.env.MONGODB_URI ?? DEFAULT_MONGODB_URI,
+      process.env.NOTIFICATION_DB_NAME ?? 'ornate_notifications',
+      { exitOnError: false, maxRetries: 2, serverSelectionTimeoutMS: 5000, connectTimeoutMS: 5000 },
+    );
+  } catch (err) {
+    log.error({ err }, 'MongoDB connection warning - will retry on demand');
+  }
+
+  if (process.env.VERCEL !== '1') {
+    app.listen(PORT, () => {
+      log.info({ port: PORT }, 'Notification service listening');
+    });
+  }
 }
 
-start().catch((err) => {
-  log.error({ err }, 'Failed to start notification service');
-  process.exit(1);
-});
+start();
 
 export default app;
