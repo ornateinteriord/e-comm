@@ -5,6 +5,7 @@ import {
   TableRow, TableContainer, Button, Chip, Dialog, DialogTitle, DialogContent,
   DialogActions, TextField, Grid, MenuItem, CircularProgress,
   IconButton, Stack, Tooltip, Alert, FormControlLabel, Switch, InputAdornment,
+  Snackbar,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -23,6 +24,32 @@ export default function ProductsPage() {
   const [editingProduct, setEditingProduct] = useState<AdminProduct | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Toast notification state
+  const [toast, setToast] = useState<{
+    open: boolean;
+    message: string;
+    severity: 'success' | 'error' | 'info' | 'warning';
+  }>({
+    open: false,
+    message: '',
+    severity: 'success',
+  });
+
+  const showToast = (message: string, severity: 'success' | 'error' | 'info' | 'warning' = 'success') => {
+    setToast({ open: true, message, severity });
+  };
+
+  // Custom confirmation dialog for archiving/deleting products
+  const [archiveDialog, setArchiveDialog] = useState<{
+    open: boolean;
+    productId: string | null;
+    productName: string;
+  }>({
+    open: false,
+    productId: null,
+    productName: '',
+  });
 
   // Form state
   const [form, setForm] = useState({
@@ -130,9 +157,12 @@ export default function ProductsPage() {
       setDialogOpen(false);
       setEditingProduct(null);
       setFormError(null);
+      showToast(editingProduct ? 'Product updated successfully!' : 'Product created and published successfully!', 'success');
     },
     onError: (err: any) => {
-      setFormError(err.message || err.response?.data?.error?.message || 'Failed to save product');
+      const msg = err.message || err.response?.data?.error?.message || 'Failed to save product';
+      setFormError(msg);
+      showToast(msg, 'error');
     },
   });
 
@@ -142,19 +172,35 @@ export default function ProductsPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-products'] });
+      setArchiveDialog({ open: false, productId: null, productName: '' });
+      showToast('Product archived successfully', 'success');
+    },
+    onError: (err: any) => {
+      showToast(err.response?.data?.error?.message || 'Failed to archive product', 'error');
     },
   });
 
   const setSponsorMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { data } = await api.post(`/admin/products/${id}/sponsor`);
-      return data;
+      try {
+        const { data } = await api.post(`/admin/products/${id}/sponsor`);
+        return data;
+      } catch (err: any) {
+        // Resilient fallback: if the backend deployment hasn't registered /sponsor route yet (HTTP 404),
+        // fallback to updating the product with isFeatured: true via PATCH /admin/products/:id
+        if (err.response?.status === 404) {
+          const { data } = await api.patch(`/admin/products/${id}`, { isFeatured: true });
+          return data;
+        }
+        throw err;
+      }
     },
     onSuccess: (res: any) => {
       queryClient.invalidateQueries({ queryKey: ['admin-products'] });
+      showToast(res?.message || 'Product designated as Front Page Sponsor successfully!', 'success');
     },
     onError: (err: any) => {
-      alert(err.response?.data?.error?.message || 'Failed to set sponsor product');
+      showToast(err.response?.data?.error?.message || err.message || 'Failed to set sponsor product', 'error');
     },
   });
 
@@ -470,9 +516,11 @@ export default function ProductsPage() {
                           size="small"
                           color="error"
                           onClick={() => {
-                            if (confirm(`Archive product "${product.name}"?`)) {
-                              deleteMutation.mutate(product.id);
-                            }
+                            setArchiveDialog({
+                              open: true,
+                              productId: product.id,
+                              productName: product.name,
+                            });
                           }}
                           title="Archive Product"
                         >
@@ -744,6 +792,71 @@ export default function ProductsPage() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Archive / Delete Confirmation Dialog */}
+      <Dialog
+        open={archiveDialog.open}
+        onClose={() => setArchiveDialog({ open: false, productId: null, productName: '' })}
+        maxWidth="xs"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: '12px', p: 1 } }}
+      >
+        <DialogTitle sx={{ fontWeight: 900, pb: 1, color: '#0f172a' }}>
+          Archive Product
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary">
+            Are you sure you want to archive <strong>{archiveDialog.productName}</strong>?
+          </Typography>
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+            This product will be unpublished and hidden from customer storefront browsing.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2, pt: 1, gap: 1 }}>
+          <Button
+            onClick={() => setArchiveDialog({ open: false, productId: null, productName: '' })}
+            sx={{ fontWeight: 700, color: '#64748b' }}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            color="error"
+            disabled={deleteMutation.isPending}
+            onClick={() => {
+              if (archiveDialog.productId) {
+                deleteMutation.mutate(archiveDialog.productId);
+              }
+            }}
+            sx={{ fontWeight: 800, borderRadius: '8px', px: 2.5 }}
+          >
+            {deleteMutation.isPending ? 'Archiving…' : 'Archive Product'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Global Toast Notification */}
+      <Snackbar
+        open={toast.open}
+        autoHideDuration={4000}
+        onClose={() => setToast((prev) => ({ ...prev, open: false }))}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <Alert
+          onClose={() => setToast((prev) => ({ ...prev, open: false }))}
+          severity={toast.severity}
+          variant="filled"
+          sx={{
+            fontWeight: 700,
+            borderRadius: '8px',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.18)',
+            alignItems: 'center',
+          }}
+        >
+          {toast.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }
+

@@ -19,6 +19,7 @@ export default function CartPage() {
   const [couponCode, setCouponCode] = useState('');
   const [appliedCoupon, setAppliedCoupon] = useState<string | null>(null);
   const [couponDiscount, setCouponDiscount] = useState(0);
+  const [couponError, setCouponError] = useState<string | null>(null);
 
   const shippingCharge = subtotal === 0 ? 0 : subtotal >= 50000 ? 0 : 5000;
   const taxable = Math.max(0, subtotal - couponDiscount);
@@ -26,6 +27,7 @@ export default function CartPage() {
   const grandTotal = taxable + shippingCharge + tax;
 
   const handleApplyCoupon = () => {
+    setCouponError(null);
     const code = couponCode.trim().toUpperCase();
     if (code === 'WELCOME10') {
       const discount = Math.round(subtotal * 0.1);
@@ -39,7 +41,7 @@ export default function CartPage() {
       setCouponDiscount(discount);
       setAppliedCoupon('SUPER20');
     } else {
-      alert('Invalid coupon code or minimum order condition not met. Try "WELCOME10" or "SUPER20".');
+      setCouponError('Invalid coupon code or minimum order condition not met. Try "WELCOME10" or "SUPER20".');
     }
   };
 
@@ -47,6 +49,7 @@ export default function CartPage() {
     setAppliedCoupon(null);
     setCouponDiscount(0);
     setCouponCode('');
+    setCouponError(null);
   };
 
   if (items.length === 0) {
@@ -200,6 +203,11 @@ export default function CartPage() {
               {appliedCoupon && (
                 <Alert severity="success" sx={{ mt: 1, py: 0.5, fontSize: '0.8rem' }}>
                   Promo code <strong>{appliedCoupon}</strong> applied!
+                </Alert>
+              )}
+              {couponError && (
+                <Alert severity="error" sx={{ mt: 1, py: 0.5, fontSize: '0.8rem' }}>
+                  {couponError}
                 </Alert>
               )}
             </Box>

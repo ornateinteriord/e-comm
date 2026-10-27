@@ -1,9 +1,10 @@
+import { useState } from 'react';
 import { useParams, Link as RouterLink } from 'react-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Box, Container, Typography, Paper, Grid, Chip, Button,
   Divider, Stack, Stepper, Step, StepLabel, CircularProgress,
-  Alert,
+  Alert, Dialog, DialogTitle, DialogContent, DialogActions,
 } from '@mui/material';
 import {
   Receipt as InvoiceIcon,
@@ -18,6 +19,7 @@ const STEPS = ['pending', 'confirmed', 'processing', 'packed', 'shipped', 'deliv
 export default function OrderDetailPage() {
   const { id } = useParams();
   const queryClient = useQueryClient();
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
 
   const { data: order, isLoading, error } = useQuery<Order>({
     queryKey: ['order-detail', id],
@@ -33,6 +35,7 @@ export default function OrderDetailPage() {
       await api.post(`/orders/${id}/cancel`, { reason: 'Cancelled by customer' });
     },
     onSuccess: () => {
+      setCancelDialogOpen(false);
       queryClient.invalidateQueries({ queryKey: ['order-detail', id] });
     },
   });
@@ -89,11 +92,7 @@ export default function OrderDetailPage() {
               variant="outlined"
               color="error"
               startIcon={<CancelIcon />}
-              onClick={() => {
-                if (confirm('Are you sure you want to cancel this order?')) {
-                  cancelMutation.mutate();
-                }
-              }}
+              onClick={() => setCancelDialogOpen(true)}
               disabled={cancelMutation.isPending}
               sx={{ borderRadius: '6px', fontWeight: 700 }}
             >
@@ -218,6 +217,44 @@ export default function OrderDetailPage() {
           </Paper>
         </Grid>
       </Grid>
+
+      {/* Cancel Order Confirmation Dialog */}
+      <Dialog
+        open={cancelDialogOpen}
+        onClose={() => setCancelDialogOpen(false)}
+        maxWidth="xs"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: '12px', p: 1 } }}
+      >
+        <DialogTitle sx={{ fontWeight: 900, pb: 1, color: '#0f172a' }}>
+          Cancel Order
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary">
+            Are you sure you want to cancel Order <strong>#{order.orderNumber}</strong>?
+          </Typography>
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+            This action cannot be undone. If payment was made, a refund will be initiated.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2, pt: 1, gap: 1 }}>
+          <Button
+            onClick={() => setCancelDialogOpen(false)}
+            sx={{ fontWeight: 700, color: '#64748b' }}
+          >
+            Keep Order
+          </Button>
+          <Button
+            variant="contained"
+            color="error"
+            disabled={cancelMutation.isPending}
+            onClick={() => cancelMutation.mutate()}
+            sx={{ fontWeight: 800, borderRadius: '8px', px: 2.5 }}
+          >
+            {cancelMutation.isPending ? 'Cancelling…' : 'Yes, Cancel Order'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Container>
   );
 }

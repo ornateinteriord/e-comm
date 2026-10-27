@@ -99,7 +99,7 @@ export default function LoginPage() {
 
           <Divider sx={{ my: 2.5 }}>
             <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 600, letterSpacing: 0.5 }}>
-              OR VENDOR PORTAL
+              OR
             </Typography>
           </Divider>
 

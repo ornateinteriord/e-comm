@@ -295,15 +295,16 @@ export async function setSponsorProduct(req: Request, res: Response, next: NextF
     await Product.updateMany({ _id: { $ne: target._id }, isFeatured: true }, { $set: { isFeatured: false } });
 
     // Set target product as isFeatured: true
-    target.isFeatured = true;
-    target.status = 'active';
-    target.isPublished = true;
-    await target.save();
+    const updated = await Product.findByIdAndUpdate(
+      target._id,
+      { $set: { isFeatured: true, status: 'active', isPublished: true } },
+      { new: true },
+    );
 
     log.info({ productId: target.id, sku: target.sku }, 'Product designated as front sponsor');
     res.json({
       success: true,
-      data: serializeAdminProduct(target),
+      data: serializeAdminProduct(updated || target),
       message: `"${target.name}" is now set as the front page Sponsor / Featured product.`,
     });
   } catch (err) {
