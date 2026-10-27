@@ -99,11 +99,29 @@ export default function HomePage() {
     },
   });
 
+  const { data: featuredSponsorProduct } = useQuery({
+    queryKey: ["featured-sponsor-product"],
+    queryFn: async () => {
+      try {
+        const { data } = await api.get("/products/featured");
+        return (data?.data as PublicProduct) || null;
+      } catch {
+        return null;
+      }
+    },
+  });
+
   const finalProducts = productsData?.items ?? [];
   const finalCategories = categories ?? [];
 
   const dealProducts = finalProducts.filter((p) => p.pricing?.dealActive || (p.pricing?.savingsPercent ?? 0) > 15);
   const standardProducts = finalProducts;
+
+  const sponsorProduct =
+    featuredSponsorProduct ||
+    finalProducts.find((p) => p.isFeatured) ||
+    dealProducts[0] ||
+    null;
 
   return (
     <Box sx={{ pb: { xs: 6, md: 10 } }}>
@@ -283,24 +301,53 @@ export default function HomePage() {
               </Stack>
             </Grid>
 
-            {/* Desktop Hero Image */}
+            {/* Desktop Hero Image / Front Sponsor Product */}
             <Grid item xs={12} md={5} sx={{ display: { xs: "none", md: "block" } }}>
               <Box
+                onClick={() => {
+                  if (sponsorProduct?.slug) {
+                    navigate(`/products/${sponsorProduct.slug}`);
+                  }
+                }}
                 sx={{
                   position: "relative",
                   width: "100%",
                   height: 420,
-                  borderRadius: '8px',
+                  borderRadius: "8px",
                   overflow: "hidden",
-                  boxShadow: isLight ? "0 20px 40px -15px rgba(23, 43, 48, 0.15)" : "0 25px 50px -12px rgba(0, 0, 0, 0.7)",
+                  cursor: sponsorProduct?.slug ? "pointer" : "default",
+                  boxShadow: isLight
+                    ? "0 20px 40px -15px rgba(23, 43, 48, 0.15)"
+                    : "0 25px 50px -12px rgba(0, 0, 0, 0.7)",
                   border: `1px solid ${isLight ? "#E5E7EB" : "rgba(255, 255, 255, 0.1)"}`,
+                  transition: "transform 0.25s ease, box-shadow 0.25s ease",
+                  "&:hover": sponsorProduct?.slug
+                    ? {
+                        transform: "translateY(-4px)",
+                        boxShadow: isLight
+                          ? "0 24px 48px -15px rgba(255, 121, 0, 0.25)"
+                          : "0 30px 60px -12px rgba(255, 121, 0, 0.35)",
+                        "& .hero-sponsor-img": {
+                          transform: "scale(1.04)",
+                        },
+                      }
+                    : {},
                 }}
               >
                 <Box
                   component="img"
-                  src="https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=1000&q=80"
-                  alt="Sony WH-1000XM5 headphones"
-                  sx={{ width: "100%", height: "100%", objectFit: "cover" }}
+                  className="hero-sponsor-img"
+                  src={
+                    sponsorProduct?.images?.[0]?.url ||
+                    "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=1000&q=80"
+                  }
+                  alt={sponsorProduct?.images?.[0]?.alt || sponsorProduct?.name || "Featured Sponsor Product"}
+                  sx={{
+                    width: "100%",
+                    height: "100%",
+                    objectFit: "cover",
+                    transition: "transform 0.4s ease",
+                  }}
                 />
                 <Box
                   sx={{
@@ -309,21 +356,33 @@ export default function HomePage() {
                     left: 0,
                     right: 0,
                     height: "65%",
-                    background: "linear-gradient(to top, rgba(15, 23, 42, 0.95) 0%, rgba(15, 23, 42, 0.7) 45%, rgba(15, 23, 42, 0.2) 72%, transparent 100%)",
+                    background:
+                      "linear-gradient(to top, rgba(15, 23, 42, 0.95) 0%, rgba(15, 23, 42, 0.7) 45%, rgba(15, 23, 42, 0.2) 72%, transparent 100%)",
                     pointerEvents: "none",
                   }}
                 />
                 <Box sx={{ position: "absolute", bottom: 0, left: 0, right: 0, p: 3 }}>
                   <Chip
-                    label="FEATURED PRODUCT"
+                    label={sponsorProduct?.isFeatured ? "FEATURED SPONSOR" : "FEATURED PRODUCT"}
                     size="small"
                     sx={{ bgcolor: "#FF7900", color: "white", fontWeight: 800, mb: 1, borderRadius: 1 }}
                   />
-                  <Typography variant="h6" fontWeight={800} color="white">
-                    Sony WH-1000XM5 Noise Cancelling
+                  <Typography
+                    variant="h6"
+                    fontWeight={800}
+                    color="white"
+                    sx={{ textShadow: "0 1px 2px rgba(0,0,0,0.5)" }}
+                  >
+                    {sponsorProduct?.name || "Sony WH-1000XM5 Noise Cancelling"}
                   </Typography>
-                  <Typography variant="body2" sx={{ color: "#CBD5E1" }}>
-                    Special Deal: Rs. 25,990 (Save Rs. 9,000)
+                  <Typography variant="body2" sx={{ color: "#CBD5E1", mt: 0.5 }}>
+                    {sponsorProduct?.pricing
+                      ? `Special Deal: Rs. ${(sponsorProduct.pricing.applicablePrice / 100).toLocaleString("en-IN")}${
+                          sponsorProduct.pricing.savingsAmount > 0
+                            ? ` (Save Rs. ${(sponsorProduct.pricing.savingsAmount / 100).toLocaleString("en-IN")})`
+                            : ""
+                        }`
+                      : "Special Deal: Rs. 25,990 (Save Rs. 9,000)"}
                   </Typography>
                 </Box>
               </Box>

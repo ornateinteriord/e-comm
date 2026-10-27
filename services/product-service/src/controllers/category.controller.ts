@@ -28,7 +28,12 @@ export async function listCategories(req: Request, res: Response, next: NextFunc
     else if (parentId) filter.parent = parentId;
 
     const categories = await Category.find(filter).sort({ order: 1, name: 1 });
-    res.json({ success: true, data: categories });
+    const formatted = categories.map((cat) => ({
+      ...cat.toObject(),
+      id: cat._id.toString(),
+      _id: cat._id.toString(),
+    }));
+    res.json({ success: true, data: formatted });
   } catch (err) {
     next(err);
   }
@@ -45,7 +50,12 @@ export async function getCategoryBySlug(req: Request, res: Response, next: NextF
       });
       return;
     }
-    res.json({ success: true, data: category });
+    const formatted = {
+      ...category.toObject(),
+      id: category._id.toString(),
+      _id: category._id.toString(),
+    };
+    res.json({ success: true, data: formatted });
   } catch (err) {
     next(err);
   }

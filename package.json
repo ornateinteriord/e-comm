@@ -18,7 +18,7 @@
     "clean": "turbo clean",
     "typecheck": "turbo typecheck",
     "db:seed": "pnpm --filter product-service db:seed",
-    "search:index": "pnpm --filter search-service index:all",
+    "search:index": "pnpm --filter product-service index:all",
     "setup:admin": "pnpm --filter auth-service setup:admin"
   },
   "devDependencies": {

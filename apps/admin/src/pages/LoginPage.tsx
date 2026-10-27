@@ -2,9 +2,13 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router';
 import {
   Box, Container, Typography, Paper, TextField, Button,
-  Alert, Stack,
+  Alert, Stack, Divider,
 } from '@mui/material';
-import { LockOutlined as LockIcon } from '@mui/icons-material';
+import {
+  LockOutlined as LockIcon,
+  Storefront as StorefrontIcon,
+  OpenInNew as OpenInNewIcon,
+} from '@mui/icons-material';
 import { useAdminAuthStore } from '../store/auth.store';
 import api from '../api/client';
 
@@ -92,6 +96,38 @@ export default function LoginPage() {
               </Button>
             </Stack>
           </form>
+
+          <Divider sx={{ my: 2.5 }}>
+            <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 600, letterSpacing: 0.5 }}>
+              OR
+            </Typography>
+          </Divider>
+
+          <Button
+            variant="outlined"
+            fullWidth
+            size="large"
+            startIcon={<StorefrontIcon />}
+            endIcon={<OpenInNewIcon sx={{ fontSize: 16 }} />}
+            onClick={() => window.open('https://e-shophy-cash.vercel.app/login', '_blank', 'noopener,noreferrer')}
+            sx={{
+              py: 1.25,
+              fontWeight: 700,
+              borderRadius: '8px',
+              borderColor: '#e2e8f0',
+              color: '#0f172a',
+              bgcolor: '#f8fafc',
+              textTransform: 'none',
+              fontSize: '0.95rem',
+              '&:hover': {
+                borderColor: '#FF7900',
+                color: '#FF7900',
+                bgcolor: 'rgba(255, 121, 0, 0.05)',
+              },
+            }}
+          >
+            Login as Vendor
+          </Button>
         </Paper>
       </Container>
     </Box>

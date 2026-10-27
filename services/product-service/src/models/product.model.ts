@@ -54,6 +54,7 @@ export interface IProduct extends Document {
   lowStockThreshold: number;
   status: 'draft' | 'active' | 'archived';
   isPublished: boolean;
+  isFeatured?: boolean;
   attributes: IProductAttribute[];
   variants: IProductVariant[];
   seoTitle?: string;
@@ -110,6 +111,7 @@ const productSchema = new Schema<IProduct>(
       index: true,
     },
     isPublished: { type: Boolean, default: false, index: true },
+    isFeatured: { type: Boolean, default: false, index: true },
     attributes: [
       {
         key: { type: String, required: true },

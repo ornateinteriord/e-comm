@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Box, Typography, Paper, Table, TableBody, TableCell, TableHead,
   TableRow, Button, Dialog, DialogTitle, DialogContent, DialogActions,
-  TextField, IconButton, CircularProgress, Alert,
+  TextField, IconButton, CircularProgress, Alert, Snackbar,
 } from '@mui/material';
 import { Add as AddIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import api from '../api/client';
@@ -15,6 +15,32 @@ export default function CategoriesPage() {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [error, setError] = useState<string | null>(null);
+
+  // Custom confirmation dialog state
+  const [deleteConfirmDialog, setDeleteConfirmDialog] = useState<{
+    open: boolean;
+    categoryId: string | null;
+    categoryName: string;
+  }>({
+    open: false,
+    categoryId: null,
+    categoryName: '',
+  });
+
+  // Toast state
+  const [toast, setToast] = useState<{
+    open: boolean;
+    message: string;
+    severity: 'success' | 'error' | 'info';
+  }>({
+    open: false,
+    message: '',
+    severity: 'success',
+  });
+
+  const showToast = (message: string, severity: 'success' | 'error' | 'info' = 'success') => {
+    setToast({ open: true, message, severity });
+  };
 
   const { data: categories, isLoading } = useQuery<Category[]>({
     queryKey: ['admin-categories'],
@@ -34,9 +60,12 @@ export default function CategoriesPage() {
       setName('');
       setDescription('');
       setError(null);
+      showToast('Category created successfully!', 'success');
     },
     onError: (err: any) => {
-      setError(err.response?.data?.error?.message || 'Failed to create category');
+      const msg = err.response?.data?.error?.message || 'Failed to create category';
+      setError(msg);
+      showToast(msg, 'error');
     },
   });
 
@@ -46,6 +75,11 @@ export default function CategoriesPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-categories'] });
+      setDeleteConfirmDialog({ open: false, categoryId: null, categoryName: '' });
+      showToast('Category deleted successfully', 'success');
+    },
+    onError: (err: any) => {
+      showToast(err.response?.data?.error?.message || 'Failed to delete category', 'error');
     },
   });
 
@@ -97,9 +131,11 @@ export default function CategoriesPage() {
                       size="small"
                       color="error"
                       onClick={() => {
-                        if (confirm(`Delete category "${cat.name}"?`)) {
-                          deleteMutation.mutate(cat.id);
-                        }
+                        setDeleteConfirmDialog({
+                          open: true,
+                          categoryId: cat.id,
+                          categoryName: cat.name,
+                        });
                       }}
                       title="Delete Category"
                     >
@@ -114,7 +150,7 @@ export default function CategoriesPage() {
       </Paper>
 
       {/* Add Dialog */}
-      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="sm" fullWidth>
+      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: '10px' } }}>
         <DialogTitle sx={{ fontWeight: 800 }}>Add Category</DialogTitle>
         <DialogContent dividers>
           {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
@@ -138,17 +174,79 @@ export default function CategoriesPage() {
           />
         </DialogContent>
         <DialogActions sx={{ px: 3, py: 2 }}>
-          <Button onClick={() => setDialogOpen(false)}>Cancel</Button>
+          <Button onClick={() => setDialogOpen(false)} sx={{ fontWeight: 700, color: '#64748b' }}>Cancel</Button>
           <Button
             variant="contained"
             onClick={() => createMutation.mutate()}
             disabled={!name || createMutation.isPending}
-            sx={{ fontWeight: 700 }}
+            sx={{ fontWeight: 700, bgcolor: '#FF7900', '&:hover': { bgcolor: '#E85D04' } }}
           >
             {createMutation.isPending ? 'Creating…' : 'Create Category'}
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={deleteConfirmDialog.open}
+        onClose={() => setDeleteConfirmDialog({ open: false, categoryId: null, categoryName: '' })}
+        maxWidth="xs"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: '12px', p: 1 } }}
+      >
+        <DialogTitle sx={{ fontWeight: 900, pb: 1, color: '#0f172a' }}>
+          Delete Category
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary">
+            Are you sure you want to delete category <strong>{deleteConfirmDialog.categoryName}</strong>?
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2, pt: 1, gap: 1 }}>
+          <Button
+            onClick={() => setDeleteConfirmDialog({ open: false, categoryId: null, categoryName: '' })}
+            sx={{ fontWeight: 700, color: '#64748b' }}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            color="error"
+            disabled={deleteMutation.isPending}
+            onClick={() => {
+              if (deleteConfirmDialog.categoryId) {
+                deleteMutation.mutate(deleteConfirmDialog.categoryId);
+              }
+            }}
+            sx={{ fontWeight: 800, borderRadius: '8px', px: 2.5 }}
+          >
+            {deleteMutation.isPending ? 'Deleting…' : 'Delete Category'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Global Toast Notification */}
+      <Snackbar
+        open={toast.open}
+        autoHideDuration={4000}
+        onClose={() => setToast((prev) => ({ ...prev, open: false }))}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <Alert
+          onClose={() => setToast((prev) => ({ ...prev, open: false }))}
+          severity={toast.severity}
+          variant="filled"
+          sx={{
+            fontWeight: 700,
+            borderRadius: '8px',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.18)',
+            alignItems: 'center',
+          }}
+        >
+          {toast.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }
+

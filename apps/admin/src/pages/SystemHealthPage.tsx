@@ -69,15 +69,10 @@ interface GatewayHealthSummary {
 
 const DEFAULT_SERVICES: ServiceHealthItem[] = [
   { name: 'API Gateway', key: 'gateway', path: '/', target: 'https://api-geteway.vercel.app', status: 'CHECKING' },
-  { name: 'Auth Service', key: 'auth', path: '/api/v1/auth', target: 'https://e-comm-auth-alpha.vercel.app', status: 'CHECKING' },
-  { name: 'User Service', key: 'user', path: '/api/v1/users', target: 'https://e-comm-user.vercel.app', status: 'CHECKING' },
-  { name: 'Product Service', key: 'product', path: '/api/v1/products', target: 'https://e-comm-product-two.vercel.app', status: 'CHECKING' },
-  { name: 'Search Service', key: 'search', path: '/api/v1/search', target: 'https://e-comm-search.vercel.app', status: 'CHECKING' },
-  { name: 'Cart Service', key: 'cart', path: '/api/v1/cart', target: 'https://e-comm-cart-eight.vercel.app', status: 'CHECKING' },
-  { name: 'Order Service', key: 'order', path: '/api/v1/orders', target: 'https://e-comm-order.vercel.app', status: 'CHECKING' },
-  { name: 'Payment Service', key: 'payment', path: '/api/v1/payments', target: 'https://e-comm-payment.vercel.app', status: 'CHECKING' },
-  { name: 'Invoice Service', key: 'invoice', path: '/api/v1/invoices', target: 'https://e-comm-invoice.vercel.app', status: 'CHECKING' },
-  { name: 'Inventory Service', key: 'inventory', path: '/api/v1/inventory', target: 'https://e-comm-inventary.vercel.app', status: 'CHECKING' },
+  { name: 'Auth & User Service', key: 'auth', path: '/api/v1/auth', target: 'https://e-comm-auth-alpha.vercel.app', status: 'CHECKING' },
+  { name: 'Product & Catalog Service', key: 'product', path: '/api/v1/products', target: 'https://e-comm-product-two.vercel.app', status: 'CHECKING' },
+  { name: 'Order & Cart Service', key: 'order', path: '/api/v1/orders', target: 'https://e-comm-order.vercel.app', status: 'CHECKING' },
+  { name: 'Payment & Invoice Service', key: 'payment', path: '/api/v1/payments', target: 'https://e-comm-payment.vercel.app', status: 'CHECKING' },
   { name: 'Notification Service', key: 'notification', path: '/api/v1/notifications', target: 'https://e-comm-notification.vercel.app', status: 'CHECKING' },
 ];
 

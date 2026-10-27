@@ -4,6 +4,10 @@ import {
   Box, Container, Typography, Paper, TextField, Button,
   Divider, Alert, Stack,
 } from '@mui/material';
+import {
+  Storefront as StorefrontIcon,
+  OpenInNew as OpenInNewIcon,
+} from '@mui/icons-material';
 import { useAuthStore } from '../store/auth.store';
 import api from '../api/client';
 
@@ -92,8 +96,41 @@ export default function LoginPage() {
           </Stack>
         </form>
 
-        <Divider sx={{ my: 3 }}>
-          <Typography variant="caption" color="text.secondary">OR</Typography>
+        <Divider sx={{ my: 2.5 }}>
+          <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 600, letterSpacing: 0.5 }}>
+            ARE YOU A SELLER / VENDOR?
+          </Typography>
+        </Divider>
+
+        <Button
+          variant="outlined"
+          fullWidth
+          size="large"
+          startIcon={<StorefrontIcon />}
+          endIcon={<OpenInNewIcon sx={{ fontSize: 16 }} />}
+          onClick={() => window.open('https://e-shophy-cash.vercel.app/login', '_blank', 'noopener,noreferrer')}
+          sx={{
+            py: 1.25,
+            mb: 2,
+            fontWeight: 700,
+            borderRadius: '8px',
+            borderColor: '#e2e8f0',
+            color: '#172B30',
+            bgcolor: '#f8fafc',
+            textTransform: 'none',
+            fontSize: '0.95rem',
+            '&:hover': {
+              borderColor: '#FF7900',
+              color: '#FF7900',
+              bgcolor: 'rgba(255, 121, 0, 0.05)',
+            },
+          }}
+        >
+          Login as Vendor
+        </Button>
+
+        <Divider sx={{ my: 2.5 }}>
+          <Typography variant="caption" color="text.secondary">DEMO CREDENTIALS</Typography>
         </Divider>
 
         <Box sx={{ textAlign: 'center', mb: 2 }}>

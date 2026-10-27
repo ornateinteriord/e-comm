@@ -90,6 +90,35 @@ export async function getProductBySlug(req: Request, res: Response, next: NextFu
   }
 }
 
+// GET /api/v1/products/featured
+export async function getFeaturedProduct(_req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    // 1. Explicitly sponsor/featured product
+    let product = await Product.findOne({ isFeatured: true, status: 'active', isPublished: true }).populate('category', 'name slug');
+
+    // 2. Fallback to active product with deal
+    if (!product) {
+      product = await Product.findOne({ 'pricing.deal.isActive': true, status: 'active', isPublished: true }).populate('category', 'name slug');
+    }
+
+    // 3. Fallback to any active published product
+    if (!product) {
+      product = await Product.findOne({ status: 'active', isPublished: true }).populate('category', 'name slug');
+    }
+
+    if (!product) {
+      res.json({ success: true, data: null });
+      return;
+    }
+
+    const pub = serializePublicProduct(product);
+    pub.categoryName = (product.category as { name?: string })?.name ?? '';
+    res.json({ success: true, data: pub });
+  } catch (err) {
+    next(err);
+  }
+}
+
 // GET /api/v1/admin/products
 export async function adminListProducts(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
@@ -135,7 +164,7 @@ export async function createProduct(req: Request, res: Response, next: NextFunct
     const {
       name, sku, brand, shortDescription, longDescription,
       category, subcategory, pricing, stock, lowStockThreshold,
-      status, isPublished, attributes, variants, seoTitle, seoDescription,
+      status, isPublished, isFeatured, attributes, variants, seoTitle, seoDescription,
       taxClass, weight, dimensions,
     } = req.body;
 
@@ -159,6 +188,10 @@ export async function createProduct(req: Request, res: Response, next: NextFunct
       return;
     }
 
+    if (isFeatured) {
+      await Product.updateMany({ isFeatured: true }, { $set: { isFeatured: false } });
+    }
+
     const slug = generateSlug(name, sku);
     const product = await Product.create({
       name, slug, sku: sku.toUpperCase(), brand, shortDescription, longDescription,
@@ -168,6 +201,7 @@ export async function createProduct(req: Request, res: Response, next: NextFunct
       lowStockThreshold: lowStockThreshold ?? 5,
       status: status ?? 'draft',
       isPublished: isPublished ?? false,
+      isFeatured: Boolean(isFeatured),
       attributes: attributes ?? [],
       variants: (variants ?? []).map((v: Record<string, unknown>) => ({ ...v, id: uuidv4() })),
       seoTitle, seoDescription, taxClass, weight, dimensions,
@@ -218,9 +252,14 @@ export async function updateProduct(req: Request, res: Response, next: NextFunct
     // Update other fields
     const allowed = [
       'name', 'brand', 'shortDescription', 'longDescription', 'category',
-      'subcategory', 'stock', 'lowStockThreshold', 'status', 'isPublished',
+      'subcategory', 'stock', 'lowStockThreshold', 'status', 'isPublished', 'isFeatured',
       'attributes', 'seoTitle', 'seoDescription', 'taxClass', 'weight', 'dimensions',
     ];
+
+    if (updates.isFeatured === true) {
+      await Product.updateMany({ _id: { $ne: product._id }, isFeatured: true }, { $set: { isFeatured: false } });
+    }
+
     for (const key of allowed) {
       if (key in updates) (product as any)[key] = updates[key];
     }
@@ -235,6 +274,39 @@ export async function updateProduct(req: Request, res: Response, next: NextFunct
 
     log.info({ productId: id }, 'Product updated');
     res.json({ success: true, data: serializeAdminProduct(product) });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// POST /api/v1/admin/products/:id/sponsor
+export async function setSponsorProduct(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { id } = req.params;
+    const isObjectId = Boolean(String(id).match(/^[0-9a-fA-F]{24}$/));
+    const target = await Product.findOne(isObjectId ? { _id: id } : { sku: id });
+
+    if (!target) {
+      res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Product not found.' } });
+      return;
+    }
+
+    // Unset all other products
+    await Product.updateMany({ _id: { $ne: target._id }, isFeatured: true }, { $set: { isFeatured: false } });
+
+    // Set target product as isFeatured: true
+    const updated = await Product.findByIdAndUpdate(
+      target._id,
+      { $set: { isFeatured: true, status: 'active', isPublished: true } },
+      { new: true },
+    );
+
+    log.info({ productId: target.id, sku: target.sku }, 'Product designated as front sponsor');
+    res.json({
+      success: true,
+      data: serializeAdminProduct(updated || target),
+      message: `"${target.name}" is now set as the front page Sponsor / Featured product.`,
+    });
   } catch (err) {
     next(err);
   }
