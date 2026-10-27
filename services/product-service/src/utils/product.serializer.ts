@@ -56,6 +56,7 @@ export function serializePublicProduct(product: IProduct): PublicProduct {
     variants: product.variants ?? [],
     status: product.status,
     isPublished: product.isPublished,
+    isFeatured: Boolean(product.isFeatured),
     seoTitle: product.seoTitle,
     seoDescription: product.seoDescription,
     weight: product.weight,

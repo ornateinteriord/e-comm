@@ -32,6 +32,7 @@ export const createProductSchema = z.object({
     lowStockThreshold: z.number().int().nonnegative().optional(),
     status: z.enum(['draft', 'active', 'archived']).optional(),
     isPublished: z.boolean().optional(),
+    isFeatured: z.boolean().optional(),
     attributes: z.array(z.object({ key: z.string(), value: z.string() })).optional(),
     variants: z
       .array(

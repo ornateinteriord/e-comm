@@ -124,6 +124,7 @@ export interface PublicProduct {
   variants: ProductVariant[];
   status: ProductStatus;
   isPublished: boolean;
+  isFeatured?: boolean;
   seoTitle?: string;
   seoDescription?: string;
   weight?: number;

@@ -12,6 +12,7 @@ import {
   Delete as DeleteIcon,
   Search as SearchIcon,
   TrendingUp as TrendingUpIcon,
+  Star as StarIcon,
 } from '@mui/icons-material';
 import api from '../api/client';
 import type { AdminProduct } from '@ornate/types';
@@ -39,6 +40,7 @@ export default function ProductsPage() {
     lowStockThreshold: 5,
     status: 'active',
     isPublished: true,
+    isFeatured: false,
     imageUrl: '',
   });
 
@@ -111,6 +113,7 @@ export default function ProductsPage() {
         lowStockThreshold: Number(form.lowStockThreshold),
         status: form.status,
         isPublished: form.isPublished,
+        isFeatured: form.isFeatured,
         images: form.imageUrl
           ? [{ id: 'img_' + Date.now(), url: form.imageUrl, order: 0 }]
           : [],
@@ -142,6 +145,19 @@ export default function ProductsPage() {
     },
   });
 
+  const setSponsorMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { data } = await api.post(`/admin/products/${id}/sponsor`);
+      return data;
+    },
+    onSuccess: (res: any) => {
+      queryClient.invalidateQueries({ queryKey: ['admin-products'] });
+    },
+    onError: (err: any) => {
+      alert(err.response?.data?.error?.message || 'Failed to set sponsor product');
+    },
+  });
+
   const openCreateDialog = () => {
     setEditingProduct(null);
     const firstCat = categories?.[0];
@@ -161,6 +177,7 @@ export default function ProductsPage() {
       lowStockThreshold: 5,
       status: 'active',
       isPublished: true,
+      isFeatured: false,
       imageUrl: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&q=80',
     });
     setFormError(null);
@@ -185,6 +202,7 @@ export default function ProductsPage() {
       lowStockThreshold: p.lowStockThreshold || 5,
       status: p.status,
       isPublished: p.isPublished,
+      isFeatured: Boolean(p.isFeatured),
       imageUrl: p.images?.[0]?.url || '',
     });
     setFormError(null);
@@ -205,6 +223,7 @@ export default function ProductsPage() {
     ? (((form.sellingPrice - form.inwardPrice) / form.sellingPrice) * 100).toFixed(1)
     : '0';
   const computedProfit = Math.max(0, form.sellingPrice - form.inwardPrice);
+  const currentSponsor = productsData?.items?.find((p) => p.isFeatured);
 
   return (
     <Box>
@@ -228,6 +247,68 @@ export default function ProductsPage() {
           Add Product
         </Button>
       </Box>
+
+      {/* Front Page Sponsor Product Status Card */}
+      <Paper
+        elevation={0}
+        sx={{
+          p: 2.5,
+          mb: 3,
+          bgcolor: currentSponsor ? '#fff7ed' : '#f8fafc',
+          border: '1px solid',
+          borderColor: currentSponsor ? '#fed7aa' : '#e2e8f0',
+          borderRadius: '8px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: 2,
+        }}
+      >
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Box
+            sx={{
+              p: 1.25,
+              borderRadius: '8px',
+              bgcolor: currentSponsor ? '#ffedd5' : '#f1f5f9',
+              color: currentSponsor ? '#ea580c' : '#94a3b8',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <StarIcon sx={{ fontSize: 28 }} />
+          </Box>
+          <Box>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Typography variant="caption" sx={{ fontWeight: 800, color: currentSponsor ? '#c2410c' : '#64748b', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                Storefront Hero Sponsor Product
+              </Typography>
+              {currentSponsor && (
+                <Chip label="ACTIVE ON HOMEPAGE" size="small" sx={{ bgcolor: '#ea580c', color: '#fff', fontWeight: 900, fontSize: 10, height: 18 }} />
+              )}
+            </Box>
+            <Typography variant="subtitle1" fontWeight={800} color={currentSponsor ? '#9a3412' : '#334155'}>
+              {currentSponsor
+                ? `${currentSponsor.name} (${currentSponsor.sku}) — ₹${((currentSponsor.pricing?.sellingPrice ?? 0) / 100).toLocaleString('en-IN')}`
+                : 'No explicit sponsor product selected (first active deal product is shown automatically)'}
+            </Typography>
+            <Typography variant="caption" sx={{ color: currentSponsor ? '#b45309' : '#64748b' }}>
+              Click the star icon next to any product in the table below or toggle it when creating/editing a product to feature it here.
+            </Typography>
+          </Box>
+        </Box>
+        {currentSponsor && (
+          <Button
+            size="small"
+            variant="outlined"
+            onClick={() => openEditDialog(currentSponsor)}
+            sx={{ borderColor: '#fdba74', color: '#c2410c', fontWeight: 700, borderRadius: '6px', '&:hover': { borderColor: '#ea580c', bgcolor: '#ffedd5' } }}
+          >
+            Edit Sponsor Details
+          </Button>
+        )}
+      </Paper>
 
       {/* Filter / Search Bar */}
       <Paper elevation={0} sx={{ p: 2, mb: 3, borderRadius: '8px', border: '1px solid #e2e8f0', bgcolor: 'background.paper', display: 'flex', alignItems: 'center', gap: 2 }}>
@@ -292,11 +373,27 @@ export default function ProductsPage() {
                             />
                           </Box>
                           <Box>
-                            <Typography variant="body2" fontWeight={800} sx={{ color: '#0f172a' }}>
-                              {product.name}
-                            </Typography>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                              <Typography variant="body2" fontWeight={800} sx={{ color: '#0f172a' }}>
+                                {product.name}
+                              </Typography>
+                              {product.isFeatured && (
+                                <Chip
+                                  icon={<StarIcon sx={{ fontSize: '13px !important', color: '#fff !important' }} />}
+                                  label="SPONSOR"
+                                  size="small"
+                                  sx={{
+                                    height: 20,
+                                    fontSize: 10,
+                                    fontWeight: 900,
+                                    bgcolor: '#ea580c',
+                                    color: '#fff',
+                                  }}
+                                />
+                              )}
+                            </Box>
                             {product.brand && (
-                              <Typography variant="caption" sx={{ color: '#2563eb', fontWeight: 700 }}>
+                              <Typography variant="caption" sx={{ color: '#2563eb', fontWeight: 700, display: 'block' }}>
                                 {product.brand}
                               </Typography>
                             )}
@@ -355,7 +452,17 @@ export default function ProductsPage() {
                           }}
                         />
                       </TableCell>
-                      <TableCell sx={{ textAlign: 'right', minWidth: 100 }}>
+                      <TableCell sx={{ textAlign: 'right', minWidth: 130 }}>
+                        <Tooltip title={product.isFeatured ? "Active Front Storefront Sponsor" : "Set as Front Page Sponsor Product"}>
+                          <IconButton
+                            size="small"
+                            onClick={() => setSponsorMutation.mutate(product.id)}
+                            disabled={setSponsorMutation.isPending}
+                            sx={{ color: product.isFeatured ? '#ea580c' : '#cbd5e1', '&:hover': { color: '#ea580c' } }}
+                          >
+                            <StarIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
                         <IconButton size="small" onClick={() => openEditDialog(product)} title="Edit Product">
                           <EditIcon fontSize="small" />
                         </IconButton>
@@ -576,6 +683,37 @@ export default function ProductsPage() {
                 placeholder="Comprehensive description, specifications, features, materials, and warranty information..."
                 helperText="Detailed overview displayed on the product details page"
               />
+            </Grid>
+
+            <Grid item xs={12}>
+              <Paper
+                elevation={0}
+                sx={{
+                  p: 1.5,
+                  bgcolor: form.isFeatured ? '#fff7ed' : '#f8fafc',
+                  border: '1px solid',
+                  borderColor: form.isFeatured ? '#fed7aa' : '#e2e8f0',
+                  borderRadius: '6px',
+                }}
+              >
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={form.isFeatured}
+                      onChange={(e) => setForm({ ...form, isFeatured: e.target.checked })}
+                      color="warning"
+                    />
+                  }
+                  label={
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <StarIcon sx={{ color: form.isFeatured ? '#ea580c' : '#94a3b8', fontSize: 18 }} />
+                      <Typography variant="body2" fontWeight={800} color={form.isFeatured ? '#c2410c' : 'text.primary'}>
+                        Set as Front Storefront Sponsor Product (Featured on Homepage Hero)
+                      </Typography>
+                    </Box>
+                  }
+                />
+              </Paper>
             </Grid>
 
             <Grid item xs={12}>
