@@ -15,6 +15,8 @@ const CustomersPage = React.lazy(() => import('./pages/CustomersPage.tsx'));
 const CouponsPage = React.lazy(() => import('./pages/CouponsPage.tsx'));
 const AuditLogsPage = React.lazy(() => import('./pages/AuditLogsPage.tsx'));
 const SystemHealthPage = React.lazy(() => import('./pages/SystemHealthPage.tsx'));
+const NotFoundPage = React.lazy(() => import('./pages/NotFoundPage.tsx'));
+import ErrorBoundary from './components/ErrorBoundary.tsx';
 
 function PageLoader() {
   return (
@@ -34,35 +36,40 @@ function RequireAdmin({ children }: { children: React.ReactElement }) {
 
 export default function App() {
   return (
-    <Suspense fallback={<PageLoader />}>
-      <Routes>
-        <Route path="/login" element={<LoginPage />} />
-        {/* Hidden Developer Diagnostic Route - accessible without login */}
-        <Route path="/system-health" element={<SystemHealthPage />} />
-        <Route path="/dev/health" element={<SystemHealthPage />} />
+    <ErrorBoundary>
+      <Suspense fallback={<PageLoader />}>
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          {/* Hidden Developer Diagnostic Route - accessible without login */}
+          <Route path="/system-health" element={<SystemHealthPage />} />
+          <Route path="/dev/health" element={<SystemHealthPage />} />
 
-        <Route
-          element={
-            <RequireAdmin>
-              <AdminLayout />
-            </RequireAdmin>
-          }
-        >
-          <Route index element={<DashboardPage />} />
-          <Route path="products" element={<ProductsPage />} />
-          <Route path="categories" element={<CategoriesPage />} />
-          <Route path="orders" element={<OrdersPage />} />
-          <Route path="inventory" element={<InventoryPage />} />
-          <Route path="invoices" element={<InvoicesPage />} />
-          <Route path="customers" element={<CustomersPage />} />
-          <Route path="coupons" element={<CouponsPage />} />
-          <Route path="audit-logs" element={<AuditLogsPage />} />
-          {/* Also accessible inside admin shell if logged in */}
-          <Route path="system-health" element={<SystemHealthPage />} />
-          <Route path="dev/health" element={<SystemHealthPage />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Route>
-      </Routes>
-    </Suspense>
+          <Route
+            element={
+              <RequireAdmin>
+                <AdminLayout />
+              </RequireAdmin>
+            }
+          >
+            <Route index element={<DashboardPage />} />
+            <Route path="products" element={<ProductsPage />} />
+            <Route path="categories" element={<CategoriesPage />} />
+            <Route path="orders" element={<OrdersPage />} />
+            <Route path="inventory" element={<InventoryPage />} />
+            <Route path="invoices" element={<InvoicesPage />} />
+            <Route path="customers" element={<CustomersPage />} />
+            <Route path="coupons" element={<CouponsPage />} />
+            <Route path="audit-logs" element={<AuditLogsPage />} />
+            {/* Also accessible inside admin shell if logged in */}
+            <Route path="system-health" element={<SystemHealthPage />} />
+            <Route path="dev/health" element={<SystemHealthPage />} />
+            <Route path="*" element={<NotFoundPage />} />
+          </Route>
+
+          {/* Fallback route for all other unknown paths */}
+          <Route path="*" element={<NotFoundPage />} />
+        </Routes>
+      </Suspense>
+    </ErrorBoundary>
   );
 }
