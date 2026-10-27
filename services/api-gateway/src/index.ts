@@ -13,32 +13,34 @@ const log = createLogger('api-gateway');
 const app: Express = express();
 const PORT = process.env.API_GATEWAY_PORT ?? 4000;
 
+const isLocal = process.env.NODE_ENV !== 'production' && process.env.VERCEL !== '1';
+
 // Consolidated target resolution with fallbacks
 const authTarget =
   process.env.AUTH_SERVICE_URL ??
   process.env.USER_SERVICE_URL ??
-  'https://e-comm-auth-alpha.vercel.app';
+  (isLocal ? 'http://localhost:4001' : 'https://e-comm-auth-alpha.vercel.app');
 
 const productTarget =
   process.env.PRODUCT_SERVICE_URL ??
   process.env.CATALOG_SERVICE_URL ??
   process.env.INVENTORY_SERVICE_URL ??
   process.env.SEARCH_SERVICE_URL ??
-  'https://e-comm-product-two.vercel.app';
+  (isLocal ? 'http://localhost:4003' : 'https://e-comm-product-two.vercel.app');
 
 const orderTarget =
   process.env.ORDER_SERVICE_URL ??
   process.env.CART_SERVICE_URL ??
-  'https://e-comm-order.vercel.app';
+  (isLocal ? 'http://localhost:4006' : 'https://e-comm-order.vercel.app');
 
 const paymentTarget =
   process.env.PAYMENT_SERVICE_URL ??
   process.env.INVOICE_SERVICE_URL ??
-  'https://e-comm-payment.vercel.app';
+  (isLocal ? 'http://localhost:4007' : 'https://e-comm-payment.vercel.app');
 
 const notificationTarget =
   process.env.NOTIFICATION_SERVICE_URL ??
-  'https://e-comm-notification.vercel.app';
+  (isLocal ? 'http://localhost:4010' : 'https://e-comm-notification.vercel.app');
 
 // ---- Security middleware ----
 app.use(
