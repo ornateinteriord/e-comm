@@ -54,12 +54,23 @@ export default function ProductsPage() {
     queryKey: ['admin-categories-list'],
     queryFn: async () => {
       const { data } = await api.get('/categories');
-      return data.data as Array<{ id: string; name: string; slug: string }>;
+      const rawList = Array.isArray(data.data) ? data.data : [];
+      return rawList.map((cat: any) => ({
+        id: String(cat.id || cat._id || ''),
+        _id: String(cat._id || cat.id || ''),
+        name: cat.name,
+        slug: cat.slug,
+      }));
     },
   });
 
   const saveMutation = useMutation({
     mutationFn: async () => {
+      const targetCategory = form.category || categories?.[0]?.id || (categories?.[0] as any)?._id;
+      if (!targetCategory) {
+        throw new Error('Please select a Category / Department.');
+      }
+
       const mrpPaise = Math.round(Number(form.mrp) * 100);
       const sellingPaise = Math.round(Number(form.sellingPrice) * 100);
       const inwardPaise = Math.round(Number(form.inwardPrice) * 100);
@@ -79,7 +90,7 @@ export default function ProductsPage() {
         name: form.name,
         sku: form.sku.toUpperCase(),
         brand: form.brand,
-        category: form.category || categories?.[0]?.id,
+        category: targetCategory,
         shortDescription: form.shortDescription,
         longDescription: form.longDescription,
         pricing: {
@@ -133,11 +144,13 @@ export default function ProductsPage() {
 
   const openCreateDialog = () => {
     setEditingProduct(null);
+    const firstCat = categories?.[0];
+    const defaultCatId = firstCat ? (firstCat.id || (firstCat as any)._id) : '';
     setForm({
       name: '',
       sku: `PROD-${Math.floor(100 + Math.random() * 900)}`,
       brand: '',
-      category: categories?.[0]?.id || '',
+      category: defaultCatId,
       shortDescription: '',
       longDescription: '',
       mrp: 2999,
@@ -156,11 +169,12 @@ export default function ProductsPage() {
 
   const openEditDialog = (p: AdminProduct) => {
     setEditingProduct(p);
+    const catId = (p as any).category?._id || (p as any).category?.id || p.categoryId || (p as any).category || '';
     setForm({
       name: p.name,
       sku: p.sku,
       brand: p.brand || '',
-      category: p.categoryId,
+      category: String(catId),
       shortDescription: p.shortDescription || '',
       longDescription: p.longDescription || '',
       mrp: ((p.pricing?.mrp ?? 0) / 100),
@@ -412,14 +426,28 @@ export default function ProductsPage() {
               <TextField
                 select
                 label="Category / Department"
+                required
                 fullWidth
                 size="small"
                 value={form.category}
                 onChange={(e) => setForm({ ...form, category: e.target.value })}
+                SelectProps={{
+                  displayEmpty: true,
+                }}
+                error={Boolean(formError && !form.category)}
+                helperText={!form.category ? 'Please select a product category' : ''}
               >
-                {categories?.map((cat) => (
-                  <MenuItem key={cat.id} value={cat.id}>{cat.name}</MenuItem>
-                ))}
+                <MenuItem value="" disabled>
+                  <em>Select a Category</em>
+                </MenuItem>
+                {categories?.map((cat) => {
+                  const val = cat.id || cat._id;
+                  return (
+                    <MenuItem key={val} value={val}>
+                      {cat.name}
+                    </MenuItem>
+                  );
+                })}
               </TextField>
             </Grid>
 
@@ -532,6 +560,21 @@ export default function ProductsPage() {
                 size="small"
                 value={form.shortDescription}
                 onChange={(e) => setForm({ ...form, shortDescription: e.target.value })}
+                placeholder="Brief summary shown in product listings and cards..."
+              />
+            </Grid>
+
+            <Grid item xs={12}>
+              <TextField
+                label="Long Description"
+                fullWidth
+                multiline
+                rows={4}
+                size="small"
+                value={form.longDescription}
+                onChange={(e) => setForm({ ...form, longDescription: e.target.value })}
+                placeholder="Comprehensive description, specifications, features, materials, and warranty information..."
+                helperText="Detailed overview displayed on the product details page"
               />
             </Grid>
 

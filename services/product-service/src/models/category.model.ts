@@ -34,7 +34,16 @@ const categorySchema = new Schema<ICategory>(
     seoTitle: { type: String },
     seoDescription: { type: String },
   },
-  { timestamps: true },
+  {
+    timestamps: true,
+    toJSON: {
+      virtuals: true,
+      transform: (_doc, ret: any) => {
+        ret.id = ret._id?.toString() || ret.id;
+        return ret;
+      },
+    },
+  },
 );
 
 export const Category = mongoose.model<ICategory>('Category', categorySchema);
