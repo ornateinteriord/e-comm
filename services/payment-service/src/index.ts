@@ -1,4 +1,4 @@
-// Trigger deployment - payment-service
+// Trigger deployment - payment-service (consolidated with invoice-service)
 import 'dotenv/config';
 import express, { Express, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
@@ -7,18 +7,30 @@ import rateLimit from 'express-rate-limit';
 import { connectDB } from '@ornate/db';
 import { createLogger } from '@ornate/logger';
 import paymentRoutes from './routes/payment.routes.js';
+import invoiceRoutes from './routes/invoice.routes.js';
 import {
   createPaymentIntent,
   verifyPayment,
   adminListPayments,
 } from './controllers/payment.controller.js';
+import {
+  generateInvoice,
+  getInvoiceByOrderId,
+  getInvoiceById,
+  renderInvoiceHtml,
+  adminListInvoices,
+} from './controllers/invoice.controller.js';
 import { attachUser, requireAuth, requireRole } from './middleware/auth.middleware.js';
 
 const log = createLogger('payment-service');
 const app: Express = express();
 const PORT = process.env.PAYMENT_SERVICE_PORT ?? 4007;
 
-app.use(helmet());
+app.use(
+  helmet({
+    contentSecurityPolicy: false,
+  }),
+);
 app.use(
   cors({
     origin: (process.env.ALLOWED_ORIGINS ?? 'http://localhost:4000,http://localhost:5173').split(',').map((o) => o.trim()),
@@ -40,7 +52,7 @@ app.use(globalLimiter);
 app.get('/', (_req: Request, res: Response) => {
   res.json({
     status: 'ok',
-    message: 'Payment service running successfully',
+    message: 'Payment & Invoice service running successfully',
     service: 'payment-service',
     timestamp: new Date().toISOString(),
   });
@@ -52,12 +64,23 @@ app.get('/health', (_req: Request, res: Response) => {
 
 // Mounted paths
 app.use('/api/v1', paymentRoutes);
+app.use('/api/v1', invoiceRoutes);
+app.use('/api/v1/invoices', invoiceRoutes);
+app.use('/invoices', invoiceRoutes);
 
 // Direct mapping for gateway forwarded subpaths
+app.use(attachUser);
 app.post('/api/v1/payments/create-intent', createPaymentIntent);
 app.post('/api/v1/payments/intent', createPaymentIntent);
 app.post('/api/v1/payments/verify', verifyPayment);
 app.get('/api/v1/admin/payments', requireAuth, requireRole('finance_manager', 'admin', 'super_admin'), adminListPayments);
+
+// Invoices direct mapping
+app.post('/api/v1/invoices/generate', generateInvoice);
+app.get('/api/v1/invoices/order/:orderId', getInvoiceByOrderId);
+app.get('/api/v1/invoices/:id/html', renderInvoiceHtml);
+app.get('/api/v1/invoices/:id', getInvoiceById);
+app.get('/api/v1/admin/invoices', requireAuth, requireRole('finance_manager', 'admin', 'super_admin'), adminListInvoices);
 
 // Error handler
 // eslint-disable-next-line @typescript-eslint/no-unused-vars

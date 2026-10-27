@@ -18,7 +18,7 @@ const router: Router = Router();
 
 router.use(attachUser);
 
-// Customer cart endpoints
+// Customer cart endpoints (mounted at /api/v1/cart)
 router.get('/', getCart);
 router.post('/items', addItem);
 router.put('/items/:id', updateItemQuantity);

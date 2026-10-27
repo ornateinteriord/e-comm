@@ -13,13 +13,14 @@ const router: Router = Router();
 
 router.use(attachUser);
 
+// /api/v1/inventory routes
 router.post('/check', checkStock);
 router.post('/reserve', reserveStock);
 router.post('/deduct', deductStock);
 
-// Admin
-router.get('/admin/inventory', requireAuth, requireRole('inventory_manager', 'admin', 'super_admin'), adminListInventory);
-router.post('/admin/inventory/adjust', requireAuth, requireRole('inventory_manager', 'admin', 'super_admin'), adminAdjustStock);
-router.get('/admin/inventory/movements', requireAuth, requireRole('inventory_manager', 'admin', 'super_admin'), adminListMovements);
+// Admin routes (can also be matched directly)
+router.get('/admin', requireAuth, requireRole('inventory_manager', 'admin', 'super_admin'), adminListInventory);
+router.post('/admin/adjust', requireAuth, requireRole('inventory_manager', 'admin', 'super_admin'), adminAdjustStock);
+router.get('/admin/movements', requireAuth, requireRole('inventory_manager', 'admin', 'super_admin'), adminListMovements);
 
 export default router;

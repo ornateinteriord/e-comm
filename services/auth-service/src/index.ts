@@ -8,6 +8,21 @@ import rateLimit from 'express-rate-limit';
 import { connectDB } from '@ornate/db';
 import { createLogger } from '@ornate/logger';
 import authRoutes from './routes/auth.routes.js';
+import userRoutes from './routes/user.routes.js';
+import { requireAuth, requireRole } from './middleware/auth.middleware.js';
+import {
+  getProfile,
+  updateProfile,
+  getAddresses,
+  createAddress,
+  updateAddress,
+  deleteAddress,
+  setDefaultAddress,
+  getWishlist,
+  addToWishlist,
+  removeFromWishlist,
+  adminListCustomers,
+} from './controllers/user.controller.js';
 
 const log = createLogger('auth-service');
 const app: Express = express();
@@ -77,6 +92,24 @@ app.get('/health', (_req: Request, res: Response) => {
 });
 
 app.use('/api/v1/auth', authRoutes);
+
+// User Profile, Addresses, Wishlist & Customer routes (merged from user-service)
+app.use('/api/v1', userRoutes);
+app.get('/api/v1/users/me', requireAuth, getProfile);
+app.get('/api/v1/users/profile', requireAuth, getProfile);
+app.put('/api/v1/users/profile', requireAuth, updateProfile);
+
+app.get('/api/v1/addresses', requireAuth, getAddresses);
+app.post('/api/v1/addresses', requireAuth, createAddress);
+app.put('/api/v1/addresses/:id', requireAuth, updateAddress);
+app.delete('/api/v1/addresses/:id', requireAuth, deleteAddress);
+app.patch('/api/v1/addresses/:id/default', requireAuth, setDefaultAddress);
+
+app.get('/api/v1/wishlist', requireAuth, getWishlist);
+app.post('/api/v1/wishlist', requireAuth, addToWishlist);
+app.delete('/api/v1/wishlist/:productId', requireAuth, removeFromWishlist);
+
+app.get('/api/v1/admin/customers', requireAuth, requireRole('support', 'admin', 'super_admin'), adminListCustomers);
 
 // Admin routes (forwarded by gateway preserving path)
 app.use('/api/v1/admin', authRoutes);

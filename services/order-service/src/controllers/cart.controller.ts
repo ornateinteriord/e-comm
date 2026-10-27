@@ -43,7 +43,7 @@ async function recalculateCart(cart: ICart): Promise<void> {
 // Find or create cart based on userId or sessionId
 async function getOrCreateCart(req: Request): Promise<ICart> {
   const userId = req.user?.userId;
-  const sessionId = (req.headers['x-session-id'] as string) || req.cookies?.sessionId || 'guest_default_session';
+  const sessionId = (req.headers['x-session-id'] as string) || (req as any).cookies?.sessionId || 'guest_default_session';
 
   let cart: ICart | null = null;
   if (userId) {

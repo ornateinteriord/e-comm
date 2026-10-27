@@ -1,4 +1,4 @@
-// Trigger deployment - api-gateway v2
+// Trigger deployment - api-gateway v3 (consolidated 5-service architecture)
 import 'dotenv/config';
 import express, { Express, Request, Response } from 'express';
 import { createProxyMiddleware } from 'http-proxy-middleware';
@@ -12,6 +12,33 @@ const log = createLogger('api-gateway');
 
 const app: Express = express();
 const PORT = process.env.API_GATEWAY_PORT ?? 4000;
+
+// Consolidated target resolution with fallbacks
+const authTarget =
+  process.env.AUTH_SERVICE_URL ??
+  process.env.USER_SERVICE_URL ??
+  'https://e-comm-auth-alpha.vercel.app';
+
+const productTarget =
+  process.env.PRODUCT_SERVICE_URL ??
+  process.env.CATALOG_SERVICE_URL ??
+  process.env.INVENTORY_SERVICE_URL ??
+  process.env.SEARCH_SERVICE_URL ??
+  'https://e-comm-product-two.vercel.app';
+
+const orderTarget =
+  process.env.ORDER_SERVICE_URL ??
+  process.env.CART_SERVICE_URL ??
+  'https://e-comm-order.vercel.app';
+
+const paymentTarget =
+  process.env.PAYMENT_SERVICE_URL ??
+  process.env.INVOICE_SERVICE_URL ??
+  'https://e-comm-payment.vercel.app';
+
+const notificationTarget =
+  process.env.NOTIFICATION_SERVICE_URL ??
+  'https://e-comm-notification.vercel.app';
 
 // ---- Security middleware ----
 app.use(
@@ -70,6 +97,7 @@ const corsOptions: cors.CorsOptions = {
     'Origin',
     'Cookie',
     'X-CSRF-Token',
+    'x-session-id',
   ],
   exposedHeaders: ['Set-Cookie'],
   optionsSuccessStatus: 200, // some legacy browsers choke on 204
@@ -96,7 +124,7 @@ app.use(globalLimiter);
 app.get('/', (_req: Request, res: Response) => {
   res.json({
     status: 'ok',
-    message: 'API Gateway running successfully',
+    message: 'API Gateway running successfully (5-service architecture)',
     service: 'api-gateway',
     timestamp: new Date().toISOString(),
   });
@@ -106,19 +134,14 @@ app.get('/health', (_req: Request, res: Response) => {
   res.json({ status: 'ok', service: 'api-gateway', timestamp: new Date().toISOString() });
 });
 
-// ---- Multi-service Health Check Aggregator ----
+// ---- Multi-service Health Check Aggregator (5 Consolidated Services) ----
 const systemHealthHandler = async (_req: Request, res: Response) => {
   const services = [
-    { name: 'Auth Service', key: 'auth', path: '/api/v1/auth', target: process.env.AUTH_SERVICE_URL ?? 'http://localhost:4001' },
-    { name: 'User Service', key: 'user', path: '/api/v1/users', target: process.env.USER_SERVICE_URL ?? 'http://localhost:4002' },
-    { name: 'Product Service', key: 'product', path: '/api/v1/products', target: process.env.PRODUCT_SERVICE_URL ?? 'http://localhost:4003' },
-    { name: 'Search Service', key: 'search', path: '/api/v1/search', target: process.env.SEARCH_SERVICE_URL ?? 'http://localhost:4004' },
-    { name: 'Cart Service', key: 'cart', path: '/api/v1/cart', target: process.env.CART_SERVICE_URL ?? 'http://localhost:4005' },
-    { name: 'Order Service', key: 'order', path: '/api/v1/orders', target: process.env.ORDER_SERVICE_URL ?? 'http://localhost:4006' },
-    { name: 'Payment Service', key: 'payment', path: '/api/v1/payments', target: process.env.PAYMENT_SERVICE_URL ?? 'http://localhost:4007' },
-    { name: 'Invoice Service', key: 'invoice', path: '/api/v1/invoices', target: process.env.INVOICE_SERVICE_URL ?? 'http://localhost:4008' },
-    { name: 'Inventory Service', key: 'inventory', path: '/api/v1/inventory', target: process.env.INVENTORY_SERVICE_URL ?? 'http://localhost:4009' },
-    { name: 'Notification Service', key: 'notification', path: '/api/v1/notifications', target: process.env.NOTIFICATION_SERVICE_URL ?? 'http://localhost:4010' },
+    { name: 'Auth & User Service', key: 'auth', path: '/api/v1/auth', target: authTarget },
+    { name: 'Product & Catalog Service', key: 'product', path: '/api/v1/products', target: productTarget },
+    { name: 'Order & Cart Service', key: 'order', path: '/api/v1/orders', target: orderTarget },
+    { name: 'Payment & Invoice Service', key: 'payment', path: '/api/v1/payments', target: paymentTarget },
+    { name: 'Notification Service', key: 'notification', path: '/api/v1/notifications', target: notificationTarget },
   ];
 
   const results = await Promise.allSettled(
@@ -201,36 +224,44 @@ const systemHealthHandler = async (_req: Request, res: Response) => {
 app.get('/api/v1/system/health', systemHealthHandler);
 app.get('/health/all', systemHealthHandler);
 
-// ---- Service routing table ----
+// ---- Service routing table (Preserving 100% of API Gateway routes) ----
 const serviceRoutes: Array<{ path: string; target: string }> = [
-  { path: '/api/v1/auth', target: process.env.AUTH_SERVICE_URL ?? 'http://localhost:4001' },
-  { path: '/api/v1/users', target: process.env.USER_SERVICE_URL ?? 'http://localhost:4002' },
-  { path: '/api/v1/addresses', target: process.env.USER_SERVICE_URL ?? 'http://localhost:4002' },
-  { path: '/api/v1/wishlist', target: process.env.USER_SERVICE_URL ?? 'http://localhost:4002' },
-  { path: '/api/v1/products', target: process.env.PRODUCT_SERVICE_URL ?? 'http://localhost:4003' },
-  { path: '/api/v1/categories', target: process.env.PRODUCT_SERVICE_URL ?? 'http://localhost:4003' },
-  { path: '/api/v1/search', target: process.env.SEARCH_SERVICE_URL ?? 'http://localhost:4004' },
-  { path: '/api/v1/cart', target: process.env.CART_SERVICE_URL ?? 'http://localhost:4005' },
-  { path: '/api/v1/checkout', target: process.env.ORDER_SERVICE_URL ?? 'http://localhost:4006' },
-  { path: '/api/v1/orders', target: process.env.ORDER_SERVICE_URL ?? 'http://localhost:4006' },
-  { path: '/api/v1/payments', target: process.env.PAYMENT_SERVICE_URL ?? 'http://localhost:4007' },
-  { path: '/api/v1/invoices', target: process.env.INVOICE_SERVICE_URL ?? 'http://localhost:4008' },
-  { path: '/api/v1/inventory', target: process.env.INVENTORY_SERVICE_URL ?? 'http://localhost:4009' },
-  { path: '/api/v1/notifications', target: process.env.NOTIFICATION_SERVICE_URL ?? 'http://localhost:4010' },
-  // Admin routes — proxied to their respective services
-  { path: '/api/v1/admin/products', target: process.env.PRODUCT_SERVICE_URL ?? 'http://localhost:4003' },
-  { path: '/api/v1/admin/categories', target: process.env.PRODUCT_SERVICE_URL ?? 'http://localhost:4003' },
-  { path: '/api/v1/admin/search', target: process.env.SEARCH_SERVICE_URL ?? 'http://localhost:4004' },
-  { path: '/api/v1/admin/inventory', target: process.env.INVENTORY_SERVICE_URL ?? 'http://localhost:4009' },
-  { path: '/api/v1/admin/orders', target: process.env.ORDER_SERVICE_URL ?? 'http://localhost:4006' },
-  { path: '/api/v1/admin/payments', target: process.env.PAYMENT_SERVICE_URL ?? 'http://localhost:4007' },
-  { path: '/api/v1/admin/invoices', target: process.env.INVOICE_SERVICE_URL ?? 'http://localhost:4008' },
-  { path: '/api/v1/admin/customers', target: process.env.USER_SERVICE_URL ?? 'http://localhost:4002' },
-  { path: '/api/v1/admin/users', target: process.env.AUTH_SERVICE_URL ?? 'http://localhost:4001' },
-  { path: '/api/v1/admin/dashboard', target: process.env.ORDER_SERVICE_URL ?? 'http://localhost:4006' },
-  { path: '/api/v1/admin/audit-logs', target: process.env.AUTH_SERVICE_URL ?? 'http://localhost:4001' },
-  { path: '/api/v1/admin/coupons', target: process.env.CART_SERVICE_URL ?? 'http://localhost:4005' },
-  { path: '/api/v1/admin/notifications', target: process.env.NOTIFICATION_SERVICE_URL ?? 'http://localhost:4010' },
+  // 1. Auth & Users Service
+  { path: '/api/v1/auth', target: authTarget },
+  { path: '/api/v1/users', target: authTarget },
+  { path: '/api/v1/addresses', target: authTarget },
+  { path: '/api/v1/wishlist', target: authTarget },
+  { path: '/api/v1/admin/customers', target: authTarget },
+  { path: '/api/v1/admin/users', target: authTarget },
+  { path: '/api/v1/admin/audit-logs', target: authTarget },
+
+  // 2. Product, Catalog, Search & Inventory Service
+  { path: '/api/v1/products', target: productTarget },
+  { path: '/api/v1/categories', target: productTarget },
+  { path: '/api/v1/search', target: productTarget },
+  { path: '/api/v1/inventory', target: productTarget },
+  { path: '/api/v1/admin/products', target: productTarget },
+  { path: '/api/v1/admin/categories', target: productTarget },
+  { path: '/api/v1/admin/search', target: productTarget },
+  { path: '/api/v1/admin/inventory', target: productTarget },
+
+  // 3. Order, Cart & Coupon Service
+  { path: '/api/v1/cart', target: orderTarget },
+  { path: '/api/v1/checkout', target: orderTarget },
+  { path: '/api/v1/orders', target: orderTarget },
+  { path: '/api/v1/admin/orders', target: orderTarget },
+  { path: '/api/v1/admin/dashboard', target: orderTarget },
+  { path: '/api/v1/admin/coupons', target: orderTarget },
+
+  // 4. Payment & Invoice Service
+  { path: '/api/v1/payments', target: paymentTarget },
+  { path: '/api/v1/invoices', target: paymentTarget },
+  { path: '/api/v1/admin/payments', target: paymentTarget },
+  { path: '/api/v1/admin/invoices', target: paymentTarget },
+
+  // 5. Notification Service
+  { path: '/api/v1/notifications', target: notificationTarget },
+  { path: '/api/v1/admin/notifications', target: notificationTarget },
 ];
 
 // Sort routes so more specific paths match first if needed
@@ -276,8 +307,10 @@ app.use((_req, res) => {
   });
 });
 
-app.listen(PORT, () => {
-  log.info({ port: PORT }, `API Gateway listening`);
-});
+if (process.env.VERCEL !== '1') {
+  app.listen(PORT, () => {
+    log.info({ port: PORT }, `API Gateway listening`);
+  });
+}
 
 export default app;
