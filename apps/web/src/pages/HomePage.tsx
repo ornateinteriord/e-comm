@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link as RouterLink, useNavigate } from "react-router";
 import {
   Box, Container, Typography, Button, Grid, Chip,
-  CircularProgress, Stack, Paper, Avatar, useTheme,
+  CircularProgress, Stack, Paper, Avatar, useTheme, Skeleton,
 } from "@mui/material";
 import {
   LocalShipping as ShippingIcon,
@@ -99,7 +99,7 @@ export default function HomePage() {
     },
   });
 
-  const { data: featuredSponsorProduct } = useQuery({
+  const { data: featuredSponsorProduct, isLoading: isLoadingSponsor } = useQuery({
     queryKey: ["featured-sponsor-product"],
     queryFn: async () => {
       try {
@@ -122,6 +122,8 @@ export default function HomePage() {
     finalProducts.find((p) => p.isFeatured) ||
     dealProducts[0] ||
     null;
+
+  const isHeroProductLoading = isLoadingSponsor || (isLoading && !featuredSponsorProduct);
 
   return (
     <Box sx={{ pb: { xs: 6, md: 10 } }}>
@@ -303,89 +305,157 @@ export default function HomePage() {
 
             {/* Desktop Hero Image / Front Sponsor Product */}
             <Grid item xs={12} md={5} sx={{ display: { xs: "none", md: "block" } }}>
-              <Box
-                onClick={() => {
-                  if (sponsorProduct?.slug) {
-                    navigate(`/products/${sponsorProduct.slug}`);
-                  }
-                }}
-                sx={{
-                  position: "relative",
-                  width: "100%",
-                  height: 420,
-                  borderRadius: "8px",
-                  overflow: "hidden",
-                  cursor: sponsorProduct?.slug ? "pointer" : "default",
-                  boxShadow: isLight
-                    ? "0 20px 40px -15px rgba(23, 43, 48, 0.15)"
-                    : "0 25px 50px -12px rgba(0, 0, 0, 0.7)",
-                  border: `1px solid ${isLight ? "#E5E7EB" : "rgba(255, 255, 255, 0.1)"}`,
-                  transition: "transform 0.25s ease, box-shadow 0.25s ease",
-                  "&:hover": sponsorProduct?.slug
-                    ? {
-                        transform: "translateY(-4px)",
-                        boxShadow: isLight
-                          ? "0 24px 48px -15px rgba(255, 121, 0, 0.25)"
-                          : "0 30px 60px -12px rgba(255, 121, 0, 0.35)",
-                        "& .hero-sponsor-img": {
-                          transform: "scale(1.04)",
-                        },
-                      }
-                    : {},
-                }}
-              >
+              {isHeroProductLoading ? (
                 <Box
-                  component="img"
-                  className="hero-sponsor-img"
-                  src={
-                    sponsorProduct?.images?.[0]?.url ||
-                    "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=1000&q=80"
-                  }
-                  alt={sponsorProduct?.images?.[0]?.alt || sponsorProduct?.name || "Featured Sponsor Product"}
                   sx={{
+                    position: "relative",
                     width: "100%",
-                    height: "100%",
-                    objectFit: "cover",
-                    transition: "transform 0.4s ease",
+                    height: 420,
+                    borderRadius: "8px",
+                    overflow: "hidden",
+                    border: `1px solid ${isLight ? "#E5E7EB" : "rgba(255, 255, 255, 0.1)"}`,
+                    bgcolor: isLight ? "#F1F5F9" : "#1E293B",
                   }}
-                />
-                <Box
-                  sx={{
-                    position: "absolute",
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
-                    height: "65%",
-                    background:
-                      "linear-gradient(to top, rgba(15, 23, 42, 0.95) 0%, rgba(15, 23, 42, 0.7) 45%, rgba(15, 23, 42, 0.2) 72%, transparent 100%)",
-                    pointerEvents: "none",
-                  }}
-                />
-                <Box sx={{ position: "absolute", bottom: 0, left: 0, right: 0, p: 3 }}>
-                  <Chip
-                    label={sponsorProduct?.isFeatured ? "FEATURED SPONSOR" : "FEATURED PRODUCT"}
-                    size="small"
-                    sx={{ bgcolor: "#FF7900", color: "white", fontWeight: 800, mb: 1, borderRadius: 1 }}
+                >
+                  <Skeleton
+                    variant="rectangular"
+                    width="100%"
+                    height="100%"
+                    animation="wave"
+                    sx={{
+                      bgcolor: isLight ? "rgba(0, 0, 0, 0.05)" : "rgba(255, 255, 255, 0.05)",
+                    }}
                   />
-                  <Typography
-                    variant="h6"
-                    fontWeight={800}
-                    color="white"
-                    sx={{ textShadow: "0 1px 2px rgba(0,0,0,0.5)" }}
-                  >
-                    {sponsorProduct?.name || "Sony WH-1000XM5 Noise Cancelling"}
-                  </Typography>
-                  <Typography variant="body2" sx={{ color: "#CBD5E1", mt: 0.5 }}>
-                    {sponsorProduct?.pricing
-                      ? `Special Deal: Rs. ${(sponsorProduct.pricing.applicablePrice / 100).toLocaleString("en-IN")}${
-                          sponsorProduct.pricing.savingsAmount > 0
-                            ? ` (Save Rs. ${(sponsorProduct.pricing.savingsAmount / 100).toLocaleString("en-IN")})`
-                            : ""
-                        }`
-                      : "Special Deal: Rs. 25,990 (Save Rs. 9,000)"}
-                  </Typography>
+                  <Box
+                    sx={{
+                      position: "absolute",
+                      bottom: 0,
+                      left: 0,
+                      right: 0,
+                      height: "65%",
+                      background:
+                        "linear-gradient(to top, rgba(15, 23, 42, 0.95) 0%, rgba(15, 23, 42, 0.7) 45%, rgba(15, 23, 42, 0.2) 72%, transparent 100%)",
+                      pointerEvents: "none",
+                    }}
+                  />
+                  <Box sx={{ position: "absolute", bottom: 0, left: 0, right: 0, p: 3 }}>
+                    <Skeleton
+                      variant="rounded"
+                      width={140}
+                      height={24}
+                      animation="wave"
+                      sx={{
+                        bgcolor: "rgba(255, 255, 255, 0.2)",
+                        mb: 1.5,
+                        borderRadius: 1,
+                      }}
+                    />
+                    <Skeleton
+                      variant="text"
+                      width="80%"
+                      height={32}
+                      animation="wave"
+                      sx={{
+                        bgcolor: "rgba(255, 255, 255, 0.2)",
+                        mb: 0.5,
+                      }}
+                    />
+                    <Skeleton
+                      variant="text"
+                      width="50%"
+                      height={20}
+                      animation="wave"
+                      sx={{
+                        bgcolor: "rgba(255, 255, 255, 0.15)",
+                      }}
+                    />
+                  </Box>
                 </Box>
-              </Box>
+              ) : (
+                <Box
+                  onClick={() => {
+                    if (sponsorProduct?.slug) {
+                      navigate(`/products/${sponsorProduct.slug}`);
+                    }
+                  }}
+                  sx={{
+                    position: "relative",
+                    width: "100%",
+                    height: 420,
+                    borderRadius: "8px",
+                    overflow: "hidden",
+                    cursor: sponsorProduct?.slug ? "pointer" : "default",
+                    boxShadow: isLight
+                      ? "0 20px 40px -15px rgba(23, 43, 48, 0.15)"
+                      : "0 25px 50px -12px rgba(0, 0, 0, 0.7)",
+                    border: `1px solid ${isLight ? "#E5E7EB" : "rgba(255, 255, 255, 0.1)"}`,
+                    transition: "transform 0.25s ease, box-shadow 0.25s ease",
+                    "&:hover": sponsorProduct?.slug
+                      ? {
+                          transform: "translateY(-4px)",
+                          boxShadow: isLight
+                            ? "0 24px 48px -15px rgba(255, 121, 0, 0.25)"
+                            : "0 30px 60px -12px rgba(255, 121, 0, 0.35)",
+                          "& .hero-sponsor-img": {
+                            transform: "scale(1.04)",
+                          },
+                        }
+                      : {},
+                  }}
+                >
+                  <Box
+                    component="img"
+                    className="hero-sponsor-img"
+                    src={
+                      sponsorProduct?.images?.[0]?.url ||
+                      "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=1000&q=80"
+                    }
+                    alt={sponsorProduct?.images?.[0]?.alt || sponsorProduct?.name || "Featured Sponsor Product"}
+                    sx={{
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "cover",
+                      transition: "transform 0.4s ease",
+                    }}
+                  />
+                  <Box
+                    sx={{
+                      position: "absolute",
+                      bottom: 0,
+                      left: 0,
+                      right: 0,
+                      height: "65%",
+                      background:
+                        "linear-gradient(to top, rgba(15, 23, 42, 0.95) 0%, rgba(15, 23, 42, 0.7) 45%, rgba(15, 23, 42, 0.2) 72%, transparent 100%)",
+                      pointerEvents: "none",
+                    }}
+                  />
+                  <Box sx={{ position: "absolute", bottom: 0, left: 0, right: 0, p: 3 }}>
+                    <Chip
+                      label={sponsorProduct?.isFeatured ? "FEATURED SPONSOR" : "FEATURED PRODUCT"}
+                      size="small"
+                      sx={{ bgcolor: "#FF7900", color: "white", fontWeight: 800, mb: 1, borderRadius: 1 }}
+                    />
+                    <Typography
+                      variant="h6"
+                      fontWeight={800}
+                      color="white"
+                      sx={{ textShadow: "0 1px 2px rgba(0,0,0,0.5)" }}
+                    >
+                      {sponsorProduct?.name || "Sony WH-1000XM5 Noise Cancelling"}
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: "#CBD5E1", mt: 0.5 }}>
+                      {sponsorProduct?.pricing
+                        ? `Special Deal: Rs. ${(sponsorProduct.pricing.applicablePrice / 100).toLocaleString("en-IN")}${
+                            sponsorProduct.pricing.savingsAmount > 0
+                              ? ` (Save Rs. ${(sponsorProduct.pricing.savingsAmount / 100).toLocaleString("en-IN")})`
+                              : ""
+                          }`
+                        : "Special Deal: Rs. 25,990 (Save Rs. 9,000)"}
+                    </Typography>
+                  </Box>
+                </Box>
+              )}
             </Grid>
           </Grid>
         </Container>
