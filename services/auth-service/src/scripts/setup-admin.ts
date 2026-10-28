@@ -7,7 +7,7 @@ dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 import bcrypt from 'bcryptjs';
 import { connectDB, disconnectDB } from '@ornate/db';
 import { createLogger } from '@ornate/logger';
-import { User } from '../models/user.model.js';
+import { Customer } from '../models/customer.model.js';
 import { AuditLog } from '../models/audit-log.model.js';
 
 const log = createLogger('setup-admin');
@@ -27,23 +27,28 @@ async function main(): Promise<void> {
     process.env.AUTH_DB_NAME ?? 'ornate_auth',
   );
 
-  const existing = await User.findOne({ email });
+  const existing = await Customer.findOne({ email });
   if (existing) {
-    log.info({ email }, 'Admin user already exists. Updating role to super_admin.');
+    log.info({ email }, 'Admin customer already exists. Updating role to super_admin.');
     existing.role = 'super_admin';
+    existing.username = 'admin';
     await existing.save();
     await disconnectDB();
     return;
   }
 
   const passwordHash = await bcrypt.hash(password, 12);
-  const user = await User.create({
+  const user = await Customer.create({
     email,
     passwordHash,
     name,
+    fullName: name,
+    username: 'admin',
     role: 'super_admin',
     emailVerified: true,
     isActive: true,
+    referralCode: 'SYSTEM',
+    referralName: 'System Admin',
   });
 
   await AuditLog.create({

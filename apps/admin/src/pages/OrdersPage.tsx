@@ -36,7 +36,8 @@ export default function OrdersPage() {
   const updateMutation = useMutation({
     mutationFn: async () => {
       if (!selectedOrder) return;
-      await api.patch(`/admin/orders/${selectedOrder.id || selectedOrder.orderNumber}/status`, {
+      const targetId = (selectedOrder as any)._id || selectedOrder.orderNumber || selectedOrder.id;
+      await api.patch(`/admin/orders/${targetId}/status`, {
         fulfilmentStatus: newStatus,
         trackingNumber: trackingNumber || undefined,
         shippingProvider: shippingProvider || undefined,

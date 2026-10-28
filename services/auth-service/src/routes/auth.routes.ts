@@ -10,6 +10,7 @@ import {
   listUsers,
   updateUserRole,
   getAuditLogs,
+  verifyReferral,
 } from '../controllers/auth.controller.js';
 import { attachUser, requireAuth, requireRole } from '../middleware/auth.middleware.js';
 import { validate } from '../middleware/validate.middleware.js';
@@ -31,6 +32,10 @@ const authLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
+
+// Referral verification route (open to public during signup)
+router.get('/verify-referral', verifyReferral);
+router.post('/verify-referral', verifyReferral);
 
 // Public auth routes
 router.post('/register', authLimiter, validate(registerSchema), register);

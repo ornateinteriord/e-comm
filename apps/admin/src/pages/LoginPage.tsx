@@ -28,7 +28,13 @@ export default function LoginPage() {
 
     try {
       const { data } = await api.post('/auth/login', { email, password });
-      setAuth(data.data.accessToken, data.data.user);
+      const loggedUser = data.data.user;
+      const allowedRoles = ['super_admin', 'admin', 'catalog_manager', 'inventory_manager', 'order_manager', 'finance_manager', 'support'];
+      if (!allowedRoles.includes(loggedUser.role)) {
+        setError('Access denied. This account does not have administrative permissions.');
+        return;
+      }
+      setAuth(data.data.accessToken, loggedUser);
       navigate('/');
     } catch (err: any) {
       setError(err.response?.data?.error?.message || 'Authentication failed. Please verify credentials.');

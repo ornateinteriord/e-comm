@@ -101,7 +101,7 @@ export default function StorefrontLayout() {
   };
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', bgcolor: 'background.default' }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', bgcolor: 'background.default', width: '100%', maxWidth: '100vw', overflowX: 'hidden' }}>
       {/* ---- Desktop Top Banner ---- */}
       {!isMobile && (
         <Box
@@ -139,9 +139,12 @@ export default function StorefrontLayout() {
             backdropFilter: 'blur(16px)',
             borderBottom: `1px solid ${isLight ? '#E5E7EB' : 'rgba(255, 255, 255, 0.08)'}`,
             color: isLight ? '#172B30' : '#FFFFFF',
+            width: '100%',
+            maxWidth: '100vw',
           }}
         >
-          <Toolbar sx={{ px: { xs: 2, md: 5 }, py: 1.25, gap: 3 }}>
+          {/* Row 1: Logo, Search & Actions */}
+          <Toolbar sx={{ px: { xs: 2, md: 5 }, py: 1.25, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             {/* Brand Logo */}
             <Box
               component={RouterLink}
@@ -150,7 +153,8 @@ export default function StorefrontLayout() {
                 display: 'flex',
                 alignItems: 'center',
                 textDecoration: 'none',
-                mr: 2,
+                mr: 3,
+                flexShrink: 0,
                 '&:hover img': {
                   transform: 'scale(1.04)',
                 },
@@ -161,49 +165,17 @@ export default function StorefrontLayout() {
                 src={isLight ? '/logo.svg' : '/logo-dark.svg'}
                 alt="E-Shophy"
                 sx={{
-                  height: 42,
+                  height: 40,
                   width: 'auto',
-                  maxWidth: 170,
+                  maxWidth: 160,
                   objectFit: 'contain',
                   transition: 'transform 0.2s ease',
                 }}
               />
             </Box>
 
-            {/* Category Navigation Links */}
-            <Box sx={{ display: 'flex', gap: 0.5, mr: 'auto' }}>
-              {categories?.slice(0, 5).map((cat) => (
-                <Typography
-                  key={cat.id}
-                  component={RouterLink}
-                  to={`/categories/${cat.slug}`}
-                  sx={{
-                    color: location.pathname === `/categories/${cat.slug}`
-                      ? '#FF7900'
-                      : isLight ? '#374151' : 'rgba(255,255,255,0.75)',
-                    textDecoration: 'none',
-                    fontSize: '0.875rem',
-                    fontWeight: 600,
-                    px: 1.75,
-                    py: 1,
-                    borderRadius: '6px',
-                    bgcolor: location.pathname === `/categories/${cat.slug}`
-                      ? (isLight ? 'rgba(255, 121, 0, 0.08)' : 'rgba(255, 121, 0, 0.15)')
-                      : 'transparent',
-                    '&:hover': {
-                      color: '#FF7900',
-                      bgcolor: isLight ? '#F5F6F7' : 'rgba(255,255,255,0.08)',
-                    },
-                    transition: 'all 0.15s',
-                  }}
-                >
-                  {cat.name}
-                </Typography>
-              ))}
-            </Box>
-
             {/* Live Search Bar */}
-            <Box sx={{ position: 'relative', width: 340 }}>
+            <Box sx={{ position: 'relative', flex: 1, maxWidth: 640, mx: { md: 2, lg: 4 } }}>
               <Box
                 component="form"
                 onSubmit={handleSearch}
@@ -282,7 +254,7 @@ export default function StorefrontLayout() {
             </Box>
 
             {/* Quick Actions */}
-            <Stack direction="row" spacing={1.5} alignItems="center">
+            <Stack direction="row" spacing={1.5} alignItems="center" sx={{ flexShrink: 0 }}>
               {/* Theme Toggle Button */}
               <Tooltip title={isLight ? 'Switch to Dark Mode' : 'Switch to Light Mode'}>
                 <IconButton
@@ -363,6 +335,81 @@ export default function StorefrontLayout() {
               </IconButton>
             </Stack>
           </Toolbar>
+
+          {/* Row 2: Category Navigation Strip */}
+          <Box
+            sx={{
+              bgcolor: isLight ? 'rgba(248, 250, 252, 0.95)' : 'rgba(30, 41, 59, 0.95)',
+              borderTop: `1px solid ${isLight ? '#E5E7EB' : 'rgba(255, 255, 255, 0.08)'}`,
+              px: { xs: 2, md: 5 },
+              py: 0.75,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1.5,
+              overflowX: 'auto',
+              '&::-webkit-scrollbar': { display: 'none' },
+              msOverflowStyle: 'none',
+              scrollbarWidth: 'none',
+            }}
+          >
+            <Typography
+              component={RouterLink}
+              to="/search"
+              sx={{
+                whiteSpace: 'nowrap',
+                display: 'inline-flex',
+                alignItems: 'center',
+                flexShrink: 0,
+                fontSize: '0.8125rem',
+                fontWeight: 700,
+                color: location.pathname === '/search' ? '#FF7900' : isLight ? '#475569' : '#CBD5E1',
+                textDecoration: 'none',
+                px: 1.25,
+                py: 0.5,
+                borderRadius: '6px',
+                bgcolor: location.pathname === '/search' ? (isLight ? 'rgba(255, 121, 0, 0.08)' : 'rgba(255, 121, 0, 0.15)') : 'transparent',
+                '&:hover': { color: '#FF7900', bgcolor: isLight ? '#F1F5F9' : 'rgba(255, 255, 255, 0.06)' },
+                transition: 'all 0.15s',
+              }}
+            >
+              All Categories
+            </Typography>
+
+            <Divider orientation="vertical" flexItem sx={{ height: 16, my: 'auto', borderColor: isLight ? '#E2E8F0' : '#334155' }} />
+
+            {categories?.map((cat) => (
+              <Typography
+                key={cat.id}
+                component={RouterLink}
+                to={`/categories/${cat.slug}`}
+                sx={{
+                  whiteSpace: 'nowrap',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  flexShrink: 0,
+                  fontSize: '0.8125rem',
+                  fontWeight: 600,
+                  color: location.pathname === `/categories/${cat.slug}`
+                    ? '#FF7900'
+                    : isLight ? '#475569' : '#CBD5E1',
+                  textDecoration: 'none',
+                  px: 1.25,
+                  py: 0.5,
+                  borderRadius: '6px',
+                  bgcolor: location.pathname === `/categories/${cat.slug}`
+                    ? (isLight ? 'rgba(255, 121, 0, 0.08)' : 'rgba(255, 121, 0, 0.15)')
+                    : 'transparent',
+                  '&:hover': {
+                    color: '#FF7900',
+                    bgcolor: isLight ? '#F1F5F9' : 'rgba(255, 255, 255, 0.06)',
+                  },
+                  transition: 'all 0.15s',
+                }}
+              >
+                {cat.name}
+              </Typography>
+            ))}
+          </Box>
         </AppBar>
       )}
 

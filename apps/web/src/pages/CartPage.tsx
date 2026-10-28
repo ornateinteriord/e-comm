@@ -1,8 +1,22 @@
 import React, { useState } from 'react';
 import { Link as RouterLink, useNavigate } from 'react-router';
 import {
-  Box, Container, Typography, Grid, Paper, IconButton, Button,
-  Divider, TextField, Stack, Alert,
+  Box,
+  Container,
+  Typography,
+  Grid,
+  Paper,
+  IconButton,
+  Button,
+  Divider,
+  TextField,
+  Stack,
+  Alert,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  InputAdornment,
+  CircularProgress,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -10,16 +24,39 @@ import {
   DeleteOutline as DeleteIcon,
   ArrowForward as CheckoutIcon,
   ShoppingBagOutlined as EmptyCartIcon,
+  Phone as PhoneIcon,
+  Visibility,
+  VisibilityOff,
+  Close as CloseIcon,
+  LockOutlined as LockIcon,
 } from '@mui/icons-material';
 import { useCartStore } from '../store/cart.store';
+import { useAuthStore } from '../store/auth.store';
+import api from '../api/client';
 
 export default function CartPage() {
   const navigate = useNavigate();
-  const { items, updateQuantity, removeItem, clearCart, subtotal } = useCartStore();
+  const { items, updateQuantity, removeItem, clearCart } = useCartStore();
+  const { isAuthenticated, setAuth } = useAuthStore();
+
   const [couponCode, setCouponCode] = useState('');
   const [appliedCoupon, setAppliedCoupon] = useState<string | null>(null);
   const [couponDiscount, setCouponDiscount] = useState(0);
   const [couponError, setCouponError] = useState<string | null>(null);
+
+  // Login Dialog state for guest checkout
+  const [loginDialogOpen, setLoginDialogOpen] = useState(false);
+  const [loginMobile, setLoginMobile] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+
+  // Fail-safe direct calculation of subtotal from items
+  const subtotal = items.reduce(
+    (sum, item) => sum + (item.lineTotal || item.quantity * (item.unitApplicablePrice || 0)),
+    0
+  );
 
   const shippingCharge = subtotal === 0 ? 0 : subtotal >= 50000 ? 0 : 5000;
   const taxable = Math.max(0, subtotal - couponDiscount);
@@ -50,6 +87,49 @@ export default function CartPage() {
     setCouponDiscount(0);
     setCouponCode('');
     setCouponError(null);
+  };
+
+  const handleProceedToCheckout = () => {
+    if (!isAuthenticated) {
+      setLoginError(null);
+      setLoginDialogOpen(true);
+      return;
+    }
+    navigate('/checkout');
+  };
+
+  const handleDialogLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoginError(null);
+
+    if (!/^\d{10}$/.test(loginMobile)) {
+      setLoginError('Please enter a valid 10-digit mobile number.');
+      return;
+    }
+
+    if (!loginPassword) {
+      setLoginError('Please enter your password.');
+      return;
+    }
+
+    setIsLoggingIn(true);
+
+    try {
+      const { data } = await api.post('/auth/login', {
+        mobileNumber: loginMobile,
+        username: loginMobile,
+        password: loginPassword,
+      });
+
+      setAuth(data.data.accessToken, data.data.user);
+      setLoginDialogOpen(false);
+      // Seamlessly continue with the exact same cart to checkout
+      navigate('/checkout');
+    } catch (err: any) {
+      setLoginError(err.response?.data?.error?.message || 'Login failed. Please check your credentials.');
+    } finally {
+      setIsLoggingIn(false);
+    }
   };
 
   if (items.length === 0) {
@@ -254,7 +334,7 @@ export default function CartPage() {
               fullWidth
               size="large"
               endIcon={<CheckoutIcon />}
-              onClick={() => navigate('/checkout')}
+              onClick={handleProceedToCheckout}
               sx={{
                 py: 1.5,
                 borderRadius: '6px',
@@ -269,6 +349,150 @@ export default function CartPage() {
           </Paper>
         </Grid>
       </Grid>
+
+      {/* ---- Login Dialog Modal for Checkout ---- */}
+      <Dialog
+        open={loginDialogOpen}
+        onClose={() => setLoginDialogOpen(false)}
+        maxWidth="xs"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: '14px',
+            p: 1.5,
+            boxShadow: '0 20px 40px rgba(0,0,0,0.2)',
+          },
+        }}
+      >
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', pb: 1 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <LockIcon sx={{ color: '#FF7900' }} />
+            <Typography variant="h6" fontWeight={800}>
+              Sign in to Checkout
+            </Typography>
+          </Box>
+          <IconButton size="small" onClick={() => setLoginDialogOpen(false)}>
+            <CloseIcon fontSize="small" />
+          </IconButton>
+        </DialogTitle>
+
+        <DialogContent sx={{ pt: 1 }}>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2.5 }}>
+            Login with your 10-digit mobile number to complete your purchase. Your shopping bag will be preserved.
+          </Typography>
+
+          {loginError && (
+            <Alert severity="error" sx={{ mb: 2, borderRadius: '8px', fontSize: '0.85rem' }}>
+              {loginError}
+            </Alert>
+          )}
+
+          <form onSubmit={handleDialogLogin}>
+            <Stack spacing={2}>
+              <TextField
+                label="Mobile Number"
+                type="tel"
+                required
+                fullWidth
+                size="small"
+                value={loginMobile}
+                onChange={(e) => {
+                  const cleanDigits = e.target.value.replace(/\D/g, '').slice(0, 10);
+                  setLoginMobile(cleanDigits);
+                  if (loginError) setLoginError(null);
+                }}
+                placeholder="9876543210"
+                inputProps={{
+                  maxLength: 10,
+                  inputMode: 'numeric',
+                  pattern: '[0-9]*',
+                }}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                        <PhoneIcon sx={{ fontSize: 16, color: '#64748b' }} />
+                        <Typography variant="body2" sx={{ fontWeight: 700, color: '#334155' }}>
+                          +91
+                        </Typography>
+                      </Box>
+                    </InputAdornment>
+                  ),
+                }}
+                helperText={
+                  loginMobile.length > 0 && loginMobile.length < 10
+                    ? `${loginMobile.length}/10 digits entered`
+                    : 'Enter 10-digit registered mobile number'
+                }
+                error={loginMobile.length > 0 && loginMobile.length < 10}
+              />
+
+              <TextField
+                label="Password"
+                size="small"
+                type={showPassword ? 'text' : 'password'}
+                required
+                fullWidth
+                value={loginPassword}
+                onChange={(e) => setLoginPassword(e.target.value)}
+                InputProps={{
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton
+                        aria-label="toggle password visibility"
+                        onClick={() => setShowPassword((prev) => !prev)}
+                        edge="end"
+                        size="small"
+                      >
+                        {showPassword ? <VisibilityOff fontSize="small" /> : <Visibility fontSize="small" />}
+                      </IconButton>
+                    </InputAdornment>
+                  ),
+                }}
+              />
+
+              <Button
+                type="submit"
+                variant="contained"
+                fullWidth
+                size="large"
+                disabled={isLoggingIn || loginMobile.length !== 10 || !loginPassword}
+                sx={{
+                  py: 1.2,
+                  mt: 1,
+                  borderRadius: '8px',
+                  fontWeight: 800,
+                  bgcolor: '#FF7900',
+                  '&:hover': { bgcolor: '#e66d00' },
+                }}
+              >
+                {isLoggingIn ? (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <CircularProgress size={18} color="inherit" />
+                    Signing in…
+                  </Box>
+                ) : (
+                  'Sign In & Continue'
+                )}
+              </Button>
+            </Stack>
+          </form>
+
+          <Box sx={{ textAlign: 'center', mt: 2.5 }}>
+            <Typography variant="body2" color="text.secondary">
+              Don't have an account?{' '}
+              <Button
+                component={RouterLink}
+                to="/register"
+                onClick={() => setLoginDialogOpen(false)}
+                sx={{ textTransform: 'none', fontWeight: 700, p: 0 }}
+              >
+                Create Account
+              </Button>
+            </Typography>
+          </Box>
+        </DialogContent>
+      </Dialog>
     </Container>
   );
 }

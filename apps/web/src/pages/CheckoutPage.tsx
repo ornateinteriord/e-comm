@@ -1,12 +1,32 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router';
+import { useState, useEffect } from 'react';
+import { useNavigate, Link as RouterLink } from 'react-router';
 import {
-  Box, Container, Typography, Grid, Paper, TextField, Button,
-  Divider, RadioGroup, FormControlLabel, Radio, Stack, Alert,
+  Box,
+  Container,
+  Typography,
+  Grid,
+  Paper,
+  TextField,
+  Button,
+  Divider,
+  RadioGroup,
+  FormControlLabel,
+  Radio,
+  Stack,
+  Alert,
   CircularProgress,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  IconButton,
+  InputAdornment,
 } from '@mui/material';
 import {
   Lock as SecureIcon,
+  Phone as PhoneIcon,
+  Visibility,
+  VisibilityOff,
+  Close as CloseIcon,
 } from '@mui/icons-material';
 import { useCartStore } from '../store/cart.store';
 import { useAuthStore } from '../store/auth.store';
@@ -14,27 +34,97 @@ import api from '../api/client';
 
 export default function CheckoutPage() {
   const navigate = useNavigate();
-  const { items, clearCart, subtotal } = useCartStore();
-  const { user } = useAuthStore();
+  const { items, clearCart } = useCartStore();
+  const { user, isAuthenticated, setAuth } = useAuthStore();
 
+  // Auto-populate with customer's registration profile data
   const [shippingAddress, setShippingAddress] = useState({
-    name: user?.name || '',
-    phone: user?.phone || '9876543210',
-    line1: 'Flat 402, Sunshine Heights',
-    line2: '12th Main Road, Indiranagar',
-    city: 'Bengaluru',
-    state: 'Karnataka',
-    pincode: '560038',
-    country: 'India',
+    name: user?.fullName || user?.name || '',
+    phone: user?.mobileNumber || user?.phone || '',
+    line1: '',
+    line2: '',
+    city: user?.city || '',
+    state: user?.state || '',
+    pincode: user?.pincode || '',
+    country: user?.country || 'India',
   });
+
+  // Keep shippingAddress synced whenever user profile loads/changes
+  useEffect(() => {
+    if (user) {
+      setShippingAddress((prev) => ({
+        ...prev,
+        name: prev.name || user.fullName || user.name || '',
+        phone: prev.phone || user.mobileNumber || user.phone || '',
+        country: prev.country || user.country || 'India',
+        state: prev.state || user.state || '',
+        city: prev.city || user.city || '',
+        pincode: prev.pincode || user.pincode || '',
+      }));
+    }
+  }, [user]);
+
+  // Auth Dialog gatekeeper if user directly reaches /checkout
+  const [loginDialogOpen, setLoginDialogOpen] = useState(!isAuthenticated);
+  const [loginMobile, setLoginMobile] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setLoginDialogOpen(true);
+    } else {
+      setLoginDialogOpen(false);
+    }
+  }, [isAuthenticated]);
 
   const [paymentMethod, setPaymentMethod] = useState('razorpay_simulator');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Directly calculate subtotal and grandTotal from items
+  const subtotal = items.reduce(
+    (sum, item) => sum + (item.lineTotal || item.quantity * (item.unitApplicablePrice || 0)),
+    0
+  );
+
   const shippingCharge = subtotal === 0 ? 0 : subtotal >= 50000 ? 0 : 5000;
   const tax = Math.round(subtotal * 0.18);
   const grandTotal = subtotal + shippingCharge + tax;
+
+  const handleDialogLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoginError(null);
+
+    if (!/^\d{10}$/.test(loginMobile)) {
+      setLoginError('Please enter a valid 10-digit mobile number.');
+      return;
+    }
+
+    if (!loginPassword) {
+      setLoginError('Please enter your password.');
+      return;
+    }
+
+    setIsLoggingIn(true);
+
+    try {
+      const { data } = await api.post('/auth/login', {
+        mobileNumber: loginMobile,
+        username: loginMobile,
+        password: loginPassword,
+      });
+
+      setAuth(data.data.accessToken, data.data.user);
+      setLoginDialogOpen(false);
+    } catch (err: any) {
+      setLoginError(err.response?.data?.error?.message || 'Login failed. Please check credentials.');
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
 
   const handlePlaceOrder = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -70,8 +160,8 @@ export default function CheckoutPage() {
           unitApplicablePrice: it.unitApplicablePrice,
           discount: 0,
           taxRate: 18,
-          taxAmount: Math.round(it.lineTotal * 0.18),
-          lineTotal: it.lineTotal,
+          taxAmount: Math.round((it.lineTotal || it.quantity * it.unitApplicablePrice) * 0.18),
+          lineTotal: it.lineTotal || it.quantity * it.unitApplicablePrice,
         })),
         pricing: {
           subtotal,
@@ -98,10 +188,9 @@ export default function CheckoutPage() {
         try {
           await api.post('/invoices/generate', {
             orderId: order._id || order.id || order.orderNumber,
-            order,
           });
         } catch {
-          // non-blocking
+          // invoice generation fallback non-blocking
         }
       }
 
@@ -138,7 +227,7 @@ export default function CheckoutPage() {
               <Grid container spacing={2}>
                 <Grid item xs={12} sm={6}>
                   <TextField
-                    label="Full Name"
+                    label="Full Name *"
                     required
                     fullWidth
                     size="small"
@@ -148,7 +237,7 @@ export default function CheckoutPage() {
                 </Grid>
                 <Grid item xs={12} sm={6}>
                   <TextField
-                    label="Phone Number"
+                    label="Phone Number *"
                     required
                     fullWidth
                     size="small"
@@ -158,12 +247,13 @@ export default function CheckoutPage() {
                 </Grid>
                 <Grid item xs={12}>
                   <TextField
-                    label="Address Line 1"
+                    label="Address Line 1 (House/Flat, Street) *"
                     required
                     fullWidth
                     size="small"
                     value={shippingAddress.line1}
                     onChange={(e) => setShippingAddress({ ...shippingAddress, line1: e.target.value })}
+                    placeholder="e.g. Flat 402, Sunshine Heights"
                   />
                 </Grid>
                 <Grid item xs={12}>
@@ -173,11 +263,12 @@ export default function CheckoutPage() {
                     size="small"
                     value={shippingAddress.line2}
                     onChange={(e) => setShippingAddress({ ...shippingAddress, line2: e.target.value })}
+                    placeholder="e.g. 12th Main Road, Landmark"
                   />
                 </Grid>
                 <Grid item xs={12} sm={4}>
                   <TextField
-                    label="City"
+                    label="City *"
                     required
                     fullWidth
                     size="small"
@@ -187,7 +278,7 @@ export default function CheckoutPage() {
                 </Grid>
                 <Grid item xs={12} sm={4}>
                   <TextField
-                    label="State"
+                    label="State *"
                     required
                     fullWidth
                     size="small"
@@ -197,7 +288,7 @@ export default function CheckoutPage() {
                 </Grid>
                 <Grid item xs={12} sm={4}>
                   <TextField
-                    label="PIN Code"
+                    label="PIN Code *"
                     required
                     fullWidth
                     size="small"
@@ -222,20 +313,22 @@ export default function CheckoutPage() {
                   sx={{
                     p: 2,
                     mb: 2,
-                    borderRadius: '6px',
-                    borderColor: paymentMethod === 'razorpay_simulator' ? 'primary.main' : 'divider',
-                    bgcolor: paymentMethod === 'razorpay_simulator' ? 'action.hover' : 'transparent',
+                    borderRadius: 2,
+                    borderColor: paymentMethod === 'razorpay_simulator' ? '#FF7900' : 'divider',
+                    bgcolor: paymentMethod === 'razorpay_simulator' ? 'rgba(255, 121, 0, 0.04)' : 'transparent',
+                    cursor: 'pointer',
                   }}
+                  onClick={() => setPaymentMethod('razorpay_simulator')}
                 >
                   <FormControlLabel
                     value="razorpay_simulator"
-                    control={<Radio />}
+                    control={<Radio color="primary" />}
                     label={
                       <Box>
                         <Typography variant="subtitle2" fontWeight={700}>
                           Razorpay UPI / Cards / NetBanking (Instant Sandbox)
                         </Typography>
-                        <Typography variant="caption" color="text.secondary">
+                        <Typography variant="body2" color="text.secondary">
                           Recommended for testing. Confirms payment immediately with simulated transaction.
                         </Typography>
                       </Box>
@@ -247,21 +340,23 @@ export default function CheckoutPage() {
                   variant="outlined"
                   sx={{
                     p: 2,
-                    borderRadius: '6px',
-                    borderColor: paymentMethod === 'cod' ? 'primary.main' : 'divider',
-                    bgcolor: paymentMethod === 'cod' ? 'action.hover' : 'transparent',
+                    borderRadius: 2,
+                    borderColor: paymentMethod === 'cod' ? '#FF7900' : 'divider',
+                    bgcolor: paymentMethod === 'cod' ? 'rgba(255, 121, 0, 0.04)' : 'transparent',
+                    cursor: 'pointer',
                   }}
+                  onClick={() => setPaymentMethod('cod')}
                 >
                   <FormControlLabel
                     value="cod"
-                    control={<Radio />}
+                    control={<Radio color="primary" />}
                     label={
                       <Box>
                         <Typography variant="subtitle2" fontWeight={700}>
                           Cash on Delivery (COD)
                         </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          Pay with cash or UPI at your doorstep upon delivery.
+                        <Typography variant="body2" color="text.secondary">
+                          Pay in cash upon delivery at your doorstep.
                         </Typography>
                       </Box>
                     }
@@ -271,28 +366,32 @@ export default function CheckoutPage() {
             </Paper>
           </Grid>
 
-          {/* Right Column: Order Summary */}
+          {/* Right Column: Order Review & Total */}
           <Grid item xs={12} md={5}>
-            <Paper elevation={0} sx={{ p: 4, borderRadius: '8px', border: '1px solid', borderColor: 'divider', bgcolor: '#f8fafc' }}>
-              <Typography variant="h6" fontWeight={800} sx={{ mb: 2 }}>
+            <Paper elevation={0} sx={{ p: 4, borderRadius: '8px', border: '1px solid', borderColor: 'divider', bgcolor: 'background.paper' }}>
+              <Typography variant="h6" fontWeight={800} sx={{ mb: 2.5 }}>
                 Items in Order ({items.length})
               </Typography>
 
-              <Stack spacing={2} sx={{ mb: 3, maxHeight: 260, overflowY: 'auto' }}>
+              <Stack spacing={2} sx={{ mb: 3, maxHeight: 280, overflowY: 'auto' }}>
                 {items.map((it) => (
-                  <Box key={`${it.productId}_${it.variantId || 'b'}`} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Box key={`${it.productId}_${it.variantId || 'base'}`} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Box sx={{ maxWidth: '70%' }}>
-                      <Typography variant="body2" fontWeight={700} noWrap>{it.productName}</Typography>
-                      <Typography variant="caption" color="text.secondary">Qty: {it.quantity}</Typography>
+                      <Typography variant="body2" fontWeight={700} noWrap>
+                        {it.productName}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Qty: {it.quantity}
+                      </Typography>
                     </Box>
                     <Typography variant="body2" fontWeight={800}>
-                      ₹{(it.lineTotal / 100).toFixed(0)}
+                      ₹{(((it.lineTotal || it.quantity * it.unitApplicablePrice)) / 100).toFixed(0)}
                     </Typography>
                   </Box>
                 ))}
               </Stack>
 
-              <Divider sx={{ my: 2 }} />
+              <Divider sx={{ mb: 2.5 }} />
 
               <Stack spacing={1.5} sx={{ mb: 3 }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
@@ -312,7 +411,7 @@ export default function CheckoutPage() {
                 <Divider sx={{ my: 1 }} />
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
                   <Typography variant="subtitle1" fontWeight={800}>Total Payable</Typography>
-                  <Typography variant="h4" fontWeight={900} color="primary">
+                  <Typography variant="h5" fontWeight={900} sx={{ color: '#FF7900' }}>
                     ₹{(grandTotal / 100).toFixed(0)}
                   </Typography>
                 </Box>
@@ -323,24 +422,174 @@ export default function CheckoutPage() {
                 variant="contained"
                 fullWidth
                 size="large"
-                disabled={isSubmitting}
-                startIcon={isSubmitting ? <CircularProgress size={20} color="inherit" /> : <SecureIcon />}
+                disabled={isSubmitting || items.length === 0}
+                startIcon={!isSubmitting && <SecureIcon />}
                 sx={{
                   py: 1.5,
                   borderRadius: '6px',
-                  fontWeight: 700,
-                  fontSize: '0.95rem',
+                  fontWeight: 800,
+                  fontSize: '1rem',
                   bgcolor: '#FF7900',
                   color: '#FFFFFF',
                   '&:hover': { bgcolor: '#E85D04' },
                 }}
               >
-                {isSubmitting ? 'Placing Order…' : `Pay ₹${(grandTotal / 100).toFixed(0)} & Confirm`}
+                {isSubmitting ? (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <CircularProgress size={20} color="inherit" />
+                    Processing Payment…
+                  </Box>
+                ) : (
+                  `Pay ₹${(grandTotal / 100).toFixed(0)} & Confirm`
+                )}
               </Button>
             </Paper>
           </Grid>
         </Grid>
       </form>
+
+      {/* ---- Login Dialog if unauthenticated ---- */}
+      <Dialog
+        open={loginDialogOpen}
+        onClose={() => navigate('/cart')}
+        maxWidth="xs"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: '14px',
+            p: 1.5,
+            boxShadow: '0 20px 40px rgba(0,0,0,0.2)',
+          },
+        }}
+      >
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', pb: 1 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <SecureIcon sx={{ color: '#FF7900' }} />
+            <Typography variant="h6" fontWeight={800}>
+              Sign in to Checkout
+            </Typography>
+          </Box>
+          <IconButton size="small" onClick={() => navigate('/cart')}>
+            <CloseIcon fontSize="small" />
+          </IconButton>
+        </DialogTitle>
+
+        <DialogContent sx={{ pt: 1 }}>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2.5 }}>
+            Please login with your registered 10-digit mobile number to complete checkout.
+          </Typography>
+
+          {loginError && (
+            <Alert severity="error" sx={{ mb: 2, borderRadius: '8px', fontSize: '0.85rem' }}>
+              {loginError}
+            </Alert>
+          )}
+
+          <form onSubmit={handleDialogLogin}>
+            <Stack spacing={2}>
+              <TextField
+                label="Mobile Number"
+                type="tel"
+                required
+                fullWidth
+                size="small"
+                value={loginMobile}
+                onChange={(e) => {
+                  const cleanDigits = e.target.value.replace(/\D/g, '').slice(0, 10);
+                  setLoginMobile(cleanDigits);
+                  if (loginError) setLoginError(null);
+                }}
+                placeholder="9876543210"
+                inputProps={{
+                  maxLength: 10,
+                  inputMode: 'numeric',
+                  pattern: '[0-9]*',
+                }}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                        <PhoneIcon sx={{ fontSize: 16, color: '#64748b' }} />
+                        <Typography variant="body2" sx={{ fontWeight: 700, color: '#334155' }}>
+                          +91
+                        </Typography>
+                      </Box>
+                    </InputAdornment>
+                  ),
+                }}
+                helperText={
+                  loginMobile.length > 0 && loginMobile.length < 10
+                    ? `${loginMobile.length}/10 digits entered`
+                    : 'Enter 10-digit registered mobile number'
+                }
+                error={loginMobile.length > 0 && loginMobile.length < 10}
+              />
+
+              <TextField
+                label="Password"
+                size="small"
+                type={showPassword ? 'text' : 'password'}
+                required
+                fullWidth
+                value={loginPassword}
+                onChange={(e) => setLoginPassword(e.target.value)}
+                InputProps={{
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton
+                        aria-label="toggle password visibility"
+                        onClick={() => setShowPassword((prev) => !prev)}
+                        edge="end"
+                        size="small"
+                      >
+                        {showPassword ? <VisibilityOff fontSize="small" /> : <Visibility fontSize="small" />}
+                      </IconButton>
+                    </InputAdornment>
+                  ),
+                }}
+              />
+
+              <Button
+                type="submit"
+                variant="contained"
+                fullWidth
+                size="large"
+                disabled={isLoggingIn || loginMobile.length !== 10 || !loginPassword}
+                sx={{
+                  py: 1.2,
+                  mt: 1,
+                  borderRadius: '8px',
+                  fontWeight: 800,
+                  bgcolor: '#FF7900',
+                  '&:hover': { bgcolor: '#e66d00' },
+                }}
+              >
+                {isLoggingIn ? (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <CircularProgress size={18} color="inherit" />
+                    Signing in…
+                  </Box>
+                ) : (
+                  'Sign In & Continue'
+                )}
+              </Button>
+            </Stack>
+          </form>
+
+          <Box sx={{ textAlign: 'center', mt: 2.5 }}>
+            <Typography variant="body2" color="text.secondary">
+              Don't have an account?{' '}
+              <Button
+                component={RouterLink}
+                to="/register"
+                sx={{ textTransform: 'none', fontWeight: 700, p: 0 }}
+              >
+                Create Account
+              </Button>
+            </Typography>
+          </Box>
+        </DialogContent>
+      </Dialog>
     </Container>
   );
 }
