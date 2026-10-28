@@ -23,10 +23,23 @@ export interface JwtPayload {
 
 export interface PublicUser {
   id: string;
+  customerId?: string;
+  customer_id?: string;
   email: string;
   name: string;
+  fullName?: string;
   phone?: string;
+  mobileNumber?: string;
+  username?: string;
   role: UserRole;
+  referralCode?: string;
+  referralName?: string;
+  referralType?: 'vendor' | 'customer';
+  country?: string;
+  state?: string;
+  city?: string;
+  pincode?: string;
+  gender?: 'male' | 'female' | 'other' | 'prefer_not_to_say';
   emailVerified: boolean;
   createdAt: string;
 }

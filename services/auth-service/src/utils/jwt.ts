@@ -1,8 +1,8 @@
 import jwt from 'jsonwebtoken';
 import type { JwtPayload, UserRole } from '@ornate/types';
 
-const ACCESS_SECRET = process.env.JWT_ACCESS_SECRET ?? 'dev_access_secret';
-const REFRESH_SECRET = process.env.JWT_REFRESH_SECRET ?? 'dev_refresh_secret';
+const ACCESS_SECRET = process.env.JWT_ACCESS_SECRET ?? 'ornate_super_secret_jwt_access_key_2026_xyz123';
+const REFRESH_SECRET = process.env.JWT_REFRESH_SECRET ?? 'ornate_super_secret_jwt_refresh_key_2026_xyz123';
 const ACCESS_EXPIRY = (process.env.JWT_ACCESS_EXPIRY ?? '15m') as jwt.SignOptions['expiresIn'];
 const REFRESH_EXPIRY = (process.env.JWT_REFRESH_EXPIRY ?? '7d') as jwt.SignOptions['expiresIn'];
 

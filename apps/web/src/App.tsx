@@ -3,6 +3,7 @@ import { Routes, Route } from 'react-router';
 import { CircularProgress, Box } from '@mui/material';
 import StorefrontLayout from './layouts/StorefrontLayout.tsx';
 import ErrorBoundary from './components/ErrorBoundary.tsx';
+import ScrollToTop from './components/ScrollToTop.tsx';
 
 // Lazy-loaded pages for code splitting
 const HomePage = React.lazy(() => import('./pages/HomePage.tsx'));
@@ -32,6 +33,7 @@ function PageLoader() {
 export default function App() {
   return (
     <ErrorBoundary>
+      <ScrollToTop />
       <Suspense fallback={<PageLoader />}>
         <Routes>
           <Route element={<StorefrontLayout />}>

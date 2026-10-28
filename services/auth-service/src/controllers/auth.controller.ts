@@ -1,8 +1,9 @@
 import { Request, Response, NextFunction } from 'express';
 import bcrypt from 'bcryptjs';
 import crypto from 'node:crypto';
-import { User } from '../models/user.model.js';
+import { Customer, generateNextCustomerId } from '../models/customer.model.js';
 import { AuditLog } from '../models/audit-log.model.js';
+import { lookupReferralCode } from '../utils/referral.js';
 import {
   signAccessToken,
   signRefreshToken,
@@ -36,48 +37,148 @@ function clearRefreshCookie(res: Response): void {
   });
 }
 
+// GET/POST /api/v1/auth/verify-referral?code=:code
+export async function verifyReferral(req: Request, res: Response): Promise<void> {
+  const code = String(req.query.code || req.body?.code || '').trim();
+  if (!code) {
+    res.status(400).json({
+      success: false,
+      error: { code: 'INVALID_INPUT', message: 'Referral code is required.' },
+    });
+    return;
+  }
+
+  const result = await lookupReferralCode(code);
+  if (!result.valid) {
+    res.status(404).json({
+      success: false,
+      error: { code: 'INVALID_REFERRAL_CODE', message: result.message || 'Invalid referral code.' },
+    });
+    return;
+  }
+
+  res.json({
+    success: true,
+    data: {
+      valid: true,
+      referralCode: result.referralCode,
+      referralName: result.referralName,
+      referralType: result.referralType,
+    },
+  });
+}
+
 // POST /api/v1/auth/register
 export async function register(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const { email, password, name, phone } = req.body;
+    const {
+      referralCode,
+      fullName,
+      name,
+      email,
+      mobileNumber,
+      phone,
+      password,
+      country,
+      state,
+      city,
+      pincode,
+      gender,
+    } = req.body;
 
-    const existing = await User.findOne({ email });
+    const rawRefCode = String(referralCode || '').trim();
+    if (!rawRefCode) {
+      res.status(422).json({
+        success: false,
+        error: { code: 'REFERRAL_REQUIRED', message: 'A valid referral code is mandatory to create an account.' },
+      });
+      return;
+    }
+
+    // Verify referral code server-side
+    const refResult = await lookupReferralCode(rawRefCode);
+    if (!refResult.valid) {
+      res.status(422).json({
+        success: false,
+        error: { code: 'INVALID_REFERRAL_CODE', message: refResult.message || 'Invalid referral code.' },
+      });
+      return;
+    }
+
+    const cleanEmail = String(email || '').trim().toLowerCase();
+    const cleanMobile = String(mobileNumber || phone || '').trim();
+    const cleanName = String(fullName || name || '').trim();
+    const username = cleanMobile; // username = mobilenumber
+
+    if (!cleanEmail || !cleanMobile || !password || !cleanName) {
+      res.status(422).json({
+        success: false,
+        error: { code: 'VALIDATION_ERROR', message: 'Full name, email, mobile number, and password are required.' },
+      });
+      return;
+    }
+
+    // Check for existing customer by email, mobileNumber, or username
+    const existing = await Customer.findOne({
+      $or: [
+        { email: cleanEmail },
+        { mobileNumber: cleanMobile },
+        { phone: cleanMobile },
+        { username },
+      ],
+    });
+
     if (existing) {
+      const matchField = existing.email === cleanEmail ? 'email' : 'mobile number';
       res.status(409).json({
         success: false,
-        error: { code: 'EMAIL_IN_USE', message: 'An account with this email already exists.' },
+        error: { code: 'USER_EXISTS', message: `An account with this ${matchField} already exists.` },
       });
       return;
     }
 
     const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
     const verificationToken = crypto.randomBytes(32).toString('hex');
+    const customerId = await generateNextCustomerId();
 
-    const user = await User.create({
-      email,
+    // Create customer in unified customers collection (vendor_id and vendor_name left empty as instructed)
+    const customer = await Customer.create({
+      customerId,
+      customer_id: customerId,
+      name: cleanName,
+      fullName: cleanName,
+      email: cleanEmail,
+      mobileNumber: cleanMobile,
+      phone: cleanMobile,
+      username,
       passwordHash,
-      name,
-      phone,
+      role: 'customer',
+      referralCode: refResult.referralCode || rawRefCode,
+      referralName: refResult.referralName || 'Referral',
+      referralType: refResult.referralType || 'vendor',
+      vendor_id: null,
+      vendor_name: null,
+      country: country || 'India',
+      state: state || '',
+      city: city || '',
+      pincode: pincode || '',
+      gender: gender || 'prefer_not_to_say',
       emailVerificationToken: crypto.createHash('sha256').update(verificationToken).digest('hex'),
       emailVerificationExpires: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      isActive: true,
+      emailVerified: false,
     });
 
-    // TODO: emit event to notification-service to send verification email
-    // For now, log the token in dev
-    if (process.env.NODE_ENV !== 'production') {
-      log.debug({ verificationToken }, 'Email verification token (dev only)');
-    }
-
-    const accessToken = signAccessToken({ userId: user.id, email: user.email, role: user.role });
-    const refreshToken = signRefreshToken({ userId: user.id });
+    const accessToken = signAccessToken({ userId: customer.id, email: customer.email, role: customer.role });
+    const refreshToken = signRefreshToken({ userId: customer.id });
     setRefreshCookie(res, refreshToken);
 
     await AuditLog.create({
       action: 'auth.register',
-      actorId: user.id,
-      actorRole: user.role,
-      targetModel: 'User',
-      targetId: user.id,
+      actorId: customer.id,
+      actorRole: customer.role,
+      targetModel: 'Customer',
+      targetId: customer.id,
       ip: req.ip,
       userAgent: req.headers['user-agent'],
     });
@@ -87,11 +188,21 @@ export async function register(req: Request, res: Response, next: NextFunction):
       data: {
         accessToken,
         user: {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          role: user.role,
-          emailVerified: user.emailVerified,
+          id: customer.id,
+          customerId: customer.customerId,
+          email: customer.email,
+          name: customer.name,
+          fullName: customer.fullName,
+          username: customer.username,
+          mobileNumber: customer.mobileNumber,
+          phone: customer.phone,
+          role: customer.role,
+          emailVerified: customer.emailVerified,
+          country: customer.country,
+          state: customer.state,
+          city: customer.city,
+          pincode: customer.pincode,
+          gender: customer.gender,
         },
       },
     });
@@ -103,36 +214,54 @@ export async function register(req: Request, res: Response, next: NextFunction):
 // POST /api/v1/auth/login
 export async function login(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const { email, password } = req.body;
+    const { email, username, mobileNumber, password } = req.body;
+    const identifier = String(mobileNumber || username || email || '').trim();
 
-    const user = await User.findOne({ email }).select('+passwordHash');
-    if (!user || !user.isActive) {
-      res.status(401).json({
+    if (!identifier || !password) {
+      res.status(400).json({
         success: false,
-        error: { code: 'INVALID_CREDENTIALS', message: 'Invalid email or password.' },
+        error: { code: 'INVALID_INPUT', message: 'Mobile number or username and password are required.' },
       });
       return;
     }
 
-    const valid = await bcrypt.compare(password, user.passwordHash);
+    // Lookup in unified customers collection by email, username, mobileNumber, or phone
+    const customer = await Customer.findOne({
+      $or: [
+        { email: identifier.toLowerCase() },
+        { username: identifier },
+        { mobileNumber: identifier },
+        { phone: identifier },
+      ],
+    }).select('+passwordHash');
+
+    if (!customer || !customer.isActive) {
+      res.status(401).json({
+        success: false,
+        error: { code: 'INVALID_CREDENTIALS', message: 'Invalid credentials or account inactive.' },
+      });
+      return;
+    }
+
+    const valid = await bcrypt.compare(password, customer.passwordHash);
     if (!valid) {
       res.status(401).json({
         success: false,
-        error: { code: 'INVALID_CREDENTIALS', message: 'Invalid email or password.' },
+        error: { code: 'INVALID_CREDENTIALS', message: 'Invalid credentials.' },
       });
       return;
     }
 
-    const accessToken = signAccessToken({ userId: user.id, email: user.email, role: user.role });
-    const refreshToken = signRefreshToken({ userId: user.id });
+    const accessToken = signAccessToken({ userId: customer.id, email: customer.email, role: customer.role });
+    const refreshToken = signRefreshToken({ userId: customer.id });
     setRefreshCookie(res, refreshToken);
 
     await AuditLog.create({
       action: 'auth.login',
-      actorId: user.id,
-      actorRole: user.role,
-      targetModel: 'User',
-      targetId: user.id,
+      actorId: customer.id,
+      actorRole: customer.role,
+      targetModel: 'Customer',
+      targetId: customer.id,
       ip: req.ip,
       userAgent: req.headers['user-agent'],
     });
@@ -142,12 +271,21 @@ export async function login(req: Request, res: Response, next: NextFunction): Pr
       data: {
         accessToken,
         user: {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          phone: user.phone,
-          role: user.role,
-          emailVerified: user.emailVerified,
+          id: customer.id,
+          customerId: customer.customerId,
+          email: customer.email,
+          name: customer.name,
+          fullName: customer.fullName || customer.name,
+          username: customer.username,
+          mobileNumber: customer.mobileNumber || customer.phone,
+          phone: customer.phone,
+          role: customer.role,
+          emailVerified: customer.emailVerified,
+          country: customer.country,
+          state: customer.state,
+          city: customer.city,
+          pincode: customer.pincode,
+          gender: customer.gender,
         },
       },
     });
@@ -186,18 +324,18 @@ export async function refresh(req: Request, res: Response, next: NextFunction): 
       return;
     }
 
-    const user = await User.findById(payload.userId);
-    if (!user || !user.isActive) {
+    const customer = await Customer.findById(payload.userId);
+    if (!customer || !customer.isActive) {
       clearRefreshCookie(res);
       res.status(401).json({
         success: false,
-        error: { code: 'USER_NOT_FOUND', message: 'User not found.' },
+        error: { code: 'USER_NOT_FOUND', message: 'Account not found.' },
       });
       return;
     }
 
-    const accessToken = signAccessToken({ userId: user.id, email: user.email, role: user.role });
-    const newRefreshToken = signRefreshToken({ userId: user.id });
+    const accessToken = signAccessToken({ userId: customer.id, email: customer.email, role: customer.role });
+    const newRefreshToken = signRefreshToken({ userId: customer.id });
     setRefreshCookie(res, newRefreshToken);
 
     res.json({ success: true, data: { accessToken } });
@@ -209,24 +347,35 @@ export async function refresh(req: Request, res: Response, next: NextFunction): 
 // GET /api/v1/auth/me
 export async function getMe(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const user = await User.findById(req.user!.userId);
-    if (!user) {
+    const customer = await Customer.findById(req.user!.userId);
+    if (!customer) {
       res.status(404).json({
         success: false,
-        error: { code: 'NOT_FOUND', message: 'User not found.' },
+        error: { code: 'NOT_FOUND', message: 'Account not found.' },
       });
       return;
     }
     res.json({
       success: true,
       data: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        phone: user.phone,
-        role: user.role,
-        emailVerified: user.emailVerified,
-        createdAt: user.createdAt,
+        id: customer.id,
+        customerId: customer.customerId,
+        email: customer.email,
+        name: customer.name,
+        fullName: customer.fullName || customer.name,
+        username: customer.username,
+        mobileNumber: customer.mobileNumber || customer.phone,
+        phone: customer.phone,
+        role: customer.role,
+        emailVerified: customer.emailVerified,
+        referralCode: customer.referralCode,
+        referralName: customer.referralName,
+        country: customer.country,
+        state: customer.state,
+        city: customer.city,
+        pincode: customer.pincode,
+        gender: customer.gender,
+        createdAt: customer.createdAt,
       },
     });
   } catch (err) {
@@ -238,10 +387,10 @@ export async function getMe(req: Request, res: Response, next: NextFunction): Pr
 export async function forgotPassword(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const { email } = req.body;
-    const user = await User.findOne({ email });
+    const customer = await Customer.findOne({ email });
 
     // Always return 200 to prevent email enumeration
-    if (!user) {
+    if (!customer) {
       res.json({
         success: true,
         data: null,
@@ -251,11 +400,10 @@ export async function forgotPassword(req: Request, res: Response, next: NextFunc
     }
 
     const resetToken = crypto.randomBytes(32).toString('hex');
-    user.resetPasswordToken = crypto.createHash('sha256').update(resetToken).digest('hex');
-    user.resetPasswordExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
-    await user.save({ validateBeforeSave: false });
+    customer.resetPasswordToken = crypto.createHash('sha256').update(resetToken).digest('hex');
+    customer.resetPasswordExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+    await customer.save({ validateBeforeSave: false });
 
-    // TODO: emit to notification-service
     if (process.env.NODE_ENV !== 'production') {
       log.debug({ resetToken }, 'Password reset token (dev only)');
     }
@@ -276,12 +424,12 @@ export async function resetPassword(req: Request, res: Response, next: NextFunct
     const { token, password } = req.body;
     const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
 
-    const user = await User.findOne({
+    const customer = await Customer.findOne({
       resetPasswordToken: hashedToken,
       resetPasswordExpires: { $gt: new Date() },
     }).select('+resetPasswordToken +resetPasswordExpires');
 
-    if (!user) {
+    if (!customer) {
       res.status(400).json({
         success: false,
         error: { code: 'INVALID_TOKEN', message: 'Password reset token is invalid or has expired.' },
@@ -289,17 +437,17 @@ export async function resetPassword(req: Request, res: Response, next: NextFunct
       return;
     }
 
-    user.passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
-    user.resetPasswordToken = undefined;
-    user.resetPasswordExpires = undefined;
-    await user.save({ validateBeforeSave: false });
+    customer.passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
+    customer.resetPasswordToken = undefined;
+    customer.resetPasswordExpires = undefined;
+    await customer.save({ validateBeforeSave: false });
 
     await AuditLog.create({
       action: 'auth.reset_password',
-      actorId: user.id,
-      actorRole: user.role,
-      targetModel: 'User',
-      targetId: user.id,
+      actorId: customer.id,
+      actorRole: customer.role,
+      targetModel: 'Customer',
+      targetId: customer.id,
       ip: req.ip,
     });
 
@@ -309,7 +457,7 @@ export async function resetPassword(req: Request, res: Response, next: NextFunct
   }
 }
 
-// GET /api/v1/admin/users — list users
+// GET /api/v1/admin/users — list all users/customers from unified collection
 export async function listUsers(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const page = Math.max(1, Number(req.query.page ?? 1));
@@ -318,26 +466,39 @@ export async function listUsers(req: Request, res: Response, next: NextFunction)
     const search = req.query.search as string | undefined;
 
     const filter = search
-      ? { $or: [{ name: { $regex: search, $options: 'i' } }, { email: { $regex: search, $options: 'i' } }] }
+      ? {
+          $or: [
+            { name: { $regex: search, $options: 'i' } },
+            { fullName: { $regex: search, $options: 'i' } },
+            { email: { $regex: search, $options: 'i' } },
+            { mobileNumber: { $regex: search, $options: 'i' } },
+            { username: { $regex: search, $options: 'i' } },
+          ],
+        }
       : {};
 
-    const [users, total] = await Promise.all([
-      User.find(filter).skip(skip).limit(limit).sort({ createdAt: -1 }),
-      User.countDocuments(filter),
+    const [items, total] = await Promise.all([
+      Customer.find(filter).skip(skip).limit(limit).sort({ createdAt: -1 }),
+      Customer.countDocuments(filter),
     ]);
 
     res.json({
       success: true,
       data: {
-        items: users.map((u) => ({
-          id: u.id,
-          email: u.email,
-          name: u.name,
-          phone: u.phone,
-          role: u.role,
-          emailVerified: u.emailVerified,
-          isActive: u.isActive,
-          createdAt: u.createdAt,
+        items: items.map((c) => ({
+          id: c.id,
+          email: c.email,
+          name: c.name,
+          fullName: c.fullName || c.name,
+          username: c.username,
+          phone: c.phone || c.mobileNumber,
+          mobileNumber: c.mobileNumber || c.phone,
+          role: c.role,
+          referralCode: c.referralCode,
+          referralName: c.referralName,
+          emailVerified: c.emailVerified,
+          isActive: c.isActive,
+          createdAt: c.createdAt,
         })),
         pagination: {
           page,
@@ -360,11 +521,11 @@ export async function updateUserRole(req: Request, res: Response, next: NextFunc
     const { id } = req.params;
     const { role } = req.body;
 
-    const user = await User.findByIdAndUpdate(id, { role }, { new: true });
-    if (!user) {
+    const customer = await Customer.findByIdAndUpdate(id, { role }, { new: true });
+    if (!customer) {
       res.status(404).json({
         success: false,
-        error: { code: 'NOT_FOUND', message: 'User not found.' },
+        error: { code: 'NOT_FOUND', message: 'Account not found.' },
       });
       return;
     }
@@ -373,13 +534,13 @@ export async function updateUserRole(req: Request, res: Response, next: NextFunc
       action: 'admin.update_role',
       actorId: req.user!.userId,
       actorRole: req.user!.role,
-      targetModel: 'User',
+      targetModel: 'Customer',
       targetId: id,
       after: { role },
       ip: req.ip,
     });
 
-    res.json({ success: true, data: { id: user.id, role: user.role } });
+    res.json({ success: true, data: { id: customer.id, role: customer.role } });
   } catch (err) {
     next(err);
   }

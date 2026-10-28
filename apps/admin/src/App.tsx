@@ -27,8 +27,10 @@ function PageLoader() {
 }
 
 function RequireAdmin({ children }: { children: React.ReactElement }) {
-  const { isAuthenticated } = useAdminAuthStore();
-  if (!isAuthenticated) {
+  const { isAuthenticated, user, clearAuth } = useAdminAuthStore();
+  const allowedRoles = ['super_admin', 'admin', 'catalog_manager', 'inventory_manager', 'order_manager', 'finance_manager', 'support'];
+  if (!isAuthenticated || !user || !allowedRoles.includes(user.role)) {
+    if (isAuthenticated) clearAuth();
     return <Navigate to="/login" replace />;
   }
   return children;

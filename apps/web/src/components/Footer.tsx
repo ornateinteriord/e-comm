@@ -34,14 +34,15 @@ export default function Footer() {
             >
               <Box
                 component="img"
-                src="/logo.svg"
+                src="/logo-dark.svg"
                 alt="E-Shophy"
                 sx={{
-                  height: 42,
+                  height: 44,
                   width: 'auto',
                   maxWidth: 180,
                   objectFit: 'contain',
                   transition: 'transform 0.2s ease',
+                  filter: 'drop-shadow(0 1px 3px rgba(0,0,0,0.3))',
                 }}
               />
             </Box>

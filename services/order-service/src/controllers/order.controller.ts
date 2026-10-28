@@ -134,11 +134,15 @@ export async function getMyOrders(req: Request, res: Response, next: NextFunctio
   }
 }
 
+function getOrderQuery(idOrNumber: string | string[] | undefined) {
+  const id = Array.isArray(idOrNumber) ? idOrNumber[0] : String(idOrNumber || '');
+  const isObjectId = Boolean(id.match(/^[0-9a-fA-F]{24}$/));
+  return isObjectId ? { $or: [{ _id: id }, { orderNumber: id }] } : { orderNumber: id };
+}
+
 export async function getOrderById(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const id = String(req.params.id);
-    const isObjectId = Boolean(id.match(/^[0-9a-fA-F]{24}$/));
-    const order = await Order.findOne(isObjectId ? { $or: [{ _id: id }, { orderNumber: id }] } : { orderNumber: id });
+    const order = await Order.findOne(getOrderQuery(req.params.id));
 
     if (!order) {
       res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Order not found.' } });
@@ -158,8 +162,7 @@ export async function getOrderById(req: Request, res: Response, next: NextFuncti
 
 export async function cancelOrder(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const { id } = req.params;
-    const order = await Order.findOne({ $or: [{ _id: id }, { orderNumber: id }] });
+    const order = await Order.findOne(getOrderQuery(req.params.id));
 
     if (!order) {
       res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Order not found.' } });
@@ -236,10 +239,9 @@ export async function adminListOrders(req: Request, res: Response, next: NextFun
 
 export async function adminUpdateOrderStatus(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const { id } = req.params;
     const { fulfilmentStatus, paymentStatus, trackingNumber, shippingProvider, note } = req.body;
 
-    const order = await Order.findOne({ $or: [{ _id: id }, { orderNumber: id }] });
+    const order = await Order.findOne(getOrderQuery(req.params.id));
     if (!order) {
       res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Order not found.' } });
       return;
@@ -295,9 +297,8 @@ export async function adminGetDashboardMetrics(_req: Request, res: Response, nex
 
 export async function confirmOrderPayment(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const { id } = req.params;
     const { paymentStatus = 'paid', fulfilmentStatus = 'confirmed', note } = req.body;
-    const order = await Order.findOne({ $or: [{ _id: id }, { orderNumber: id }] });
+    const order = await Order.findOne(getOrderQuery(req.params.id));
     if (!order) {
       res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Order not found.' } });
       return;

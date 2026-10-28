@@ -12,7 +12,7 @@ declare global {
   }
 }
 
-const ACCESS_SECRET = process.env.JWT_ACCESS_SECRET ?? 'dev_access_secret';
+const ACCESS_SECRET = process.env.JWT_ACCESS_SECRET ?? 'ornate_super_secret_jwt_access_key_2026_xyz123';
 
 export function attachUser(req: Request, _res: Response, next: NextFunction): void {
   const authHeader = req.headers.authorization;

@@ -7,13 +7,12 @@ import { Wishlist } from '../models/wishlist.model.js';
 export async function getProfile(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const userId = req.user!.userId;
-    let customer = await Customer.findOne({ userId });
+    let customer = await Customer.findOne({
+      $or: [{ _id: userId }, { userId }],
+    });
     if (!customer) {
-      customer = await Customer.create({
-        userId,
-        name: req.user!.email.split('@')[0],
-        email: req.user!.email,
-      });
+      res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Profile not found.' } });
+      return;
     }
     res.json({ success: true, data: customer });
   } catch (err) {
@@ -24,11 +23,23 @@ export async function getProfile(req: Request, res: Response, next: NextFunction
 export async function updateProfile(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const userId = req.user!.userId;
-    const { name, phone, avatar } = req.body;
+    const { name, fullName, phone, mobileNumber, avatar, gender, city, state, pincode, country } = req.body;
     const customer = await Customer.findOneAndUpdate(
-      { userId },
-      { $set: { ...(name && { name }), ...(phone && { phone }), ...(avatar && { avatar }) } },
-      { new: true, upsert: true },
+      { $or: [{ _id: userId }, { userId }] },
+      {
+        $set: {
+          ...(name && { name, fullName: fullName || name }),
+          ...(fullName && { fullName, name: name || fullName }),
+          ...((phone || mobileNumber) && { phone: phone || mobileNumber, mobileNumber: mobileNumber || phone }),
+          ...(avatar && { avatar }),
+          ...(gender && { gender }),
+          ...(city && { city }),
+          ...(state && { state }),
+          ...(pincode && { pincode }),
+          ...(country && { country }),
+        },
+      },
+      { new: true },
     );
     res.json({ success: true, data: customer, message: 'Profile updated successfully' });
   } catch (err) {

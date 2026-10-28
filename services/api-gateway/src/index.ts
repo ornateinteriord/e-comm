@@ -58,6 +58,9 @@ const staticAllowedOrigins = [
   'https://e-shophy-ui.vercel.app',
   'https://e-comm-three-eta.vercel.app',
   'https://e-comm-admin-gules.vercel.app',
+  'https://admin.eshopy.biz',
+  'https://www.eshopy.biz',
+  'https://eshopy.biz',
 ];
 
 const envAllowedOrigins = (process.env.ALLOWED_ORIGINS ?? '')
@@ -73,6 +76,7 @@ export const isOriginAllowed = (origin?: string): boolean => {
   try {
     const { hostname } = new URL(origin);
     if (hostname.endsWith('.vercel.app')) return true;
+    if (hostname.endsWith('.eshopy.biz') || hostname === 'eshopy.biz') return true;
     if (hostname === 'localhost' || hostname === '127.0.0.1') return true;
   } catch {
     // Malformed origin

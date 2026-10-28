@@ -31,9 +31,38 @@ app.use(
     contentSecurityPolicy: false,
   }),
 );
+const staticAllowed = [
+  'http://localhost:4000',
+  'http://localhost:5173',
+  'http://localhost:5174',
+  'http://localhost:3000',
+  'https://admin.eshopy.biz',
+  'https://www.eshopy.biz',
+  'https://eshopy.biz',
+];
+const envAllowed = (process.env.ALLOWED_ORIGINS ?? '').split(',').map((o) => o.trim()).filter(Boolean);
+
 app.use(
   cors({
-    origin: (process.env.ALLOWED_ORIGINS ?? 'http://localhost:4000,http://localhost:5173').split(',').map((o) => o.trim()),
+    origin: (requestOrigin, callback) => {
+      if (!requestOrigin) return callback(null, true);
+      if (staticAllowed.includes(requestOrigin) || envAllowed.includes(requestOrigin)) return callback(null, true);
+      try {
+        const { hostname } = new URL(requestOrigin);
+        if (
+          hostname.endsWith('.vercel.app') ||
+          hostname.endsWith('.eshopy.biz') ||
+          hostname === 'eshopy.biz' ||
+          hostname === 'localhost' ||
+          hostname === '127.0.0.1'
+        ) {
+          return callback(null, true);
+        }
+      } catch {
+        // ignore
+      }
+      return callback(null, false);
+    },
     credentials: true,
   }),
 );

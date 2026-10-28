@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-interface CartItem {
+export interface CartItem {
   productId: string;
   variantId?: string | null;
   productName: string;
@@ -24,57 +24,85 @@ interface CartState {
   subtotal: number;
 }
 
+export function calcCartTotals(items: CartItem[]) {
+  const itemCount = items.reduce((sum, item) => sum + (item.quantity || 0), 0);
+  const subtotal = items.reduce(
+    (sum, item) => sum + (item.lineTotal || (item.quantity * (item.unitApplicablePrice || 0))),
+    0
+  );
+  return { itemCount, subtotal };
+}
+
 export const useCartStore = create<CartState>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       items: [],
-      get itemCount() {
-        return get().items.reduce((sum, item) => sum + item.quantity, 0);
-      },
-      get subtotal() {
-        return get().items.reduce((sum, item) => sum + item.lineTotal, 0);
-      },
+      itemCount: 0,
+      subtotal: 0,
+
       addItem: (item) =>
         set((state) => {
+          const lineTotal = item.quantity * item.unitApplicablePrice;
           const existing = state.items.find(
             (i) => i.productId === item.productId && i.variantId === item.variantId,
           );
+          let newItems: CartItem[];
           if (existing) {
-            return {
-              items: state.items.map((i) =>
-                i.productId === item.productId && i.variantId === item.variantId
-                  ? {
+            newItems = state.items.map((i) =>
+              i.productId === item.productId && i.variantId === item.variantId
+                ? {
                     ...i,
                     quantity: i.quantity + item.quantity,
                     lineTotal: (i.quantity + item.quantity) * i.unitApplicablePrice,
                   }
-                  : i,
-              ),
-            };
+                : i,
+            );
+          } else {
+            newItems = [...state.items, { ...item, lineTotal }];
           }
-          return {
-            items: [
-              ...state.items,
-              { ...item, lineTotal: item.quantity * item.unitApplicablePrice },
-            ],
-          };
+          const { itemCount, subtotal } = calcCartTotals(newItems);
+          return { items: newItems, itemCount, subtotal };
         }),
+
       removeItem: (productId, variantId) =>
-        set((state) => ({
-          items: state.items.filter(
+        set((state) => {
+          const newItems = state.items.filter(
             (i) => !(i.productId === productId && i.variantId === variantId),
-          ),
-        })),
+          );
+          const { itemCount, subtotal } = calcCartTotals(newItems);
+          return { items: newItems, itemCount, subtotal };
+        }),
+
       updateQuantity: (productId, variantId, qty) =>
-        set((state) => ({
-          items: state.items.map((i) =>
+        set((state) => {
+          if (qty <= 0) {
+            const newItems = state.items.filter(
+              (i) => !(i.productId === productId && i.variantId === variantId),
+            );
+            const { itemCount, subtotal } = calcCartTotals(newItems);
+            return { items: newItems, itemCount, subtotal };
+          }
+          const newItems = state.items.map((i) =>
             i.productId === productId && i.variantId === variantId
               ? { ...i, quantity: qty, lineTotal: qty * i.unitApplicablePrice }
               : i,
-          ),
-        })),
-      clearCart: () => set({ items: [] }),
+          );
+          const { itemCount, subtotal } = calcCartTotals(newItems);
+          return { items: newItems, itemCount, subtotal };
+        }),
+
+      clearCart: () => set({ items: [], itemCount: 0, subtotal: 0 }),
     }),
-    { name: 'ornate-cart' },
+    {
+      name: 'ornate-cart',
+      partialize: (state) => ({ items: state.items }),
+      onRehydrateStorage: () => (state) => {
+        if (state && Array.isArray(state.items)) {
+          const { itemCount, subtotal } = calcCartTotals(state.items);
+          state.itemCount = itemCount;
+          state.subtotal = subtotal;
+        }
+      },
+    },
   ),
 );

@@ -27,6 +27,13 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
+    if (error.response?.status === 403) {
+      useAdminAuthStore.getState().clearAuth();
+      if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+        window.location.href = '/login';
+      }
+      return Promise.reject(error);
+    }
     if (error.response?.status === 401 && !error.config?._retry) {
       error.config._retry = true;
       try {
