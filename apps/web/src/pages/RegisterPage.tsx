@@ -506,7 +506,7 @@ export default function RegisterPage() {
           size="large"
           startIcon={<StorefrontIcon />}
           endIcon={<OpenInNewIcon sx={{ fontSize: 16 }} />}
-          onClick={() => window.open('https://e-shophy-cash.vercel.app/login', '_blank', 'noopener,noreferrer')}
+          onClick={() => window.open('https://vendor.eshopy.biz/login', '_blank', 'noopener,noreferrer')}
           sx={{
             py: 1.25,
             fontWeight: 700,
