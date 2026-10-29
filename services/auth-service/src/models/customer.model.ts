@@ -125,6 +125,14 @@ customerSchema.pre('save', function (next) {
   if (!this.customerId && this.customer_id) {
     this.customerId = this.customer_id;
   }
+  if (this.referralType === 'vendor') {
+    if (!this.vendor_id && this.referralCode) {
+      this.vendor_id = this.referralCode;
+    }
+    if (!this.vendor_name && this.referralName) {
+      this.vendor_name = this.referralName;
+    }
+  }
   next();
 });
 

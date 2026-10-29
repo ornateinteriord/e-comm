@@ -35,6 +35,8 @@ export interface PublicUser {
   referralCode?: string;
   referralName?: string;
   referralType?: 'vendor' | 'customer';
+  vendor_id?: string | null;
+  vendor_name?: string | null;
   country?: string;
   state?: string;
   city?: string;
