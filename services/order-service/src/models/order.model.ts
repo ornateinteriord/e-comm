@@ -15,6 +15,7 @@ export interface IOrder extends Document {
   fulfilmentStatus: FulfilmentStatus;
   paymentMethod?: string;
   paymentReference?: string;
+  cashfreeOrderId?: string;
   invoiceId?: string | null;
   trackingNumber?: string;
   shippingProvider?: string;
@@ -86,8 +87,9 @@ const orderSchema = new Schema<IOrder>(
       default: 'pending',
       index: true,
     },
-    paymentMethod: { type: String, default: 'Razorpay / Online' },
+    paymentMethod: { type: String, default: 'Cashfree' },
     paymentReference: { type: String, default: null },
+    cashfreeOrderId: { type: String, default: null },
     invoiceId: { type: String, default: null },
     trackingNumber: { type: String, default: null },
     shippingProvider: { type: String, default: null },

@@ -330,7 +330,7 @@ export default function StorefrontLayout() {
                     fontWeight: 700,
                   }}
                 >
-                  {user?.name?.[0]?.toUpperCase() ?? <PersonIcon fontSize="small" />}
+                  {isAuthenticated && user?.name?.[0] ? user.name[0].toUpperCase() : <PersonIcon fontSize="small" />}
                 </Avatar>
               </IconButton>
             </Stack>

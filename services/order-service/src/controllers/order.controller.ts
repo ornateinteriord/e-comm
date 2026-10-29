@@ -80,7 +80,8 @@ export async function createCheckoutOrder(req: Request, res: Response, next: Nex
       couponCode: couponCode || null,
       paymentStatus: 'pending',
       fulfilmentStatus: 'pending',
-      paymentMethod: paymentMethod || 'Online (Razorpay / UPI)',
+      paymentMethod: paymentMethod || 'Cashfree',
+      cashfreeOrderId: req.body.cashfreeOrderId || null,
       statusHistory: [
         {
           status: 'pending',
@@ -297,7 +298,7 @@ export async function adminGetDashboardMetrics(_req: Request, res: Response, nex
 
 export async function confirmOrderPayment(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const { paymentStatus = 'paid', fulfilmentStatus = 'confirmed', note } = req.body;
+    const { paymentStatus = 'paid', fulfilmentStatus = 'confirmed', note, paymentReference } = req.body;
     const order = await Order.findOne(getOrderQuery(req.params.id));
     if (!order) {
       res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Order not found.' } });
@@ -305,6 +306,7 @@ export async function confirmOrderPayment(req: Request, res: Response, next: Nex
     }
     order.paymentStatus = paymentStatus as any;
     if (fulfilmentStatus) order.fulfilmentStatus = fulfilmentStatus as any;
+    if (paymentReference) order.paymentReference = paymentReference;
     order.statusHistory.push({
       status: (fulfilmentStatus as any) || 'confirmed',
       changedBy: 'Payment Gateway',

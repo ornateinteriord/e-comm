@@ -261,6 +261,7 @@ const serviceRoutes: Array<{ path: string; target: string }> = [
 
   // 4. Payment & Invoice Service
   { path: '/api/v1/payments', target: paymentTarget },
+  { path: '/api/v1/webhooks', target: paymentTarget },
   { path: '/api/v1/invoices', target: paymentTarget },
   { path: '/api/v1/admin/payments', target: paymentTarget },
   { path: '/api/v1/admin/invoices', target: paymentTarget },

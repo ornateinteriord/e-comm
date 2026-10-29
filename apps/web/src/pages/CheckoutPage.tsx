@@ -9,9 +9,6 @@ import {
   TextField,
   Button,
   Divider,
-  RadioGroup,
-  FormControlLabel,
-  Radio,
   Stack,
   Alert,
   CircularProgress,
@@ -20,6 +17,7 @@ import {
   DialogContent,
   IconButton,
   InputAdornment,
+  Chip,
 } from '@mui/material';
 import {
   Lock as SecureIcon,
@@ -27,7 +25,14 @@ import {
   Visibility,
   VisibilityOff,
   Close as CloseIcon,
+  VerifiedUser,
+  CreditCard,
+  AccountBalance,
+  AccountBalanceWallet,
+  QrCode2,
+  CheckCircle,
 } from '@mui/icons-material';
+import { load } from '@cashfreepayments/cashfree-js';
 import { useCartStore } from '../store/cart.store';
 import { useAuthStore } from '../store/auth.store';
 import api from '../api/client';
@@ -80,7 +85,6 @@ export default function CheckoutPage() {
     }
   }, [isAuthenticated]);
 
-  const [paymentMethod, setPaymentMethod] = useState('razorpay_simulator');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -142,12 +146,12 @@ export default function CheckoutPage() {
     setError(null);
 
     try {
-      // 1. Create order via /checkout
+      // 1. Create order via /checkout (with paymentMethod 'Cashfree')
       const orderRes = await api.post('/checkout', {
         shippingAddress,
         billingAddress: shippingAddress,
         customerName: shippingAddress.name,
-        customerEmail: user?.email || 'customer@example.com',
+        customerEmail: user?.email || `${shippingAddress.phone}@customer.eshopy.biz`,
         items: items.map((it) => ({
           productId: it.productId,
           variantId: it.variantId || null,
@@ -170,35 +174,40 @@ export default function CheckoutPage() {
           tax,
           grandTotal,
         },
-        paymentMethod: paymentMethod === 'cod' ? 'Cash on Delivery' : 'Online (Razorpay UPI / Simulator)',
+        paymentMethod: 'Cashfree',
       });
 
       const order = orderRes.data.data;
+      const orderId = order._id || order.id || order.orderNumber;
 
-      // 2. If online payment, immediately complete payment via simulator or gateway
-      if (paymentMethod !== 'cod') {
-        await api.post('/payments/verify', {
-          orderId: order._id || order.id || order.orderNumber,
-          isSimulator: true,
-          gatewayPaymentId: `pay_sim_${Date.now()}`,
-          gatewayOrderId: `order_sim_${Date.now()}`,
-        });
+      // 2. Initiate Cashfree Payment Session
+      const cfRes = await api.post('/payments/cashfree/create-order', {
+        orderId,
+        orderNumber: order.orderNumber,
+        amount: grandTotal, // in paise
+        customerName: shippingAddress.name,
+        customerEmail: user?.email || `${shippingAddress.phone}@customer.eshopy.biz`,
+        customerPhone: shippingAddress.phone,
+        returnUrl: `${window.location.origin}/payment/return?order_id=${orderId}&cf_order_id={order_id}`,
+      });
 
-        // 3. Trigger tax invoice generation
-        try {
-          await api.post('/invoices/generate', {
-            orderId: order._id || order.id || order.orderNumber,
-          });
-        } catch {
-          // invoice generation fallback non-blocking
-        }
+      const paymentSessionId = cfRes.data?.data?.payment_session_id;
+      if (!paymentSessionId) {
+        throw new Error('Could not initialize Cashfree payment session.');
       }
 
-      clearCart();
-      navigate(`/orders/${order._id || order.id || order.orderNumber}`);
+      // 3. Launch Cashfree Drop-in / Redirect Checkout
+      const cfMode = (import.meta.env.VITE_CASHFREE_MODE || 'sandbox').toLowerCase() === 'production'
+        ? 'production'
+        : 'sandbox';
+
+      const cashfree = await load({ mode: cfMode });
+      await cashfree.checkout({
+        paymentSessionId,
+        redirectTarget: '_self',
+      });
     } catch (err: any) {
-      setError(err.response?.data?.error?.message || 'Failed to place order. Please try again.');
-    } finally {
+      setError(err.response?.data?.error?.message || err.message || 'Failed to initiate payment. Please try again.');
       setIsSubmitting(false);
     }
   };
@@ -300,69 +309,246 @@ export default function CheckoutPage() {
             </Paper>
 
             {/* Step 2: Payment Method */}
-            <Paper elevation={0} sx={{ p: 4, borderRadius: '8px', border: '1px solid', borderColor: 'divider' }}>
-              <Typography variant="h6" fontWeight={800} sx={{ mb: 3 }}>
-                2. Select Payment Method
-              </Typography>
-              <RadioGroup
-                value={paymentMethod}
-                onChange={(e) => setPaymentMethod(e.target.value)}
-              >
-                <Paper
-                  variant="outlined"
+            <Paper
+              elevation={0}
+              sx={{
+                p: { xs: 2.5, sm: 3.5 },
+                borderRadius: '12px',
+                border: '1px solid',
+                borderColor: 'divider',
+                bgcolor: 'background.paper',
+              }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2.5 }}>
+                <Typography variant="h6" fontWeight={800} sx={{ fontSize: '1.1rem', letterSpacing: '-0.01em' }}>
+                  2. Payment Method
+                </Typography>
+                <Box
                   sx={{
-                    p: 2,
-                    mb: 2,
-                    borderRadius: 2,
-                    borderColor: paymentMethod === 'razorpay_simulator' ? '#FF7900' : 'divider',
-                    bgcolor: paymentMethod === 'razorpay_simulator' ? 'rgba(255, 121, 0, 0.04)' : 'transparent',
-                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 0.75,
+                    px: 1.5,
+                    py: 0.5,
+                    borderRadius: '20px',
+                    bgcolor: 'rgba(22, 163, 74, 0.08)',
+                    color: '#16a34a',
                   }}
-                  onClick={() => setPaymentMethod('razorpay_simulator')}
                 >
-                  <FormControlLabel
-                    value="razorpay_simulator"
-                    control={<Radio color="primary" />}
-                    label={
-                      <Box>
-                        <Typography variant="subtitle2" fontWeight={700}>
-                          Razorpay UPI / Cards / NetBanking (Instant Sandbox)
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          Recommended for testing. Confirms payment immediately with simulated transaction.
-                        </Typography>
-                      </Box>
-                    }
-                  />
-                </Paper>
+                  <VerifiedUser sx={{ fontSize: '0.95rem' }} />
+                  <Typography variant="caption" fontWeight={700}>
+                    Bank-Grade Security
+                  </Typography>
+                </Box>
+              </Box>
 
-                <Paper
-                  variant="outlined"
+              {/* Main Payment Selection Card */}
+              <Box
+                sx={{
+                  border: '1.5px solid #FF7900',
+                  borderRadius: '10px',
+                  bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(255, 121, 0, 0.06)' : 'rgba(255, 121, 0, 0.02)',
+                  overflow: 'hidden',
+                  boxShadow: '0 4px 16px -2px rgba(255, 121, 0, 0.1)',
+                }}
+              >
+                {/* Header Row with Selected Radio & Title */}
+                <Box
                   sx={{
-                    p: 2,
-                    borderRadius: 2,
-                    borderColor: paymentMethod === 'cod' ? '#FF7900' : 'divider',
-                    bgcolor: paymentMethod === 'cod' ? 'rgba(255, 121, 0, 0.04)' : 'transparent',
-                    cursor: 'pointer',
+                    p: 2.5,
+                    display: 'flex',
+                    alignItems: { xs: 'flex-start', sm: 'center' },
+                    justifyContent: 'space-between',
+                    gap: 2,
                   }}
-                  onClick={() => setPaymentMethod('cod')}
                 >
-                  <FormControlLabel
-                    value="cod"
-                    control={<Radio color="primary" />}
-                    label={
-                      <Box>
-                        <Typography variant="subtitle2" fontWeight={700}>
-                          Cash on Delivery (COD)
+                  <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.75 }}>
+                    <Box
+                      sx={{
+                        width: 22,
+                        height: 22,
+                        borderRadius: '50%',
+                        border: '2px solid #FF7900',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        mt: 0.3,
+                        flexShrink: 0,
+                      }}
+                    >
+                      <Box
+                        sx={{
+                          width: 10,
+                          height: 10,
+                          borderRadius: '50%',
+                          bgcolor: '#FF7900',
+                        }}
+                      />
+                    </Box>
+                    <Box>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap', mb: 0.25 }}>
+                        <Typography variant="subtitle1" fontWeight={800} sx={{ color: 'text.primary', fontSize: '1rem' }}>
+                          Online Payment (UPI, Cards, Net Banking)
                         </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          Pay in cash upon delivery at your doorstep.
-                        </Typography>
+                        <Chip
+                          label="RECOMMENDED"
+                          size="small"
+                          sx={{
+                            fontSize: '0.65rem',
+                            fontWeight: 800,
+                            height: 20,
+                            bgcolor: '#FF7900',
+                            color: '#ffffff',
+                            letterSpacing: '0.04em',
+                          }}
+                        />
                       </Box>
-                    }
-                  />
-                </Paper>
-              </RadioGroup>
+                      <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.85rem' }}>
+                        Secured & processed by Cashfree Payments Gateway
+                      </Typography>
+                    </Box>
+                  </Box>
+                </Box>
+
+                <Divider sx={{ borderColor: 'rgba(255, 121, 0, 0.15)' }} />
+
+                {/* Available Payment Methods Grid */}
+                <Box sx={{ p: 2.5, bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.15)' : 'rgba(255,255,255,0.7)' }}>
+                  <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ display: 'block', mb: 1.5, letterSpacing: '0.03em', textTransform: 'uppercase' }}>
+                    Available Payment Options
+                  </Typography>
+
+                  <Grid container spacing={1.5} sx={{ mb: 2 }}>
+                    {/* UPI Option */}
+                    <Grid item xs={12} sm={6}>
+                      <Box
+                        sx={{
+                          p: 1.5,
+                          borderRadius: '8px',
+                          border: '1px solid',
+                          borderColor: 'divider',
+                          bgcolor: 'background.paper',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 1.5,
+                        }}
+                      >
+                        <Box sx={{ width: 36, height: 36, borderRadius: '8px', bgcolor: 'rgba(255, 121, 0, 0.08)', color: '#FF7900', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                          <QrCode2 fontSize="small" />
+                        </Box>
+                        <Box>
+                          <Typography variant="body2" fontWeight={700}>UPI / QR Code</Typography>
+                          <Typography variant="caption" color="text.secondary">Google Pay, PhonePe, Paytm, BHIM</Typography>
+                        </Box>
+                      </Box>
+                    </Grid>
+
+                    {/* Cards Option */}
+                    <Grid item xs={12} sm={6}>
+                      <Box
+                        sx={{
+                          p: 1.5,
+                          borderRadius: '8px',
+                          border: '1px solid',
+                          borderColor: 'divider',
+                          bgcolor: 'background.paper',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 1.5,
+                        }}
+                      >
+                        <Box sx={{ width: 36, height: 36, borderRadius: '8px', bgcolor: 'rgba(37, 99, 235, 0.08)', color: '#2563eb', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                          <CreditCard fontSize="small" />
+                        </Box>
+                        <Box>
+                          <Typography variant="body2" fontWeight={700}>Credit & Debit Cards</Typography>
+                          <Typography variant="caption" color="text.secondary">Visa, Mastercard, RuPay, Maestro</Typography>
+                        </Box>
+                      </Box>
+                    </Grid>
+
+                    {/* NetBanking Option */}
+                    <Grid item xs={12} sm={6}>
+                      <Box
+                        sx={{
+                          p: 1.5,
+                          borderRadius: '8px',
+                          border: '1px solid',
+                          borderColor: 'divider',
+                          bgcolor: 'background.paper',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 1.5,
+                        }}
+                      >
+                        <Box sx={{ width: 36, height: 36, borderRadius: '8px', bgcolor: 'rgba(16, 185, 129, 0.08)', color: '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                          <AccountBalance fontSize="small" />
+                        </Box>
+                        <Box>
+                          <Typography variant="body2" fontWeight={700}>Net Banking</Typography>
+                          <Typography variant="caption" color="text.secondary">All Indian Banks (HDFC, SBI, ICICI +50)</Typography>
+                        </Box>
+                      </Box>
+                    </Grid>
+
+                    {/* Wallets Option */}
+                    <Grid item xs={12} sm={6}>
+                      <Box
+                        sx={{
+                          p: 1.5,
+                          borderRadius: '8px',
+                          border: '1px solid',
+                          borderColor: 'divider',
+                          bgcolor: 'background.paper',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 1.5,
+                        }}
+                      >
+                        <Box sx={{ width: 36, height: 36, borderRadius: '8px', bgcolor: 'rgba(124, 58, 237, 0.08)', color: '#7c3aed', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                          <AccountBalanceWallet fontSize="small" />
+                        </Box>
+                        <Box>
+                          <Typography variant="body2" fontWeight={700}>Wallets & More</Typography>
+                          <Typography variant="caption" color="text.secondary">Amazon Pay, Mobikwik & others</Typography>
+                        </Box>
+                      </Box>
+                    </Grid>
+                  </Grid>
+
+                  {/* Trust Footer Features */}
+                  <Box
+                    sx={{
+                      pt: 1.5,
+                      borderTop: '1px dashed',
+                      borderColor: 'divider',
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      gap: { xs: 1.5, sm: 3 },
+                      alignItems: 'center',
+                    }}
+                  >
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                      <CheckCircle sx={{ fontSize: '0.95rem', color: '#16a34a' }} />
+                      <Typography variant="caption" color="text.secondary" fontWeight={600}>
+                        Zero Convenience Fee
+                      </Typography>
+                    </Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                      <CheckCircle sx={{ fontSize: '0.95rem', color: '#16a34a' }} />
+                      <Typography variant="caption" color="text.secondary" fontWeight={600}>
+                        Instant Refund on Cancellation
+                      </Typography>
+                    </Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                      <CheckCircle sx={{ fontSize: '0.95rem', color: '#16a34a' }} />
+                      <Typography variant="caption" color="text.secondary" fontWeight={600}>
+                        256-Bit SSL Encrypted
+                      </Typography>
+                    </Box>
+                  </Box>
+                </Box>
+              </Box>
             </Paper>
           </Grid>
 
@@ -437,10 +623,10 @@ export default function CheckoutPage() {
                 {isSubmitting ? (
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <CircularProgress size={20} color="inherit" />
-                    Processing Payment…
+                    Opening Cashfree Checkout…
                   </Box>
                 ) : (
-                  `Pay ₹${(grandTotal / 100).toFixed(0)} & Confirm`
+                  `Pay ₹${(grandTotal / 100).toFixed(0)} via Cashfree`
                 )}
               </Button>
             </Paper>
