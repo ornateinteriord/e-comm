@@ -20,14 +20,22 @@ export const useAuthStore = create<AuthState>()(
       setAuth: (token, user) =>
         set({ accessToken: token, user, isAuthenticated: true }),
       setAccessToken: (token) =>
-        set({ accessToken: token }),
+        set({ accessToken: token, isAuthenticated: Boolean(token) }),
       clearAuth: () =>
         set({ accessToken: null, user: null, isAuthenticated: false }),
     }),
     {
       name: 'ornate-auth',
-      // Only persist user info (not access token - that lives in memory after reload)
-      partialize: (state) => ({ user: state.user }),
+      partialize: (state) => ({
+        user: state.isAuthenticated ? state.user : null,
+        accessToken: state.accessToken,
+        isAuthenticated: state.isAuthenticated,
+      }),
+      onRehydrateStorage: () => (state) => {
+        if (!state?.isAuthenticated || !state?.accessToken) {
+          state?.clearAuth();
+        }
+      },
     },
   ),
 );

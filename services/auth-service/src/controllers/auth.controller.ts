@@ -64,6 +64,8 @@ export async function verifyReferral(req: Request, res: Response): Promise<void>
       referralCode: result.referralCode,
       referralName: result.referralName,
       referralType: result.referralType,
+      vendor_id: result.vendor_id ?? null,
+      vendor_name: result.vendor_name ?? null,
     },
   });
 }
@@ -141,7 +143,21 @@ export async function register(req: Request, res: Response, next: NextFunction):
     const verificationToken = crypto.randomBytes(32).toString('hex');
     const customerId = await generateNextCustomerId();
 
-    // Create customer in unified customers collection (vendor_id and vendor_name left empty as instructed)
+    // Determine vendor attribution based on referralType
+    let vendor_id: string | null = null;
+    let vendor_name: string | null = null;
+
+    if (refResult.referralType === 'vendor') {
+      // Referred by vendor: store vendor id & name in both referralCode/referralName AND vendor_id/vendor_name
+      vendor_id = refResult.vendor_id || refResult.referralCode || rawRefCode;
+      vendor_name = refResult.vendor_name || refResult.referralName || 'Vendor';
+    } else if (refResult.referralType === 'customer') {
+      // Referred by another customer (e.g. customer-B refers customer-A):
+      // customer-B's vendor details are stored in customer-A's vendor, while referralCode/name are customer-B's
+      vendor_id = refResult.vendor_id || null;
+      vendor_name = refResult.vendor_name || null;
+    }
+
     const customer = await Customer.create({
       customerId,
       customer_id: customerId,
@@ -156,8 +172,8 @@ export async function register(req: Request, res: Response, next: NextFunction):
       referralCode: refResult.referralCode || rawRefCode,
       referralName: refResult.referralName || 'Referral',
       referralType: refResult.referralType || 'vendor',
-      vendor_id: null,
-      vendor_name: null,
+      vendor_id,
+      vendor_name,
       country: country || 'India',
       state: state || '',
       city: city || '',
@@ -197,6 +213,11 @@ export async function register(req: Request, res: Response, next: NextFunction):
           mobileNumber: customer.mobileNumber,
           phone: customer.phone,
           role: customer.role,
+          referralCode: customer.referralCode,
+          referralName: customer.referralName,
+          referralType: customer.referralType,
+          vendor_id: customer.vendor_id,
+          vendor_name: customer.vendor_name,
           emailVerified: customer.emailVerified,
           country: customer.country,
           state: customer.state,
@@ -280,6 +301,11 @@ export async function login(req: Request, res: Response, next: NextFunction): Pr
           mobileNumber: customer.mobileNumber || customer.phone,
           phone: customer.phone,
           role: customer.role,
+          referralCode: customer.referralCode,
+          referralName: customer.referralName,
+          referralType: customer.referralType,
+          vendor_id: customer.vendor_id,
+          vendor_name: customer.vendor_name,
           emailVerified: customer.emailVerified,
           country: customer.country,
           state: customer.state,
@@ -370,6 +396,9 @@ export async function getMe(req: Request, res: Response, next: NextFunction): Pr
         emailVerified: customer.emailVerified,
         referralCode: customer.referralCode,
         referralName: customer.referralName,
+        referralType: customer.referralType,
+        vendor_id: customer.vendor_id,
+        vendor_name: customer.vendor_name,
         country: customer.country,
         state: customer.state,
         city: customer.city,

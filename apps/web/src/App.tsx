@@ -12,6 +12,7 @@ const CategoryPage = React.lazy(() => import('./pages/CategoryPage.tsx'));
 const ProductDetailPage = React.lazy(() => import('./pages/ProductDetailPage.tsx'));
 const CartPage = React.lazy(() => import('./pages/CartPage.tsx'));
 const CheckoutPage = React.lazy(() => import('./pages/CheckoutPage.tsx'));
+const PaymentReturnPage = React.lazy(() => import('./pages/PaymentReturnPage.tsx'));
 const OrdersPage = React.lazy(() => import('./pages/OrdersPage.tsx'));
 const OrderDetailPage = React.lazy(() => import('./pages/OrderDetailPage.tsx'));
 const WishlistPage = React.lazy(() => import('./pages/WishlistPage.tsx'));
@@ -43,6 +44,7 @@ export default function App() {
             <Route path="products/:slug" element={<ProductDetailPage />} />
             <Route path="cart" element={<CartPage />} />
             <Route path="checkout" element={<CheckoutPage />} />
+            <Route path="payment/return" element={<PaymentReturnPage />} />
             <Route path="orders" element={<OrdersPage />} />
             <Route path="orders/:id" element={<OrderDetailPage />} />
             <Route path="wishlist" element={<WishlistPage />} />

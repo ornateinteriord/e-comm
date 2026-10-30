@@ -16,9 +16,9 @@
     "@ornate/db": "workspace:*",
     "@ornate/logger": "workspace:*",
     "@ornate/types": "workspace:*",
-    "mongoose": "^8.7.0",
     "@types/jsonwebtoken": "^9.0.7",
     "axios": "^1.7.7",
+    "cashfree-pg": "^6.0.6",
     "cors": "^2.8.5",
     "crypto": "^1.0.1",
     "dotenv": "^16.4.5",
@@ -26,6 +26,7 @@
     "express-rate-limit": "^7.4.1",
     "helmet": "^8.0.0",
     "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.7.0",
     "razorpay": "^2.9.4",
     "zod": "^3.23.8"
   },

@@ -20,6 +20,11 @@ import {
   renderInvoiceHtml,
   adminListInvoices,
 } from './controllers/invoice.controller.js';
+import {
+  createCashfreeOrder,
+  verifyCashfreePayment,
+  cashfreeWebhook,
+} from './controllers/cashfree.controller.js';
 import { attachUser, requireAuth, requireRole } from './middleware/auth.middleware.js';
 
 const log = createLogger('payment-service');
@@ -66,6 +71,16 @@ app.use(
     credentials: true,
   }),
 );
+// Capture raw body for Cashfree webhook HMAC verification (must come before JSON parser)
+app.use((req, _res, next) => {
+  if (req.path === '/api/v1/webhooks/cashfree') {
+    let rawData = Buffer.alloc(0);
+    req.on('data', (chunk: Buffer) => { rawData = Buffer.concat([rawData, chunk]); });
+    req.on('end', () => { (req as any).rawBody = rawData; next(); });
+  } else {
+    next();
+  }
+});
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true }));
 
@@ -97,8 +112,17 @@ app.use('/api/v1', invoiceRoutes);
 app.use('/api/v1/invoices', invoiceRoutes);
 app.use('/invoices', invoiceRoutes);
 
+// Cashfree webhook — must be registered BEFORE attachUser to avoid body re-parsing
+app.post('/api/v1/webhooks/cashfree', cashfreeWebhook);
+
 // Direct mapping for gateway forwarded subpaths
 app.use(attachUser);
+
+// Cashfree payment routes (primary gateway)
+app.post('/api/v1/payments/cashfree/create-order', createCashfreeOrder);
+app.post('/api/v1/payments/cashfree/verify', verifyCashfreePayment);
+
+// Legacy Razorpay routes (kept for compatibility)
 app.post('/api/v1/payments/create-intent', createPaymentIntent);
 app.post('/api/v1/payments/intent', createPaymentIntent);
 app.post('/api/v1/payments/verify', verifyPayment);
