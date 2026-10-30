@@ -33,4 +33,12 @@ const addressSchema = new Schema<IAddress>(
   { timestamps: true },
 );
 
+addressSchema.set('toJSON', {
+  virtuals: true,
+  transform: (_doc, ret: any) => {
+    ret.id = ret._id?.toString();
+    return ret;
+  },
+});
+
 export const Address = mongoose.model<IAddress>('Address', addressSchema);

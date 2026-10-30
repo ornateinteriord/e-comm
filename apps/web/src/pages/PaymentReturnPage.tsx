@@ -16,6 +16,7 @@ import {
   CheckCircleOutline,
   ErrorOutline,
   AccessTime,
+  CancelOutlined,
   Receipt,
   ArrowForward,
   Refresh,
@@ -24,7 +25,9 @@ import {
 import api from '../api/client';
 import { useCartStore } from '../store/cart.store';
 
-type PaymentState = 'verifying' | 'success' | 'failed' | 'pending_timeout';
+type PaymentState = 'verifying' | 'success' | 'failed' | 'pending_timeout' | 'user_dropped';
+
+const MAX_ATTEMPTS = 6;
 
 export default function PaymentReturnPage() {
   const [searchParams] = useSearchParams();
@@ -40,20 +43,16 @@ export default function PaymentReturnPage() {
     orderId?: string;
     message?: string;
   }>({});
-  const [pollCount, setPollCount] = useState(0);
+  const [attempt, setAttempt] = useState(1);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const hasClearedCart = useRef(false);
 
-  const verifyPayment = useCallback(async (isRetry = false) => {
+  const verifyPayment = useCallback(async (currentAttempt = 1) => {
     if (!orderId && !cfOrderId) {
       setStatus('failed');
       setErrorMessage('Missing order information in return URL.');
       return;
-    }
-
-    if (isRetry) {
-      setStatus('verifying');
     }
 
     try {
@@ -63,9 +62,9 @@ export default function PaymentReturnPage() {
       });
 
       const data = res.data?.data;
-      const paymentStatus = data?.status;
+      const paymentStatus = (data?.status || '').toUpperCase();
 
-      if (paymentStatus === 'PAID') {
+      if (paymentStatus === 'PAID' || paymentStatus === 'SUCCESS') {
         setStatus('success');
         setPaymentDetails({
           cfPaymentId: data?.cfPaymentId,
@@ -78,14 +77,18 @@ export default function PaymentReturnPage() {
           // Trigger non-blocking invoice generation
           api.post('/invoices/generate', { orderId: data?.orderId || orderId }).catch(() => {});
         }
+      } else if (paymentStatus === 'USER_DROPPED') {
+        setStatus('user_dropped');
+        setErrorMessage(data?.message || 'You cancelled the payment or closed the checkout window.');
+      } else if (paymentStatus === 'FAILED' || paymentStatus === 'CANCELLED') {
+        setStatus('failed');
+        setErrorMessage(data?.message || 'Payment was not successful. Please try again.');
       } else if (paymentStatus === 'PENDING') {
-        setPollCount((prev) => {
-          if (prev >= 6) {
-            setStatus('pending_timeout');
-            return prev;
-          }
-          return prev + 1;
-        });
+        if (currentAttempt >= MAX_ATTEMPTS) {
+          setStatus('pending_timeout');
+        } else {
+          setAttempt(currentAttempt + 1);
+        }
       } else {
         setStatus('failed');
         setErrorMessage(data?.message || 'Payment was not successful. Please try again.');
@@ -96,31 +99,30 @@ export default function PaymentReturnPage() {
         setStatus('failed');
         setErrorMessage(apiErr || 'Payment failed or expired.');
       } else {
-        setPollCount((prev) => {
-          if (prev >= 6) {
-            setStatus('pending_timeout');
-            return prev;
-          }
-          return prev + 1;
-        });
+        if (currentAttempt >= MAX_ATTEMPTS) {
+          setStatus('pending_timeout');
+        } else {
+          setAttempt(currentAttempt + 1);
+        }
       }
     }
   }, [orderId, cfOrderId, clearCart]);
 
+  // Initial call on mount
   useEffect(() => {
-    verifyPayment();
+    verifyPayment(1);
   }, [verifyPayment]);
 
-  // Polling loop when status is still 'verifying' and pollCount < 6
+  // Polling loop when status is 'verifying' and attempt is between 2 and MAX_ATTEMPTS
   useEffect(() => {
-    if (status !== 'verifying' || pollCount === 0 || pollCount >= 6) return;
+    if (status !== 'verifying' || attempt <= 1 || attempt > MAX_ATTEMPTS) return;
 
     const timer = setTimeout(() => {
-      verifyPayment();
+      verifyPayment(attempt);
     }, 3500);
 
     return () => clearTimeout(timer);
-  }, [pollCount, status, verifyPayment]);
+  }, [attempt, status, verifyPayment]);
 
   return (
     <Container maxWidth="sm" sx={{ py: { xs: 6, md: 10 } }}>
@@ -146,7 +148,7 @@ export default function PaymentReturnPage() {
               Please wait while we confirm your payment securely with Cashfree and your bank...
             </Typography>
             <Typography variant="caption" color="text.secondary">
-              Do not refresh or close this tab (Attempt {Math.min(pollCount + 1, 6)}/6)
+              Do not refresh or close this tab (Attempt {Math.min(attempt, MAX_ATTEMPTS)}/{MAX_ATTEMPTS})
             </Typography>
           </Box>
         )}
@@ -239,6 +241,97 @@ export default function PaymentReturnPage() {
           </Box>
         )}
 
+        {/* State: User Dropped / Cancelled */}
+        {status === 'user_dropped' && (
+          <Box sx={{ py: 2 }}>
+            <Box
+              sx={{
+                width: 72,
+                height: 72,
+                borderRadius: '50%',
+                bgcolor: 'warning.light',
+                color: 'warning.dark',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                mx: 'auto',
+                mb: 2.5,
+              }}
+            >
+              <CancelOutlined sx={{ fontSize: 44 }} />
+            </Box>
+            <Typography variant="h5" fontWeight={800} sx={{ mb: 1.5 }}>
+              Payment Cancelled
+            </Typography>
+            <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
+              {errorMessage || 'You cancelled or closed the checkout session before completing the payment.'}
+            </Typography>
+
+            <Alert severity="info" sx={{ mb: 3, textAlign: 'left', borderRadius: 2 }}>
+              <Typography variant="body2" fontWeight={600} sx={{ mb: 0.5 }}>
+                No money was deducted
+              </Typography>
+              <Typography variant="caption" color="text.secondary" display="block">
+                Your items are still safely saved in your cart. You can complete your order anytime by trying checkout again.
+              </Typography>
+            </Alert>
+
+            {orderId && (
+              <Paper
+                variant="outlined"
+                sx={{
+                  p: 2,
+                  mb: 3,
+                  bgcolor: 'grey.50',
+                  borderRadius: 2,
+                  textAlign: 'left',
+                }}
+              >
+                <Stack spacing={1}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography variant="body2" color="text.secondary">Order ID:</Typography>
+                    <Typography variant="body2" fontWeight={700}>{orderId}</Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography variant="body2" color="text.secondary">Payment Status:</Typography>
+                    <Chip label="CANCELLED / DROPPED" color="default" size="small" sx={{ fontWeight: 700 }} />
+                  </Box>
+                </Stack>
+              </Paper>
+            )}
+
+            <Stack spacing={2}>
+              <Button
+                variant="contained"
+                fullWidth
+                size="large"
+                component={RouterLink}
+                to="/checkout"
+                sx={{
+                  py: 1.5,
+                  borderRadius: 2,
+                  fontWeight: 700,
+                  bgcolor: '#FF7900',
+                  color: '#fff',
+                  '&:hover': { bgcolor: '#E85D04' },
+                }}
+              >
+                Try Payment Again
+              </Button>
+              <Button
+                variant="outlined"
+                fullWidth
+                component={RouterLink}
+                to="/cart"
+                startIcon={<ShoppingBag />}
+                sx={{ py: 1.2, borderRadius: 2, fontWeight: 600 }}
+              >
+                Return to Cart
+              </Button>
+            </Stack>
+          </Box>
+        )}
+
         {/* State: Pending / Timeout */}
         {status === 'pending_timeout' && (
           <Box sx={{ py: 2 }}>
@@ -276,6 +369,30 @@ export default function PaymentReturnPage() {
               </Typography>
             </Alert>
 
+            {orderId && (
+              <Paper
+                variant="outlined"
+                sx={{
+                  p: 2,
+                  mb: 3,
+                  bgcolor: 'grey.50',
+                  borderRadius: 2,
+                  textAlign: 'left',
+                }}
+              >
+                <Stack spacing={1}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography variant="body2" color="text.secondary">Order ID:</Typography>
+                    <Typography variant="body2" fontWeight={700}>{orderId}</Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography variant="body2" color="text.secondary">Payment Status:</Typography>
+                    <Chip label="PENDING VERIFICATION" color="warning" size="small" sx={{ fontWeight: 700 }} />
+                  </Box>
+                </Stack>
+              </Paper>
+            )}
+
             <Stack spacing={2}>
               <Button
                 variant="contained"
@@ -283,8 +400,9 @@ export default function PaymentReturnPage() {
                 size="large"
                 startIcon={<Refresh />}
                 onClick={() => {
-                  setPollCount(0);
-                  verifyPayment(true);
+                  setAttempt(1);
+                  setStatus('verifying');
+                  verifyPayment(1);
                 }}
                 sx={{
                   py: 1.5,
@@ -297,16 +415,18 @@ export default function PaymentReturnPage() {
               >
                 Re-check Payment Status
               </Button>
-              <Button
-                variant="outlined"
-                fullWidth
-                component={RouterLink}
-                to={`/orders/${orderId}`}
-                endIcon={<ArrowForward />}
-                sx={{ py: 1.2, borderRadius: 2, fontWeight: 600 }}
-              >
-                Go to My Orders
-              </Button>
+              {orderId && (
+                <Button
+                  variant="outlined"
+                  fullWidth
+                  component={RouterLink}
+                  to={`/orders/${orderId}`}
+                  endIcon={<ArrowForward />}
+                  sx={{ py: 1.2, borderRadius: 2, fontWeight: 600 }}
+                >
+                  Go to My Orders
+                </Button>
+              )}
             </Stack>
           </Box>
         )}
@@ -343,6 +463,30 @@ export default function PaymentReturnPage() {
                 within 5–7 business days, or reconciled automatically by our system if settled.
               </Typography>
             </Alert>
+
+            {orderId && (
+              <Paper
+                variant="outlined"
+                sx={{
+                  p: 2,
+                  mb: 3,
+                  bgcolor: 'grey.50',
+                  borderRadius: 2,
+                  textAlign: 'left',
+                }}
+              >
+                <Stack spacing={1}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography variant="body2" color="text.secondary">Order ID:</Typography>
+                    <Typography variant="body2" fontWeight={700}>{orderId}</Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography variant="body2" color="text.secondary">Payment Status:</Typography>
+                    <Chip label="FAILED" color="error" size="small" sx={{ fontWeight: 700 }} />
+                  </Box>
+                </Stack>
+              </Paper>
+            )}
 
             <Divider sx={{ my: 3 }} />
 
