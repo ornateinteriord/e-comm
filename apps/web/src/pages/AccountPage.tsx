@@ -69,6 +69,15 @@ export default function AccountPage() {
     },
   });
 
+  const setDefaultMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await api.patch(`/addresses/${id}/default`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['my-addresses'] });
+    },
+  });
+
   return (
     <Container maxWidth="lg" sx={{ py: 6 }}>
       <Typography variant="h4" fontWeight={800} letterSpacing="-0.02em" sx={{ mb: 4 }}>
@@ -139,25 +148,35 @@ export default function AccountPage() {
             </Typography>
 
             <Stack spacing={2} sx={{ mb: 4 }}>
-              {addresses?.map((addr) => (
-                <Card key={addr.id} variant="outlined" sx={{ borderRadius: '6px', p: 1 }}>
-                  <CardContent sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: '8px !important' }}>
-                    <Box>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Typography variant="subtitle2" fontWeight={700}>{addr.name}</Typography>
-                        {addr.isDefault && <Chip label="DEFAULT" size="small" color="primary" sx={{ height: 20, fontSize: 10, fontWeight: 800 }} />}
+              {addresses?.map((addr) => {
+                const id = addr.id || (addr as any)._id;
+                return (
+                  <Card key={id} variant="outlined" sx={{ borderRadius: '6px', p: 1 }}>
+                    <CardContent sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: '8px !important' }}>
+                      <Box>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <Typography variant="subtitle2" fontWeight={700}>{addr.name}</Typography>
+                          {addr.label && <Chip label={addr.label.toUpperCase()} size="small" sx={{ height: 20, fontSize: 10, fontWeight: 700 }} />}
+                          {addr.isDefault ? (
+                            <Chip label="DEFAULT" size="small" color="primary" sx={{ height: 20, fontSize: 10, fontWeight: 800 }} />
+                          ) : (
+                            <Button size="small" onClick={() => setDefaultMutation.mutate(id)} sx={{ fontSize: 11, p: 0, textTransform: 'none' }}>
+                              Set as Default
+                            </Button>
+                          )}
+                        </Box>
+                        <Typography variant="body2" color="text.secondary">
+                          {addr.line1}{addr.line2 ? `, ${addr.line2}` : ''}, {addr.city}, {addr.state} - {addr.pincode}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">Phone: {addr.phone}</Typography>
                       </Box>
-                      <Typography variant="body2" color="text.secondary">
-                        {addr.line1}, {addr.city}, {addr.state} - {addr.pincode}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">Phone: {addr.phone}</Typography>
-                    </Box>
-                    <IconButton size="small" color="error" onClick={() => deleteAddressMutation.mutate(addr.id)}>
-                      <DeleteIcon fontSize="small" />
-                    </IconButton>
-                  </CardContent>
-                </Card>
-              ))}
+                      <IconButton size="small" color="error" onClick={() => deleteAddressMutation.mutate(id)}>
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </Stack>
 
             <Divider sx={{ my: 3 }} />

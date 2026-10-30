@@ -1,4 +1,4 @@
-import { Request, Response, NextFunction } from 'express';
+ import { Request, Response, NextFunction } from 'express';
 import crypto from 'node:crypto';
 import axios from 'axios';
 import { PaymentTransaction } from '../models/payment.model.js';
@@ -197,37 +197,39 @@ export async function verifyCashfreePayment(req: Request, res: Response, next: N
       return;
     }
 
+    const targetCfOrderId = txn.cfOrderId || txn.gatewayOrderId || cf_order_id;
+
     // Query Cashfree for real-time payment status
     let cfStatus = 'ACTIVE'; // default = still pending
-    let cfPaymentId: string | undefined;
-    let failureReason: string | undefined;
+    let cfPaymentId: string | undefined = txn.cfPaymentId || txn.gatewayPaymentId;
+    let failureReason: string | undefined = txn.failureReason;
+    let payments: any[] = [];
 
-    try {
-      const cfRes = await cashfree.PGFetchOrder(txn.cfOrderId!);
-      const orderData = cfRes?.data as any;
-      cfStatus = orderData?.order_status ?? 'ACTIVE';
-
-      // Try to get individual payment details for the payment ID
-      if (cfStatus === 'PAID') {
-        try {
-          const paymentsRes = await cashfree.PGOrderFetchPayments(txn.cfOrderId!);
-          const payments = paymentsRes?.data as any[];
-          if (Array.isArray(payments) && payments.length > 0) {
-            const successPayment = payments.find((p: any) => p.payment_status === 'SUCCESS');
-            cfPaymentId = successPayment?.cf_payment_id?.toString();
-          }
-        } catch {
-          // non-fatal, continue
-        }
+    if (targetCfOrderId) {
+      try {
+        const cfRes = await cashfree.PGFetchOrder(targetCfOrderId);
+        const orderData = cfRes?.data as any;
+        cfStatus = orderData?.order_status ?? 'ACTIVE';
+      } catch (err: any) {
+        log.warn({ err: err?.message, cfOrderId: targetCfOrderId }, 'Cashfree fetch order failed');
       }
-    } catch (err: any) {
-      log.error({ err, cfOrderId: txn.cfOrderId }, 'Cashfree fetch order failed');
-      // Don't fail hard — return pending so frontend can retry
-      res.json({
-        success: true,
-        data: { status: 'PENDING', orderId: txn.orderId, message: 'Payment verification in progress.' },
-      });
-      return;
+
+      try {
+        const paymentsRes = await cashfree.PGOrderFetchPayments(targetCfOrderId);
+        const paymentList = paymentsRes?.data;
+        if (Array.isArray(paymentList)) {
+          payments = paymentList;
+        }
+      } catch (err: any) {
+        log.warn({ err: err?.message, cfOrderId: targetCfOrderId }, 'Cashfree fetch payments failed or no payments found');
+      }
+    }
+
+    // 1. Check if any payment is SUCCESS
+    const successPayment = payments.find((p: any) => (p.payment_status || '').toUpperCase() === 'SUCCESS');
+    if (successPayment) {
+      cfPaymentId = successPayment?.cf_payment_id?.toString() || cfPaymentId;
+      cfStatus = 'PAID';
     }
 
     if (cfStatus === 'PAID') {
@@ -243,15 +245,91 @@ export async function verifyCashfreePayment(req: Request, res: Response, next: N
         txn.orderId,
         'paid',
         'confirmed',
-        `Payment confirmed via Cashfree. Ref: ${cfPaymentId || txn.cfOrderId}`,
-        cfPaymentId || txn.cfOrderId,
+        `Payment confirmed via Cashfree. Ref: ${cfPaymentId || targetCfOrderId}`,
+        cfPaymentId || targetCfOrderId,
       );
 
       res.json({
         success: true,
         data: { status: 'PAID', orderId: txn.orderId, cfPaymentId },
       });
-    } else if (cfStatus === 'EXPIRED' || cfStatus === 'FAILED') {
+      return;
+    }
+
+    // 2. Check individual payment attempts if any were made
+    if (payments.length > 0) {
+      // Sort payments by timestamp / id descending (latest attempt first)
+      const sortedPayments = [...payments].sort((a: any, b: any) => {
+        const timeA = new Date(a.payment_completion_time || a.payment_time || 0).getTime();
+        const timeB = new Date(b.payment_completion_time || b.payment_time || 0).getTime();
+        if (timeA !== timeB) return timeB - timeA;
+        const idA = Number(a.cf_payment_id) || 0;
+        const idB = Number(b.cf_payment_id) || 0;
+        return idB - idA;
+      });
+
+      const latestPayment = sortedPayments[0];
+      const pStatus = (latestPayment?.payment_status || '').toUpperCase();
+
+      if (pStatus === 'USER_DROPPED') {
+        txn.status = 'user_dropped';
+        txn.failureReason = latestPayment.payment_message || 'Payment session was cancelled or closed.';
+        await txn.save();
+
+        res.json({
+          success: true,
+          data: {
+            status: 'USER_DROPPED',
+            orderId: txn.orderId,
+            message: latestPayment.payment_message || 'You cancelled the payment or closed the checkout window.',
+          },
+        });
+        return;
+      }
+
+      if (pStatus === 'FAILED' || pStatus === 'CANCELLED' || pStatus === 'VOID') {
+        const reason =
+          latestPayment.error_details?.error_description ||
+          latestPayment.payment_message ||
+          'Payment failed or declined by your bank.';
+
+        txn.status = 'failed';
+        txn.failureReason = reason;
+        await txn.save();
+
+        await notifyOrderService(
+          txn.orderId,
+          'failed',
+          'pending',
+          `Payment failed. Reason: ${reason}`,
+        );
+
+        res.json({
+          success: true,
+          data: {
+            status: 'FAILED',
+            orderId: txn.orderId,
+            message: reason,
+          },
+        });
+        return;
+      }
+
+      if (pStatus === 'PENDING') {
+        res.json({
+          success: true,
+          data: {
+            status: 'PENDING',
+            orderId: txn.orderId,
+            message: latestPayment.payment_message || 'Payment is still being processed.',
+          },
+        });
+        return;
+      }
+    }
+
+    // 3. Fallback when no payment attempts were returned or found
+    if (cfStatus === 'EXPIRED' || cfStatus === 'TERMINATED' || cfStatus === 'FAILED') {
       txn.status = 'failed';
       txn.failureReason = failureReason || `Cashfree order status: ${cfStatus}`;
       await txn.save();
@@ -263,18 +341,51 @@ export async function verifyCashfreePayment(req: Request, res: Response, next: N
         `Payment failed. Status: ${cfStatus}`,
       );
 
-      res.status(402).json({
-        success: false,
-        error: { code: 'PAYMENT_FAILED', message: `Payment ${cfStatus.toLowerCase()}. Please try again.` },
-        data: { status: cfStatus, orderId: txn.orderId },
-      });
-    } else {
-      // ACTIVE / still pending
       res.json({
         success: true,
-        data: { status: 'PENDING', orderId: txn.orderId, message: 'Payment is still being processed.' },
+        data: {
+          status: 'FAILED',
+          orderId: txn.orderId,
+          message: `Payment session ${cfStatus.toLowerCase()}. Please try again.`,
+        },
       });
+      return;
     }
+
+    // Check if webhook previously recorded a terminal state in DB
+    if (txn.status === 'user_dropped') {
+      res.json({
+        success: true,
+        data: {
+          status: 'USER_DROPPED',
+          orderId: txn.orderId,
+          message: txn.failureReason || 'You cancelled the payment or closed the checkout window.',
+        },
+      });
+      return;
+    }
+
+    if (txn.status === 'failed') {
+      res.json({
+        success: true,
+        data: {
+          status: 'FAILED',
+          orderId: txn.orderId,
+          message: txn.failureReason || 'Payment failed.',
+        },
+      });
+      return;
+    }
+
+    // ACTIVE / still pending
+    res.json({
+      success: true,
+      data: {
+        status: 'PENDING',
+        orderId: txn.orderId,
+        message: 'Payment is still being processed.',
+      },
+    });
   } catch (err) {
     next(err);
   }
