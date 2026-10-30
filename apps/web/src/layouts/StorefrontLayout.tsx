@@ -5,6 +5,7 @@ import {
   Box, Drawer, List, ListItem, ListItemText, ListItemButton,
   BottomNavigation, BottomNavigationAction, Paper, useMediaQuery,
   useTheme, Menu, MenuItem, Divider, Avatar, Chip, Stack, Button, Tooltip,
+  Fab, Zoom,
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -760,6 +761,42 @@ export default function StorefrontLayout() {
           </BottomNavigation>
         </Paper>
       )}
+
+      {/* ---- Floating Cart Button ---- */}
+      <Zoom in={itemCount > 0 && !location.pathname.startsWith('/cart') && !location.pathname.startsWith('/checkout')}>
+        <Fab
+          component={RouterLink}
+          to="/cart"
+          aria-label="Open cart"
+          sx={{
+            position: 'fixed',
+            bottom: isMobile ? 76 : 28,
+            right: 24,
+            zIndex: 1050,
+            bgcolor: '#FF7900',
+            color: '#fff',
+            '&:hover': { bgcolor: '#E85D04', transform: 'scale(1.08)' },
+            boxShadow: '0 8px 24px rgba(255, 121, 0, 0.4)',
+            transition: 'transform 0.2s ease, background-color 0.2s ease',
+          }}
+        >
+          <Badge
+            badgeContent={itemCount}
+            sx={{
+              '& .MuiBadge-badge': {
+                bgcolor: '#fff',
+                color: '#FF7900',
+                fontWeight: 800,
+                fontSize: '0.7rem',
+                minWidth: 18,
+                height: 18,
+              },
+            }}
+          >
+            <CartIcon />
+          </Badge>
+        </Fab>
+      </Zoom>
     </Box>
   );
 }
