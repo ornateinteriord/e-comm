@@ -7,18 +7,22 @@ import { Cashfree, CFEnvironment } from 'cashfree-pg';
 
 const log = createLogger('cashfree-controller');
 
-const CASHFREE_APP_ID = process.env.CASHFREE_APP_ID ?? '';
-const CASHFREE_SECRET_KEY = process.env.CASHFREE_SECRET_KEY ?? '';
-const CASHFREE_ENV = (process.env.CASHFREE_ENV ?? 'SANDBOX') as 'SANDBOX' | 'PRODUCTION';
-const CASHFREE_WEBHOOK_SECRET = process.env.CASHFREE_WEBHOOK_SECRET ?? CASHFREE_SECRET_KEY;
 const ORDER_SERVICE_URL = process.env.ORDER_SERVICE_URL ?? 'http://localhost:4006';
 
-// Initialize Cashfree client instance
-const cashfree = new Cashfree(
-  CASHFREE_ENV === 'PRODUCTION' ? CFEnvironment.PRODUCTION : CFEnvironment.SANDBOX,
-  CASHFREE_APP_ID,
-  CASHFREE_SECRET_KEY,
-);
+function getCashfreeClient(): Cashfree {
+  const appId = process.env.CASHFREE_APP_ID ?? '';
+  const secretKey = process.env.CASHFREE_SECRET_KEY ?? '';
+  const isProd = (process.env.CASHFREE_ENV ?? 'SANDBOX').toUpperCase() === 'PRODUCTION';
+  return new Cashfree(
+    isProd ? CFEnvironment.PRODUCTION : CFEnvironment.SANDBOX,
+    appId,
+    secretKey,
+  );
+}
+
+function getCashfreeWebhookSecret(): string {
+  return process.env.CASHFREE_WEBHOOK_SECRET || process.env.CASHFREE_SECRET_KEY || '';
+}
 
 /**
  * Notifies the order-service to update payment/fulfillment status.
@@ -63,7 +67,7 @@ export async function createCashfreeOrder(req: Request, res: Response, next: Nex
       return;
     }
 
-    if (!CASHFREE_APP_ID || !CASHFREE_SECRET_KEY) {
+    if (!process.env.CASHFREE_APP_ID || !process.env.CASHFREE_SECRET_KEY) {
       res.status(503).json({
         success: false,
         error: { code: 'PAYMENT_GATEWAY_UNAVAILABLE', message: 'Payment gateway not configured.' },
@@ -87,7 +91,24 @@ export async function createCashfreeOrder(req: Request, res: Response, next: Nex
     // Amount for Cashfree is in INR (rupees), not paise
     const amountInRupees = (amount / 100).toFixed(2);
 
-    const cfOrderRequest = {
+    const isProd = (process.env.CASHFREE_ENV ?? 'SANDBOX').toUpperCase() === 'PRODUCTION';
+
+    // In production, Cashfree strictly requires HTTPS for return_url
+    let finalReturnUrl = returnUrl || `${process.env.FRONTEND_URL ?? 'https://www.eshopy.biz'}/payment/return?order_id=${orderId}&cf_order_id=${cfOrderId}`;
+    if (isProd && finalReturnUrl.startsWith('http://')) {
+      finalReturnUrl = finalReturnUrl.replace(/^http:\/\//i, 'https://');
+    }
+
+    // In production, notify_url must be HTTPS or omitted for local dev
+    let finalNotifyUrl: string | undefined = undefined;
+    const configuredNotifyUrl = `${process.env.PAYMENT_SERVICE_URL ?? ''}/api/v1/webhooks/cashfree`;
+    if (configuredNotifyUrl && !configuredNotifyUrl.includes('localhost') && !configuredNotifyUrl.includes('127.0.0.1')) {
+      finalNotifyUrl = isProd && configuredNotifyUrl.startsWith('http://')
+        ? configuredNotifyUrl.replace(/^http:\/\//i, 'https://')
+        : configuredNotifyUrl;
+    }
+
+    const cfOrderRequest: any = {
       order_id: cfOrderId,
       order_amount: parseFloat(amountInRupees),
       order_currency: 'INR',
@@ -98,8 +119,8 @@ export async function createCashfreeOrder(req: Request, res: Response, next: Nex
         customer_phone: String(customerPhone || '9999999999').replace(/\D/g, '').slice(-10) || '9999999999',
       },
       order_meta: {
-        return_url: returnUrl || `${process.env.FRONTEND_URL ?? 'https://www.eshopy.biz'}/payment/return?order_id=${orderId}&cf_order_id=${cfOrderId}`,
-        notify_url: `${process.env.PAYMENT_SERVICE_URL ?? 'https://api.eshopy.biz'}/api/v1/webhooks/cashfree`,
+        return_url: finalReturnUrl,
+        ...(finalNotifyUrl ? { notify_url: finalNotifyUrl } : {}),
       },
       order_note: `Order ${orderNumber || orderId}`,
     };
@@ -108,11 +129,11 @@ export async function createCashfreeOrder(req: Request, res: Response, next: Nex
     let cashfreeError: string | null = null;
 
     try {
-      const cfResponse = await cashfree.PGCreateOrder(cfOrderRequest as any);
+      const cfResponse = await getCashfreeClient().PGCreateOrder(cfOrderRequest);
       payment_session_id = cfResponse?.data?.payment_session_id ?? '';
     } catch (err: any) {
       cashfreeError = err?.response?.data?.message || err?.message || 'Cashfree API error';
-      log.error({ err, cfOrderId }, 'Cashfree create order failed');
+      log.error({ errorMessage: cashfreeError, status: err?.response?.status, cfOrderId }, 'Cashfree create order failed');
     }
 
     if (!payment_session_id) {
@@ -207,7 +228,7 @@ export async function verifyCashfreePayment(req: Request, res: Response, next: N
 
     if (targetCfOrderId) {
       try {
-        const cfRes = await cashfree.PGFetchOrder(targetCfOrderId);
+        const cfRes = await getCashfreeClient().PGFetchOrder(targetCfOrderId);
         const orderData = cfRes?.data as any;
         cfStatus = orderData?.order_status ?? 'ACTIVE';
       } catch (err: any) {
@@ -215,7 +236,7 @@ export async function verifyCashfreePayment(req: Request, res: Response, next: N
       }
 
       try {
-        const paymentsRes = await cashfree.PGOrderFetchPayments(targetCfOrderId);
+        const paymentsRes = await getCashfreeClient().PGOrderFetchPayments(targetCfOrderId);
         const paymentList = paymentsRes?.data;
         if (Array.isArray(paymentList)) {
           payments = paymentList;
@@ -415,11 +436,11 @@ export async function cashfreeWebhook(req: Request, res: Response): Promise<void
     const signaturePayload = `${timestamp}${bodyString}`;
 
     const expectedSignature = crypto
-      .createHmac('sha256', CASHFREE_WEBHOOK_SECRET)
+      .createHmac('sha256', getCashfreeWebhookSecret())
       .update(signaturePayload)
       .digest('base64');
 
-    if (CASHFREE_WEBHOOK_SECRET && signature !== expectedSignature) {
+    if (getCashfreeWebhookSecret() && signature !== expectedSignature) {
       log.warn({ signature, expected: expectedSignature }, 'Cashfree webhook signature mismatch');
       res.status(200).json({ received: true }); // still 200 to stop retries for bad configs
       return;

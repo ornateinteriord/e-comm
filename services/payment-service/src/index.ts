@@ -1,5 +1,9 @@
-// Trigger deployment - payment-service (consolidated with invoice-service)
-import 'dotenv/config';
+// Payment Service - Cashfree Production Enabled
+import dotenv from 'dotenv';
+import path from 'node:path';
+
+dotenv.config({ path: path.resolve(__dirname, '../.env'), override: true });
+dotenv.config({ path: path.resolve(process.cwd(), '.env'), override: true });
 import express, { Express, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';

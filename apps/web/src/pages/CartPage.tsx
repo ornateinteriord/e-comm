@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link as RouterLink, useNavigate } from 'react-router';
 import {
   Box,
@@ -30,19 +30,23 @@ import {
   Close as CloseIcon,
   LockOutlined as LockIcon,
 } from '@mui/icons-material';
-import { useCartStore } from '../store/cart.store';
+import { useCartStore, calcOrderTotals } from '../store/cart.store';
 import { useAuthStore } from '../store/auth.store';
 import api from '../api/client';
 
 export default function CartPage() {
   const navigate = useNavigate();
-  const { items, updateQuantity, removeItem, clearCart } = useCartStore();
+  const { items, updateQuantity, removeItem, clearCart, appliedCoupon, applyCoupon, removeCoupon } = useCartStore();
   const { isAuthenticated, setAuth } = useAuthStore();
 
-  const [couponCode, setCouponCode] = useState('');
-  const [appliedCoupon, setAppliedCoupon] = useState<string | null>(null);
-  const [couponDiscount, setCouponDiscount] = useState(0);
+  const [couponCode, setCouponCode] = useState(appliedCoupon || '');
   const [couponError, setCouponError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (appliedCoupon) {
+      setCouponCode(appliedCoupon);
+    }
+  }, [appliedCoupon]);
 
   // Login Dialog state for guest checkout
   const [loginDialogOpen, setLoginDialogOpen] = useState(false);
@@ -58,33 +62,19 @@ export default function CartPage() {
     0
   );
 
-  const shippingCharge = subtotal === 0 ? 0 : subtotal >= 50000 ? 0 : 5000;
-  const taxable = Math.max(0, subtotal - couponDiscount);
-  const tax = Math.round(taxable * 0.18);
-  const grandTotal = taxable + shippingCharge + tax;
+  const { shippingCharge, couponDiscount, tax, grandTotal } = calcOrderTotals(subtotal, appliedCoupon);
 
   const handleApplyCoupon = () => {
     setCouponError(null);
-    const code = couponCode.trim().toUpperCase();
-    if (code === 'WELCOME10') {
-      const discount = Math.round(subtotal * 0.1);
-      setCouponDiscount(discount);
-      setAppliedCoupon('WELCOME10');
-    } else if (code === 'FLAT500' && subtotal >= 150000) {
-      setCouponDiscount(50000);
-      setAppliedCoupon('FLAT500');
-    } else if (code === 'SUPER20') {
-      const discount = Math.round(subtotal * 0.2);
-      setCouponDiscount(discount);
-      setAppliedCoupon('SUPER20');
-    } else {
-      setCouponError('Invalid coupon code or minimum order condition not met. Try "WELCOME10" or "SUPER20".');
+    if (!couponCode.trim()) return;
+    const res = applyCoupon(couponCode);
+    if (!res.success) {
+      setCouponError(res.message || 'Invalid coupon code.');
     }
   };
 
   const handleRemoveCoupon = () => {
-    setAppliedCoupon(null);
-    setCouponDiscount(0);
+    removeCoupon();
     setCouponCode('');
     setCouponError(null);
   };
@@ -261,21 +251,68 @@ export default function CartPage() {
             {/* Coupon Input */}
             <Box sx={{ mb: 3 }}>
               <Typography variant="caption" fontWeight={700} color="text.secondary">PROMO CODE</Typography>
-              <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
+              <Box sx={{ display: 'flex', gap: 1, mt: 1, alignItems: 'center' }}>
                 <TextField
                   fullWidth
                   size="small"
-                  placeholder="e.g. WELCOME10"
+                  placeholder="e.g. NEW10"
                   value={couponCode}
                   disabled={Boolean(appliedCoupon)}
-                  onChange={(e) => setCouponCode(e.target.value)}
+                  onChange={(e) => {
+                    setCouponCode(e.target.value);
+                    if (couponError) setCouponError(null);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleApplyCoupon();
+                    }
+                  }}
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      height: 40,
+                      borderRadius: '8px',
+                    },
+                  }}
                 />
                 {appliedCoupon ? (
-                  <Button variant="outlined" color="error" onClick={handleRemoveCoupon}>
+                  <Button
+                    variant="outlined"
+                    color="error"
+                    size="small"
+                    onClick={handleRemoveCoupon}
+                    sx={{
+                      height: 40,
+                      px: 2.5,
+                      borderRadius: '8px',
+                      fontWeight: 700,
+                      textTransform: 'none',
+                      fontSize: '0.875rem',
+                      whiteSpace: 'nowrap',
+                      flexShrink: 0,
+                    }}
+                  >
                     Remove
                   </Button>
                 ) : (
-                  <Button variant="contained" onClick={handleApplyCoupon} sx={{ bgcolor: '#FF7900', '&:hover': { bgcolor: '#E85D04' } }}>
+                  <Button
+                    variant="contained"
+                    size="small"
+                    onClick={handleApplyCoupon}
+                    sx={{
+                      height: 40,
+                      px: 3,
+                      borderRadius: '8px',
+                      fontWeight: 700,
+                      textTransform: 'none',
+                      fontSize: '0.875rem',
+                      bgcolor: '#FF7900',
+                      whiteSpace: 'nowrap',
+                      boxShadow: 'none',
+                      flexShrink: 0,
+                      '&:hover': { bgcolor: '#E85D04', boxShadow: 'none' },
+                    }}
+                  >
                     Apply
                   </Button>
                 )}
