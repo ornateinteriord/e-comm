@@ -3,8 +3,8 @@ import { useParams, Link as RouterLink } from 'react-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Box, Container, Typography, Paper, Grid, Chip, Button,
-  Divider, Stack, Stepper, Step, StepLabel, CircularProgress,
-  Alert, Dialog, DialogTitle, DialogContent, DialogActions,
+  Divider, Stack, Stepper, Step, StepLabel, StepConnector, CircularProgress,
+  Alert, Dialog, DialogTitle, DialogContent, DialogActions, useMediaQuery, useTheme,
 } from '@mui/material';
 import {
   Receipt as InvoiceIcon,
@@ -16,7 +16,18 @@ import type { Order } from '@ornate/types';
 
 const STEPS = ['pending', 'confirmed', 'processing', 'packed', 'shipped', 'delivered'];
 
+const STEP_LABELS: Record<string, string> = {
+  pending: 'Pending',
+  confirmed: 'Confirmed',
+  processing: 'Processing',
+  packed: 'Packed',
+  shipped: 'Shipped',
+  delivered: 'Delivered',
+};
+
 export default function OrderDetailPage() {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const { id } = useParams();
   const queryClient = useQueryClient();
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
@@ -112,13 +123,70 @@ export default function OrderDetailPage() {
           <Alert severity="error" sx={{ fontWeight: 600 }}>
             This order was cancelled.
           </Alert>
+        ) : isMobile ? (
+          /* ---- Mobile: compact vertical status list ---- */
+          <Stack spacing={0}>
+            {STEPS.map((step, idx) => {
+              const done = idx <= currentStep;
+              const active = idx === currentStep;
+              return (
+                <Box key={step} sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5, pb: idx < STEPS.length - 1 ? 0 : 0 }}>
+                  {/* Left: icon + connector */}
+                  <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
+                    <Box
+                      sx={{
+                        width: 28, height: 28, borderRadius: '50%',
+                        bgcolor: done ? '#FF7900' : active ? 'rgba(255,121,0,0.15)' : 'action.disabledBackground',
+                        border: active ? '2px solid #FF7900' : done ? 'none' : '2px solid',
+                        borderColor: done ? '#FF7900' : 'divider',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        color: done ? '#fff' : active ? '#FF7900' : 'text.disabled',
+                        fontWeight: 900, fontSize: '0.75rem',
+                        transition: 'all 0.2s',
+                      }}
+                    >
+                      {done ? '✓' : idx + 1}
+                    </Box>
+                    {idx < STEPS.length - 1 && (
+                      <Box sx={{ width: 2, height: 28, bgcolor: idx < currentStep ? '#FF7900' : 'divider', mt: 0.25 }} />
+                    )}
+                  </Box>
+                  {/* Right: label */}
+                  <Box sx={{ pt: 0.25, pb: idx < STEPS.length - 1 ? 3.5 : 0 }}>
+                    <Typography
+                      variant="body2"
+                      fontWeight={active ? 800 : done ? 700 : 500}
+                      sx={{ color: active ? '#FF7900' : done ? 'text.primary' : 'text.disabled', lineHeight: 1.2 }}
+                    >
+                      {STEP_LABELS[step] || step.toUpperCase()}
+                    </Typography>
+                    {active && (
+                      <Typography variant="caption" sx={{ color: '#FF7900', fontWeight: 600 }}>Current Status</Typography>
+                    )}
+                  </Box>
+                </Box>
+              );
+            })}
+          </Stack>
         ) : (
-          <Stepper activeStep={currentStep >= 0 ? currentStep : 0} alternativeLabel>
-            {STEPS.map((label) => (
-              <Step key={label} completed={STEPS.indexOf(label) <= currentStep}>
-                <StepLabel>
+          /* ---- Desktop: horizontal alternativeLabel stepper ---- */
+          <Stepper
+            activeStep={currentStep >= 0 ? currentStep : 0}
+            alternativeLabel
+            connector={<StepConnector sx={{ '& .MuiStepConnector-line': { borderColor: 'divider' } }} />}
+          >
+            {STEPS.map((step, idx) => (
+              <Step key={step} completed={idx <= currentStep}>
+                <StepLabel
+                  StepIconProps={{
+                    sx: {
+                      '&.Mui-active': { color: '#FF7900' },
+                      '&.Mui-completed': { color: '#FF7900' },
+                    },
+                  }}
+                >
                   <Typography variant="caption" fontWeight={700} textTransform="uppercase">
-                    {label}
+                    {STEP_LABELS[step] || step}
                   </Typography>
                 </StepLabel>
               </Step>

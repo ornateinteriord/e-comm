@@ -46,13 +46,13 @@ import {
 import { load } from '@cashfreepayments/cashfree-js';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Address } from '@ornate/types';
-import { useCartStore } from '../store/cart.store';
+import { useCartStore, calcOrderTotals } from '../store/cart.store';
 import { useAuthStore } from '../store/auth.store';
 import api from '../api/client';
 
 export default function CheckoutPage() {
   const navigate = useNavigate();
-  const { items, clearCart } = useCartStore();
+  const { items, clearCart, appliedCoupon } = useCartStore();
   const { user, isAuthenticated, setAuth } = useAuthStore();
   const queryClient = useQueryClient();
 
@@ -281,15 +281,13 @@ export default function CheckoutPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Directly calculate subtotal and grandTotal from items
+  // Directly calculate subtotal and order totals (with coupon if applied)
   const subtotal = items.reduce(
     (sum, item) => sum + (item.lineTotal || item.quantity * (item.unitApplicablePrice || 0)),
     0
   );
 
-  const shippingCharge = subtotal === 0 ? 0 : subtotal >= 50000 ? 0 : 5000;
-  const tax = Math.round(subtotal * 0.18);
-  const grandTotal = subtotal + shippingCharge + tax;
+  const { shippingCharge, couponDiscount, tax, grandTotal } = calcOrderTotals(subtotal, appliedCoupon);
 
   const handleDialogLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -373,11 +371,12 @@ export default function CheckoutPage() {
         })),
         pricing: {
           subtotal,
-          couponDiscount: 0,
+          couponDiscount,
           shippingCharge,
           tax,
           grandTotal,
         },
+        couponCode: appliedCoupon || null,
         paymentMethod: 'Cashfree',
       });
 
@@ -962,6 +961,16 @@ export default function CheckoutPage() {
                   <Typography variant="body2" color="text.secondary">Subtotal</Typography>
                   <Typography variant="body2" fontWeight={600}>₹{(subtotal / 100).toFixed(0)}</Typography>
                 </Box>
+                {couponDiscount > 0 && (
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', color: 'success.main' }}>
+                    <Typography variant="body2" fontWeight={600}>
+                      Coupon Discount ({appliedCoupon})
+                    </Typography>
+                    <Typography variant="body2" fontWeight={700}>
+                      -₹{(couponDiscount / 100).toFixed(0)}
+                    </Typography>
+                  </Box>
+                )}
                 <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
                   <Typography variant="body2" color="text.secondary">Shipping Charge</Typography>
                   <Typography variant="body2" fontWeight={600}>
@@ -1001,10 +1010,10 @@ export default function CheckoutPage() {
                 {isSubmitting ? (
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <CircularProgress size={20} color="inherit" />
-                    Opening Cashfree Checkout…
+                    Redirecting to Payment…
                   </Box>
                 ) : (
-                  `Pay ₹${(grandTotal / 100).toFixed(0)} via Cashfree`
+                  `Pay ₹${(grandTotal / 100).toFixed(0)} Securely`
                 )}
               </Button>
             </Paper>
