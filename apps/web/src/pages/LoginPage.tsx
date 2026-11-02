@@ -201,7 +201,7 @@ export default function LoginPage() {
           </Stack>
         </form>
 
-        <Divider sx={{ my: 2.5 }}>
+        {/* <Divider sx={{ my: 2.5 }}>
           <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 600, letterSpacing: 0.5 }}>
             ARE YOU A SELLER / VENDOR?
           </Typography>
@@ -231,7 +231,7 @@ export default function LoginPage() {
           }}
         >
           Login as Vendor
-        </Button>
+        </Button> */}
 
         <Typography variant="body2" color="text.secondary" textAlign="center" sx={{ mt: 3 }}>
           Don't have an account?{' '}

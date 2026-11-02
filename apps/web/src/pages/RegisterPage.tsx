@@ -85,7 +85,7 @@ export default function RegisterPage() {
       setReferralName('');
       setReferralError(
         err.response?.data?.error?.message ||
-          'Invalid referral code. Please check with your sponsor or vendor.'
+        'Invalid referral code. Please check with your sponsor or vendor.'
       );
     } finally {
       setIsVerifyingReferral(false);
@@ -141,7 +141,7 @@ export default function RegisterPage() {
     } catch (err: any) {
       setError(
         err.response?.data?.error?.message ||
-          'Registration failed. Please check your details and try again.'
+        'Registration failed. Please check your details and try again.'
       );
     } finally {
       setIsLoading(false);
@@ -240,8 +240,8 @@ export default function RegisterPage() {
                       referralError
                         ? undefined
                         : isReferralVerified
-                        ? 'Referral verified successfully'
-                        : 'Press Verify after entering code'
+                          ? 'Referral verified successfully'
+                          : 'Press Verify after entering code'
                     }
                     error={Boolean(referralError)}
                   />
@@ -494,7 +494,7 @@ export default function RegisterPage() {
           </Stack>
         </form>
 
-        <Divider sx={{ my: 3 }}>
+        {/* <Divider sx={{ my: 3 }}>
           <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 600, letterSpacing: 0.5 }}>
             ARE YOU A SELLER / VENDOR?
           </Typography>
@@ -524,7 +524,7 @@ export default function RegisterPage() {
           }}
         >
           Login as Vendor
-        </Button>
+        </Button> */}
 
         <Typography variant="body2" color="text.secondary" textAlign="center" sx={{ mt: 3 }}>
           Already have an account?{' '}

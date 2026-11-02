@@ -102,7 +102,7 @@ export default function LoginPage() {
               </Button>
             </Stack>
           </form>
-
+          {/* 
           <Divider sx={{ my: 2.5 }}>
             <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 600, letterSpacing: 0.5 }}>
               OR
@@ -133,7 +133,7 @@ export default function LoginPage() {
             }}
           >
             Login as Vendor
-          </Button>
+          </Button> */}
         </Paper>
       </Container>
     </Box>
