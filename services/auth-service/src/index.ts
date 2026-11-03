@@ -10,6 +10,7 @@ import { createLogger } from '@ornate/logger';
 import authRoutes from './routes/auth.routes.js';
 import userRoutes from './routes/user.routes.js';
 import contactRoutes from './routes/contact.routes.js';
+import walletRoutes from './routes/wallet.routes.js';
 import { requireAuth, requireRole } from './middleware/auth.middleware.js';
 import {
   getProfile,
@@ -123,6 +124,9 @@ app.get('/api/v1/admin/customers', requireAuth, requireRole('support', 'admin', 
 
 // Contact Us Inquiries (public submission & admin management)
 app.use(contactRoutes);
+
+// Customer Wallet routes
+app.use('/api/v1/wallet', walletRoutes);
 
 // Admin routes (forwarded by gateway preserving path)
 app.use('/api/v1/admin', authRoutes);

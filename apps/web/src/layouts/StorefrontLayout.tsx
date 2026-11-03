@@ -22,6 +22,7 @@ import {
   Logout as LogoutIcon,
   LightMode as LightModeIcon,
   DarkMode as DarkModeIcon,
+  AccountBalanceWalletOutlined as WalletIcon,
 } from '@mui/icons-material';
 import { useCartStore } from '../store/cart.store';
 import { useAuthStore } from '../store/auth.store';
@@ -41,6 +42,47 @@ export default function StorefrontLayout() {
   const itemCount = useCartStore((s) => s.itemCount);
   const { mode, toggleTheme } = useThemeStore();
   const isLight = mode === 'light';
+
+  const { data: walletData } = useQuery({
+    queryKey: ['my-wallet-balance'],
+    queryFn: async () => {
+      try {
+        const { data } = await api.get('/wallet/balance');
+        return data.data as { balance: number; balanceRupees: number };
+      } catch {
+        return null;
+      }
+    },
+    enabled: isAuthenticated,
+    staleTime: 1000 * 30,
+  });
+
+  // Synchronize authenticated user profile (level, walletBalance, etc.) from database
+  useQuery({
+    queryKey: ['auth-me-sync'],
+    queryFn: async () => {
+      try {
+        const { data } = await api.get('/auth/me');
+        if (data.data) {
+          const currentToken = useAuthStore.getState().accessToken;
+          if (currentToken) {
+            useAuthStore.getState().setAuth(currentToken, {
+              ...useAuthStore.getState().user,
+              ...data.data,
+            });
+          }
+        }
+        return data.data;
+      } catch {
+        return null;
+      }
+    },
+    enabled: isAuthenticated,
+    staleTime: 1000 * 30,
+  });
+
+  const walletBalancePaise = walletData?.balance ?? (user?.walletBalance ?? 0);
+  const walletBalanceRupees = (walletBalancePaise / 100).toFixed(2);
 
   const [searchValue, setSearchValue] = useState('');
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -314,6 +356,42 @@ export default function StorefrontLayout() {
                   <CartIcon fontSize="small" />
                 </Badge>
               </IconButton>
+
+              {/* Wallet Pill Button beside Cart Icon */}
+              {isAuthenticated && (
+                <Tooltip title="My Wallet Balance - Click to manage">
+                  <Button
+                    component={RouterLink}
+                    to="/wallet"
+                    size="small"
+                    startIcon={
+                      <WalletIcon
+                        sx={{ fontSize: '1.15rem !important', color: '#FF7900' }}
+                      />
+                    }
+                    sx={{
+                      textTransform: 'none',
+                      fontWeight: 700,
+                      fontSize: '0.8125rem',
+                      color: isLight ? '#1F2937' : '#F9FAFB',
+                      bgcolor: isLight ? '#F5F6F7' : 'rgba(255,255,255,0.06)',
+                      border: `1px solid ${isLight ? '#E5E7EB' : 'rgba(255,255,255,0.1)'}`,
+                      borderRadius: '20px',
+                      px: 1.5,
+                      py: 0.5,
+                      minHeight: 36,
+                      '&:hover': {
+                        bgcolor: isLight ? 'rgba(255, 121, 0, 0.08)' : 'rgba(255, 121, 0, 0.15)',
+                        borderColor: '#FF7900',
+                        color: '#FF7900',
+                      },
+                      transition: 'all 0.2s',
+                    }}
+                  >
+                    ₹{walletBalanceRupees}
+                  </Button>
+                </Tooltip>
+              )}
 
               {/* User Avatar Menu */}
               <IconButton
@@ -659,6 +737,35 @@ export default function StorefrontLayout() {
           <MenuItem key="wishlist" component={RouterLink} to="/wishlist" onClick={() => setAnchorEl(null)} sx={{ borderRadius: 1.5 }}>
             <WishlistIcon fontSize="small" sx={{ mr: 1.5, color: '#64748b' }} />
             My Wishlist
+          </MenuItem>,
+          <MenuItem
+            key="wallet"
+            component={RouterLink}
+            to="/wallet"
+            onClick={() => setAnchorEl(null)}
+            sx={{
+              borderRadius: 1.5,
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+            }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+              <WalletIcon fontSize="small" sx={{ mr: 1.5, color: '#FF7900' }} />
+              My Wallet
+            </Box>
+            <Chip
+              label={`₹${walletBalanceRupees}`}
+              size="small"
+              sx={{
+                fontWeight: 700,
+                fontSize: '0.725rem',
+                bgcolor: isLight ? 'rgba(255, 121, 0, 0.1)' : 'rgba(255, 121, 0, 0.2)',
+                color: '#FF7900',
+                border: '1px solid rgba(255, 121, 0, 0.3)',
+                height: 22,
+              }}
+            />
           </MenuItem>,
           <MenuItem key="account" component={RouterLink} to="/account" onClick={() => setAnchorEl(null)} sx={{ borderRadius: 1.5 }}>
             <PersonIcon fontSize="small" sx={{ mr: 1.5, color: '#64748b' }} />

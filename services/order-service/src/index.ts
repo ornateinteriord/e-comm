@@ -19,6 +19,7 @@ import {
   adminUpdateOrderStatus,
   adminGetDashboardMetrics,
   confirmOrderPayment,
+  adminTriggerOrderCommission,
 } from './controllers/order.controller.js';
 import {
   adminListCoupons,
@@ -111,6 +112,7 @@ app.patch('/api/v1/orders/:id/payment-confirmation', confirmOrderPayment);
 app.get('/api/v1/admin/orders', requireAuth, requireRole('order_manager', 'admin', 'super_admin'), adminListOrders);
 app.get('/api/v1/admin/orders/:id', requireAuth, requireRole('order_manager', 'admin', 'super_admin'), getOrderById);
 app.patch('/api/v1/admin/orders/:id/status', requireAuth, requireRole('order_manager', 'admin', 'super_admin'), adminUpdateOrderStatus);
+app.post('/api/v1/admin/orders/:id/distribute-commission', requireAuth, requireRole('order_manager', 'admin', 'super_admin'), adminTriggerOrderCommission);
 app.get('/api/v1/admin/dashboard', requireAuth, requireRole('order_manager', 'finance_manager', 'admin', 'super_admin'), adminGetDashboardMetrics);
 
 // Admin coupons direct routes

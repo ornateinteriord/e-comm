@@ -44,6 +44,7 @@ export interface PublicUser {
   pincode?: string;
   gender?: 'male' | 'female' | 'other' | 'prefer_not_to_say';
   emailVerified: boolean;
+  walletBalance?: number;
   createdAt: string;
 }
 
@@ -234,6 +235,36 @@ export interface OrderPricing {
   shippingCharge: number;
   tax: number;
   grandTotal: number;
+  walletAmountPaid?: number;
+  gatewayAmount?: number;
+}
+
+// ---- Customer Wallet ----
+export type WalletTransactionType = 'credit' | 'debit';
+export type WalletTransactionCategory =
+  | 'topup'
+  | 'order_payment'
+  | 'commission'
+  | 'refund'
+  | 'admin_adjustment';
+export type WalletTransactionStatus = 'pending' | 'success' | 'failed' | 'cancelled';
+
+export interface WalletTransactionItem {
+  id: string;
+  transactionId: string;
+  userId: string;
+  customerId?: string;
+  type: WalletTransactionType;
+  category: WalletTransactionCategory;
+  amount: number; // in paise
+  amountRupees: number; // in INR
+  balanceAfter?: number; // in paise
+  balanceAfterRupees?: number; // in INR
+  status: WalletTransactionStatus;
+  referenceId?: string;
+  description: string;
+  metadata?: Record<string, any>;
+  createdAt: string;
 }
 
 export interface StatusHistoryEntry {

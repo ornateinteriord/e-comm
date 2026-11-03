@@ -177,16 +177,85 @@ export async function lookupReferralCode(rawCode: string): Promise<ReferralLooku
 
 export interface ReferralRewardResult {
   vendorUpdated: boolean;
-  vendorId?: string | null;
+  vendorIds?: string[];
   customerUpdated: boolean;
-  customerId?: string | null;
+  customerIds?: string[];
+}
+
+/**
+ * Helper to reward a vendor and all upstream vendors in its introducer_hierarchy with token: +1
+ * Continues traversing until introducer_hierarchy is empty.
+ */
+async function rewardVendorHierarchy(
+  startVendorId: string,
+  ecashDb: any,
+  visitedVendors: Set<string>,
+): Promise<string[]> {
+  const updatedVendors: string[] = [];
+  if (!startVendorId || !ecashDb) return updatedVendors;
+
+  const queue: string[] = [String(startVendorId).trim()];
+
+  while (queue.length > 0) {
+    const vId = queue.shift()!;
+    const normalized = vId.toLowerCase();
+    if (!vId || visitedVendors.has(normalized)) continue;
+    visitedVendors.add(normalized);
+
+    try {
+      const vendorDoc = await ecashDb.collection('vendor_tbl').findOne({
+        $or: [
+          { Member_id: vId },
+          { member_id: vId },
+          { Member_id: new RegExp(`^${vId}$`, 'i') },
+          { member_id: new RegExp(`^${vId}$`, 'i') },
+        ],
+      });
+
+      if (vendorDoc) {
+        // Increment token only (no level increment for vendors)
+        await ecashDb.collection('vendor_tbl').updateOne(
+          { _id: vendorDoc._id },
+          { $inc: { token: 1 } },
+        );
+        updatedVendors.push(String(vendorDoc.Member_id || vendorDoc.member_id || vId));
+
+        // Check introducer_hierarchy array from this vendor
+        if (Array.isArray(vendorDoc.introducer_hierarchy) && vendorDoc.introducer_hierarchy.length > 0) {
+          for (const parentId of vendorDoc.introducer_hierarchy) {
+            const cleanParent = String(parentId || '').trim();
+            if (cleanParent && !visitedVendors.has(cleanParent.toLowerCase())) {
+              queue.push(cleanParent);
+            }
+          }
+        } else {
+          // If introducer_hierarchy is empty or absent, check direct introducer/sponsor as fallback
+          const directParent = String(
+            vendorDoc.introducer || vendorDoc.sponsor_id || vendorDoc.Sponsor_code || '',
+          ).trim();
+          if (directParent && !visitedVendors.has(directParent.toLowerCase())) {
+            queue.push(directParent);
+          }
+        }
+      }
+    } catch (err) {
+      console.error(`Error incrementing token for vendor ${vId}:`, err);
+    }
+  }
+
+  return updatedVendors;
 }
 
 /**
  * Applies level and token rewards upon a successful customer registration:
- * - If referred by Vendor: Vendor receives level +1 and token +1.
- * - If referred by Customer: Referring customer receives level +1 (no tokens),
- *   and the customer's upstream vendor receives level +1 and token +1.
+ * 1. If referred by Vendor:
+ *    - Vendor receives token: +1 (no level increment).
+ *    - Check introducer_hierarchy: all upstream vendors also receive token: +1 until empty.
+ * 2. If referred by Customer:
+ *    - Customer receives level: +1.
+ *    - Upstream customers receive level: +1.
+ *    - When the referral chain reaches a vendor: that vendor receives token: +1,
+ *      and continues with that vendor's introducer_hierarchy, increasing token: +1 for all upstream vendors.
  */
 export async function applyReferralRewards(params: {
   referralType?: 'vendor' | 'customer' | string | null;
@@ -195,104 +264,95 @@ export async function applyReferralRewards(params: {
 }): Promise<ReferralRewardResult> {
   const result: ReferralRewardResult = {
     vendorUpdated: false,
+    vendorIds: [],
     customerUpdated: false,
+    customerIds: [],
   };
 
   try {
-    const client = typeof (mongoose.connection as any).getClient === 'function'
-      ? (mongoose.connection as any).getClient()
-      : (mongoose.connection as any).client;
+    const client =
+      typeof (mongoose.connection as any).getClient === 'function'
+        ? (mongoose.connection as any).getClient()
+        : (mongoose.connection as any).client;
     const ecashDb = client ? client.db('e-cash') : mongoose.connection.useDb('e-cash').db;
+
+    const visitedVendors = new Set<string>();
+    const visitedCustomers = new Set<string>();
 
     if (params.referralType === 'vendor') {
       const vendorId = params.vendor_id || params.referralCode;
       if (vendorId && ecashDb) {
-        const updateRes = await ecashDb.collection('vendor_tbl').updateOne(
-          {
-            $and: [
-              {
-                $or: [
-                  { Member_id: vendorId },
-                  { member_id: vendorId },
-                  { Member_id: new RegExp(`^${vendorId}$`, 'i') },
-                  { member_id: new RegExp(`^${vendorId}$`, 'i') },
-                ],
-              },
-              { status: { $regex: /^active$/i } },
-            ],
-          },
-          {
-            $inc: { level: 1, token: 1 },
-          }
-        );
-
-        if (updateRes.matchedCount > 0) {
+        // Vendor gets token +1, and all upstream vendors in introducer_hierarchy get token +1
+        const updated = await rewardVendorHierarchy(vendorId, ecashDb, visitedVendors);
+        if (updated.length > 0) {
           result.vendorUpdated = true;
-          result.vendorId = vendorId;
+          result.vendorIds = updated;
         }
       }
     } else if (params.referralType === 'customer') {
-      const refCode = params.referralCode;
-      if (refCode) {
-        // Customer only receives level +1 (no tokens) if active
-        const custRes = await Customer.updateOne(
-          {
-            $and: [
-              {
-                $or: [
-                  { customerId: refCode },
-                  { customer_id: refCode },
-                  { customerId: new RegExp(`^${refCode}$`, 'i') },
-                  { customer_id: new RegExp(`^${refCode}$`, 'i') },
-                  { mobileNumber: refCode },
-                  { phone: refCode },
-                  { username: refCode },
-                ],
-              },
-              { isActive: true },
-            ],
-          },
-          {
-            $inc: { level: 1 },
-          }
-        );
+      // 1. Customer chain: referring customer and any upstream customers get level: +1
+      let currentCode = params.referralCode;
+      let customerDepth = 0;
+      let reachedVendorId: string | null = null;
 
-        if (custRes.matchedCount > 0) {
+      while (currentCode && customerDepth < 20) {
+        const custId = String(currentCode).trim();
+        if (!custId || visitedCustomers.has(custId.toLowerCase())) break;
+        visitedCustomers.add(custId.toLowerCase());
+
+        const customerDoc = await Customer.findOne({
+          $or: [
+            { customerId: custId },
+            { customer_id: custId },
+            { customerId: new RegExp(`^${custId}$`, 'i') },
+            { customer_id: new RegExp(`^${custId}$`, 'i') },
+            { mobileNumber: custId },
+            { phone: custId },
+            { username: custId },
+          ],
+        });
+
+        if (customerDoc) {
+          // Increment customer level
+          await Customer.updateOne({ _id: customerDoc._id }, { $inc: { level: 1 } });
           result.customerUpdated = true;
-          result.customerId = refCode;
+          result.customerIds?.push(String(customerDoc.customerId || customerDoc.customer_id || custId));
+
+          const parentRef = String(customerDoc.referralCode || '').trim();
+          const parentType = customerDoc.referralType;
+
+          if (parentType === 'vendor') {
+            reachedVendorId = customerDoc.vendor_id || parentRef;
+            break;
+          } else if (parentRef) {
+            currentCode = parentRef;
+          } else {
+            if (customerDoc.vendor_id) {
+              reachedVendorId = customerDoc.vendor_id;
+            }
+            break;
+          }
+        } else {
+          // If code is not another customer, it points to a vendor
+          reachedVendorId = custId;
+          break;
         }
+
+        customerDepth++;
       }
 
-      // Reffered customer's vendor receives level +1 and token +1 if vendor is active
-      const vendorId = params.vendor_id;
-      if (vendorId && ecashDb) {
-        const vRes = await ecashDb.collection('vendor_tbl').updateOne(
-          {
-            $and: [
-              {
-                $or: [
-                  { Member_id: vendorId },
-                  { member_id: vendorId },
-                  { Member_id: new RegExp(`^${vendorId}$`, 'i') },
-                  { member_id: new RegExp(`^${vendorId}$`, 'i') },
-                ],
-              },
-              { status: { $regex: /^active$/i } },
-            ],
-          },
-          {
-            $inc: { level: 1, token: 1 },
-          }
-        );
-
-        if (vRes.matchedCount > 0) {
+      // 2. Upstream Vendor: gets token: +1, and all vendors in introducer_hierarchy get token: +1
+      const targetVendor = reachedVendorId || params.vendor_id;
+      if (targetVendor && ecashDb) {
+        const updatedVendors = await rewardVendorHierarchy(targetVendor, ecashDb, visitedVendors);
+        if (updatedVendors.length > 0) {
           result.vendorUpdated = true;
-          result.vendorId = vendorId;
+          result.vendorIds = updatedVendors;
         }
       }
     }
   } catch (err) {
-    console.error('Failed to apply referral rewards to vendor/customer:', err);
+    console.error('Failed to apply referral rewards to vendor/customer hierarchy:', err);
   }
 
   return result;

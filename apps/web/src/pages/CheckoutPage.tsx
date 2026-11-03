@@ -70,6 +70,25 @@ export default function CheckoutPage() {
     enabled: isAuthenticated,
   });
 
+  // Query user's wallet balance
+  const { data: walletData } = useQuery({
+    queryKey: ['my-wallet-balance'],
+    queryFn: async () => {
+      try {
+        const { data } = await api.get('/wallet/balance');
+        return data.data as { balance: number; balanceRupees: number };
+      } catch {
+        return null;
+      }
+    },
+    enabled: isAuthenticated,
+  });
+
+  const availableWalletPaise = walletData?.balance ?? (user?.walletBalance ?? 0);
+  const availableWalletRupees = availableWalletPaise / 100;
+  const [useWallet, setUseWallet] = useState(false);
+  const [walletAmountInput, setWalletAmountInput] = useState<string>('');
+
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
   const [saveAddressForFuture, setSaveAddressForFuture] = useState(true);
 
@@ -289,6 +308,18 @@ export default function CheckoutPage() {
 
   const { shippingCharge, couponDiscount, tax, grandTotal } = calcOrderTotals(subtotal, appliedCoupon);
 
+  // Wallet deduction calculation (supports 100% or split payment)
+  const maxDeductiblePaise = Math.min(availableWalletPaise, grandTotal);
+  const maxDeductibleRupees = maxDeductiblePaise / 100;
+
+  const enteredWalletRupees = walletAmountInput !== '' ? Number(walletAmountInput) : maxDeductibleRupees;
+  const effectiveWalletRupees = useWallet
+    ? Math.max(0, Math.min(isNaN(enteredWalletRupees) ? 0 : enteredWalletRupees, maxDeductibleRupees))
+    : 0;
+  const effectiveWalletPaise = Math.round(effectiveWalletRupees * 100);
+  const payableViaGatewayPaise = Math.max(0, grandTotal - effectiveWalletPaise);
+  const isFullyCoveredByWallet = useWallet && payableViaGatewayPaise === 0;
+
   const handleDialogLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError(null);
@@ -348,7 +379,13 @@ export default function CheckoutPage() {
     }
 
     try {
-      // 1. Create order via /checkout (with paymentMethod 'Cashfree')
+      // 1. Create order via /checkout (with wallet deduction if chosen)
+      const effectivePaymentMethod = isFullyCoveredByWallet
+        ? 'Wallet'
+        : effectiveWalletPaise > 0
+        ? 'Cashfree + Wallet'
+        : 'Cashfree';
+
       const orderRes = await api.post('/checkout', {
         shippingAddress,
         billingAddress: shippingAddress,
@@ -376,22 +413,37 @@ export default function CheckoutPage() {
           tax,
           grandTotal,
         },
+        walletAmountToUse: effectiveWalletPaise,
         couponCode: appliedCoupon || null,
-        paymentMethod: 'Cashfree',
+        paymentMethod: effectivePaymentMethod,
       });
 
       const order = orderRes.data.data;
       const orderId = order._id || order.id || order.orderNumber;
 
-      // 2. Initiate Cashfree Payment Session
+      // Invalidate queries so wallet balance and orders update everywhere
+      queryClient.invalidateQueries({ queryKey: ['my-wallet-balance'] });
+      queryClient.invalidateQueries({ queryKey: ['wallet-info'] });
+      queryClient.invalidateQueries({ queryKey: ['my-orders'] });
+
+      // If fully paid with Wallet balance, bypass Cashfree and redirect to order success
+      if (isFullyCoveredByWallet || order.paymentStatus === 'paid') {
+        clearCart();
+        navigate(`/payment/return?order_id=${orderId}&payment_status=SUCCESS&paid_by=wallet`);
+        return;
+      }
+
+      // 2. Initiate Cashfree Payment Session for remaining gateway balance
+      const preferredMode = (import.meta.env.VITE_CASHFREE_MODE || 'sandbox').toLowerCase();
       const cfRes = await api.post('/payments/cashfree/create-order', {
         orderId,
         orderNumber: order.orderNumber,
-        amount: grandTotal, // in paise
+        amount: payableViaGatewayPaise, // remaining amount in paise
         customerName: shippingAddress.name,
         customerEmail: user?.email || `${shippingAddress.phone}@customer.eshopy.biz`,
         customerPhone: shippingAddress.phone,
         returnUrl: `${window.location.origin}/payment/return?order_id=${orderId}&cf_order_id={order_id}`,
+        mode: preferredMode,
       });
 
       const paymentSessionId = cfRes.data?.data?.payment_session_id;
@@ -399,8 +451,9 @@ export default function CheckoutPage() {
         throw new Error('Could not initialize Cashfree payment session.');
       }
 
-      // 3. Launch Cashfree Drop-in / Redirect Checkout
-      const cfMode = (import.meta.env.VITE_CASHFREE_MODE || 'sandbox').toLowerCase() === 'production'
+      // 3. Launch Cashfree Drop-in / Redirect Checkout matching the session environment
+      const backendEnv = cfRes.data?.data?.environment;
+      const cfMode = (backendEnv || preferredMode) === 'production'
         ? 'production'
         : 'sandbox';
 
@@ -719,6 +772,104 @@ export default function CheckoutPage() {
                 </Box>
               </Box>
 
+              {/* E-Shophy Wallet Balance Payment Option */}
+              {isAuthenticated && availableWalletRupees > 0 && (
+                <Box
+                  sx={{
+                    mb: 3,
+                    p: 2.5,
+                    borderRadius: '12px',
+                    border: '1.5px solid',
+                    borderColor: useWallet ? '#FF7900' : 'divider',
+                    bgcolor: useWallet
+                      ? (theme) => theme.palette.mode === 'dark' ? 'rgba(255, 121, 0, 0.08)' : 'rgba(255, 121, 0, 0.04)'
+                      : 'background.paper',
+                    transition: 'all 0.2s',
+                  }}
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                      <Checkbox
+                        checked={useWallet}
+                        onChange={(e) => {
+                          setUseWallet(e.target.checked);
+                          if (e.target.checked && walletAmountInput === '') {
+                            setWalletAmountInput(String(maxDeductibleRupees));
+                          }
+                        }}
+                        sx={{
+                          p: 0,
+                          color: '#FF7900',
+                          '&.Mui-checked': { color: '#FF7900' },
+                        }}
+                      />
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <AccountBalanceWallet sx={{ color: '#FF7900', fontSize: '1.4rem' }} />
+                        <Box>
+                          <Typography variant="subtitle2" fontWeight={800}>
+                            Use E-Shophy Wallet Balance
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            Available Balance: <strong>₹{availableWalletRupees.toFixed(2)}</strong>
+                          </Typography>
+                        </Box>
+                      </Box>
+                    </Box>
+
+                    <Chip
+                      label={
+                        isFullyCoveredByWallet
+                          ? '100% Covers Order'
+                          : `Deducts ₹${effectiveWalletRupees.toFixed(2)}`
+                      }
+                      size="small"
+                      sx={{
+                        fontWeight: 800,
+                        fontSize: '0.725rem',
+                        bgcolor: useWallet ? 'rgba(22, 163, 74, 0.15)' : 'action.hover',
+                        color: useWallet ? '#16a34a' : 'text.secondary',
+                      }}
+                    />
+                  </Box>
+
+                  {/* Partial / Custom wallet amount input if user enables wallet */}
+                  {useWallet && (
+                    <Box sx={{ mt: 2, pt: 2, borderTop: '1px dashed', borderColor: 'divider' }}>
+                      <Grid container spacing={2} alignItems="center">
+                        <Grid item xs={12} sm={7}>
+                          <Typography variant="body2" color="text.secondary">
+                            {isFullyCoveredByWallet ? (
+                              <span style={{ color: '#16a34a', fontWeight: 600 }}>
+                                Your wallet will cover this entire order! No external payment needed.
+                              </span>
+                            ) : (
+                              <span>
+                                Pay ₹{effectiveWalletRupees.toFixed(2)} from wallet. Remaining{' '}
+                                <strong>₹{(payableViaGatewayPaise / 100).toFixed(2)}</strong> will be paid via Cashfree.
+                              </span>
+                            )}
+                          </Typography>
+                        </Grid>
+                        <Grid item xs={12} sm={5}>
+                          <TextField
+                            size="small"
+                            fullWidth
+                            label="Amount to use from Wallet"
+                            type="number"
+                            value={walletAmountInput !== '' ? walletAmountInput : maxDeductibleRupees}
+                            onChange={(e) => setWalletAmountInput(e.target.value)}
+                            InputProps={{
+                              startAdornment: <InputAdornment position="start">₹</InputAdornment>,
+                            }}
+                            helperText={`Max deductible: ₹${maxDeductibleRupees.toFixed(2)}`}
+                          />
+                        </Grid>
+                      </Grid>
+                    </Box>
+                  )}
+                </Box>
+              )}
+
               {/* Main Payment Selection Card */}
               <Box
                 sx={{
@@ -983,11 +1134,32 @@ export default function CheckoutPage() {
                 </Box>
                 <Divider sx={{ my: 1 }} />
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                  <Typography variant="subtitle1" fontWeight={800}>Total Payable</Typography>
-                  <Typography variant="h5" fontWeight={900} sx={{ color: '#FF7900' }}>
+                  <Typography variant="subtitle1" fontWeight={800}>Order Total</Typography>
+                  <Typography variant="h5" fontWeight={900} sx={{ color: effectiveWalletPaise > 0 ? 'text.secondary' : '#FF7900' }}>
                     ₹{(grandTotal / 100).toFixed(0)}
                   </Typography>
                 </Box>
+                {effectiveWalletPaise > 0 && (
+                  <>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', color: '#16a34a' }}>
+                      <Typography variant="body2" fontWeight={600}>
+                        Wallet Balance Applied
+                      </Typography>
+                      <Typography variant="body2" fontWeight={800}>
+                        -₹{effectiveWalletRupees.toFixed(2)}
+                      </Typography>
+                    </Box>
+                    <Divider sx={{ my: 0.5 }} />
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                      <Typography variant="subtitle2" fontWeight={800} color={isFullyCoveredByWallet ? '#16a34a' : 'text.primary'}>
+                        {isFullyCoveredByWallet ? 'Net Payable via Gateway' : 'Remaining to Pay via Gateway'}
+                      </Typography>
+                      <Typography variant="h6" fontWeight={900} sx={{ color: isFullyCoveredByWallet ? '#16a34a' : '#FF7900' }}>
+                        {isFullyCoveredByWallet ? '₹0.00' : `₹${(payableViaGatewayPaise / 100).toFixed(2)}`}
+                      </Typography>
+                    </Box>
+                  </>
+                )}
               </Stack>
 
               <Button
@@ -1010,8 +1182,12 @@ export default function CheckoutPage() {
                 {isSubmitting ? (
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <CircularProgress size={20} color="inherit" />
-                    Redirecting to Payment…
+                    {isFullyCoveredByWallet ? 'Processing Wallet Payment…' : 'Redirecting to Payment…'}
                   </Box>
+                ) : isFullyCoveredByWallet ? (
+                  `Pay ₹${(grandTotal / 100).toFixed(0)} with Wallet`
+                ) : effectiveWalletPaise > 0 ? (
+                  `Pay ₹${(payableViaGatewayPaise / 100).toFixed(0)} via Cashfree (₹${effectiveWalletRupees.toFixed(0)} from Wallet)`
                 ) : (
                   `Pay ₹${(grandTotal / 100).toFixed(0)} Securely`
                 )}

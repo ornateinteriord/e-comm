@@ -9,15 +9,46 @@ const log = createLogger('cashfree-controller');
 
 const ORDER_SERVICE_URL = process.env.ORDER_SERVICE_URL ?? 'http://localhost:4006';
 
-function getCashfreeClient(): Cashfree {
-  const appId = process.env.CASHFREE_APP_ID ?? '';
-  const secretKey = process.env.CASHFREE_SECRET_KEY ?? '';
-  const isProd = (process.env.CASHFREE_ENV ?? 'SANDBOX').toUpperCase() === 'PRODUCTION';
-  return new Cashfree(
+export function resolveCashfreeCredentials(requestedMode?: string): {
+  client: Cashfree;
+  isProd: boolean;
+  appId: string;
+  secretKey: string;
+  environment: 'production' | 'sandbox';
+} {
+  const envSetting = (process.env.CASHFREE_ENV ?? 'SANDBOX').toUpperCase();
+  const rawAppId = (process.env.CASHFREE_APP_ID ?? '').trim();
+  const rawSecret = (process.env.CASHFREE_SECRET_KEY ?? '').trim();
+
+  let isProd: boolean;
+  if (requestedMode?.toLowerCase() === 'production') {
+    isProd = true;
+  } else if (requestedMode?.toLowerCase() === 'sandbox') {
+    isProd = false;
+  } else {
+    isProd = envSetting === 'PRODUCTION' && !rawAppId.startsWith('TEST');
+  }
+
+  const appId = rawAppId;
+  const secretKey = rawSecret;
+
+  const client = new Cashfree(
     isProd ? CFEnvironment.PRODUCTION : CFEnvironment.SANDBOX,
     appId,
     secretKey,
   );
+
+  return {
+    client,
+    isProd,
+    appId,
+    secretKey,
+    environment: isProd ? 'production' : 'sandbox',
+  };
+}
+
+export function getCashfreeClient(environment?: string): Cashfree {
+  return resolveCashfreeCredentials(environment).client;
 }
 
 function getCashfreeWebhookSecret(): string {
@@ -125,15 +156,18 @@ export async function createCashfreeOrder(req: Request, res: Response, next: Nex
       order_note: `Order ${orderNumber || orderId}`,
     };
 
+    const requestedMode = req.body.mode || (process.env.CASHFREE_ENV ?? 'SANDBOX').toLowerCase();
+    const cfConfig = resolveCashfreeCredentials(requestedMode);
+
     let payment_session_id = '';
     let cashfreeError: string | null = null;
 
     try {
-      const cfResponse = await getCashfreeClient().PGCreateOrder(cfOrderRequest);
+      const cfResponse = await cfConfig.client.PGCreateOrder(cfOrderRequest);
       payment_session_id = cfResponse?.data?.payment_session_id ?? '';
     } catch (err: any) {
       cashfreeError = err?.response?.data?.message || err?.message || 'Cashfree API error';
-      log.error({ errorMessage: cashfreeError, status: err?.response?.status, cfOrderId }, 'Cashfree create order failed');
+      log.error({ errorMessage: cashfreeError, status: err?.response?.status, cfOrderId, mode: cfConfig.environment }, 'Cashfree create order failed');
     }
 
     if (!payment_session_id) {
@@ -157,9 +191,10 @@ export async function createCashfreeOrder(req: Request, res: Response, next: Nex
       cfOrderId,
       gatewayOrderId: cfOrderId,
       paymentSessionId: payment_session_id,
+      environment: cfConfig.environment,
     });
 
-    log.info({ transactionId, cfOrderId, orderId }, 'Cashfree payment session created');
+    log.info({ transactionId, cfOrderId, orderId, mode: cfConfig.environment }, 'Cashfree payment session created');
 
     res.json({
       success: true,
@@ -169,6 +204,7 @@ export async function createCashfreeOrder(req: Request, res: Response, next: Nex
         cf_order_id: cfOrderId,
         amount: Math.round(amount),
         currency: 'INR',
+        environment: cfConfig.environment,
       },
     });
   } catch (err) {
@@ -227,8 +263,9 @@ export async function verifyCashfreePayment(req: Request, res: Response, next: N
     let payments: any[] = [];
 
     if (targetCfOrderId) {
+      const client = getCashfreeClient(txn.environment);
       try {
-        const cfRes = await getCashfreeClient().PGFetchOrder(targetCfOrderId);
+        const cfRes = await client.PGFetchOrder(targetCfOrderId);
         const orderData = cfRes?.data as any;
         cfStatus = orderData?.order_status ?? 'ACTIVE';
       } catch (err: any) {
@@ -236,7 +273,7 @@ export async function verifyCashfreePayment(req: Request, res: Response, next: N
       }
 
       try {
-        const paymentsRes = await getCashfreeClient().PGOrderFetchPayments(targetCfOrderId);
+        const paymentsRes = await client.PGOrderFetchPayments(targetCfOrderId);
         const paymentList = paymentsRes?.data;
         if (Array.isArray(paymentList)) {
           payments = paymentList;
@@ -447,15 +484,16 @@ export async function cashfreeWebhook(req: Request, res: Response): Promise<void
     }
 
     const event = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
-    const eventType: string = event?.type ?? '';
-    const paymentData = event?.data?.payment ?? {};
-    const orderData = event?.data?.order ?? {};
+    const eventType: string = String(event?.type ?? event?.event ?? '');
+    const paymentData = event?.data?.payment ?? event?.payment ?? event ?? {};
+    const orderData = event?.data?.order ?? event?.order ?? event ?? {};
 
-    const cfPaymentId = String(paymentData?.cf_payment_id ?? '');
-    const cfOrderId = String(orderData?.order_id ?? paymentData?.order_id ?? '');
-    const paymentStatus: string = paymentData?.payment_status ?? '';
+    const cfPaymentId = String(paymentData?.cf_payment_id ?? event?.cf_payment_id ?? event?.referenceId ?? '');
+    const cfOrderId = String(orderData?.order_id ?? paymentData?.order_id ?? event?.orderId ?? event?.order_id ?? '');
+    const paymentStatus: string = String(paymentData?.payment_status ?? event?.txStatus ?? event?.payment_status ?? '').toUpperCase();
+    const webhookVersion = req.headers['x-api-version'] || req.headers['x-webhook-version'] || 'default';
 
-    log.info({ eventType, cfOrderId, cfPaymentId, paymentStatus }, 'Cashfree webhook received');
+    log.info({ eventType, cfOrderId, cfPaymentId, paymentStatus, webhookVersion }, 'Cashfree webhook received');
 
     if (!cfOrderId && !cfPaymentId) {
       res.status(200).json({ received: true });

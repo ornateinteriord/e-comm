@@ -120,10 +120,17 @@ export default function WishlistPage() {
                     <Button
                       variant="contained"
                       fullWidth
-                      startIcon={<CartIcon />}
+                      disabled={(product.stock ?? 0) <= 0}
+                      startIcon={(product.stock ?? 0) <= 0 ? undefined : <CartIcon />}
                       size="small"
-                      sx={{ borderRadius: '6px', fontWeight: 700 }}
+                      sx={{
+                        borderRadius: '6px',
+                        fontWeight: 700,
+                        bgcolor: (product.stock ?? 0) <= 0 ? '#f1f5f9 !important' : undefined,
+                        color: (product.stock ?? 0) <= 0 ? '#94a3b8 !important' : undefined,
+                      }}
                       onClick={() => {
+                        if ((product.stock ?? 0) <= 0) return;
                         addItem({
                           productId: product.id,
                           variantId: null,
@@ -138,7 +145,7 @@ export default function WishlistPage() {
                         removeMutation.mutate(product.id);
                       }}
                     >
-                      Move to Cart
+                      {(product.stock ?? 0) <= 0 ? 'Out of Stock' : 'Move to Cart'}
                     </Button>
                   </CardContent>
                 </Card>
