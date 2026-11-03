@@ -138,8 +138,8 @@ export default function StorefrontLayout() {
     if (location.pathname === '/') return 0;
     if (location.pathname.startsWith('/categories')) return 1;
     if (location.pathname.startsWith('/search')) return 2;
-    if (location.pathname.startsWith('/wishlist')) return 3;
-    if (location.pathname.startsWith('/account') || location.pathname.startsWith('/login')) return 4;
+    if (location.pathname.startsWith('/cart')) return 3;
+    if (location.pathname.startsWith('/account') || location.pathname.startsWith('/wallet') || location.pathname.startsWith('/login')) return 4;
     return 0;
   };
 
@@ -534,13 +534,46 @@ export default function StorefrontLayout() {
                 />
               </Box>
 
-              <Stack direction="row" spacing={0.5} alignItems="center">
+              <Stack direction="row" spacing={0.75} alignItems="center">
+                {isAuthenticated && (
+                  <Button
+                    component={RouterLink}
+                    to="/wallet"
+                    size="small"
+                    startIcon={
+                      <WalletIcon
+                        sx={{ fontSize: '1rem !important', color: '#FF7900' }}
+                      />
+                    }
+                    sx={{
+                      textTransform: 'none',
+                      fontWeight: 800,
+                      fontSize: '0.75rem',
+                      color: isLight ? '#1F2937' : '#F9FAFB',
+                      bgcolor: isLight ? '#F5F6F7' : 'rgba(255,255,255,0.08)',
+                      border: `1px solid ${isLight ? '#E5E7EB' : 'rgba(255,255,255,0.12)'}`,
+                      borderRadius: '16px',
+                      px: 1,
+                      py: 0.25,
+                      minHeight: 30,
+                      '&:hover': {
+                        bgcolor: isLight ? 'rgba(255, 121, 0, 0.08)' : 'rgba(255, 121, 0, 0.15)',
+                        borderColor: '#FF7900',
+                        color: '#FF7900',
+                      },
+                      transition: 'all 0.2s',
+                    }}
+                  >
+                    ₹{walletBalanceRupees}
+                  </Button>
+                )}
+
                 <IconButton
                   onClick={toggleTheme}
                   size="small"
                   sx={{
                     color: isLight ? '#374151' : '#F8FAFC',
-                    p: 1,
+                    p: 0.75,
                   }}
                 >
                   {isLight ? <DarkModeIcon fontSize="small" /> : <LightModeIcon fontSize="small" sx={{ color: '#FF7900' }} />}
@@ -549,7 +582,7 @@ export default function StorefrontLayout() {
                 <IconButton
                   component={RouterLink}
                   to="/cart"
-                  sx={{ color: isLight ? '#172B30' : 'white', p: 1 }}
+                  sx={{ color: isLight ? '#172B30' : 'white', p: 0.75 }}
                 >
                   <Badge
                     badgeContent={itemCount}
@@ -636,15 +669,80 @@ export default function StorefrontLayout() {
         {/* User Card in Drawer */}
         <Box sx={{ p: 2.5, bgcolor: isLight ? '#F5F6F7' : '#1E293B', borderBottom: `1px solid ${isLight ? '#E5E7EB' : '#334155'}` }}>
           {isAuthenticated ? (
-            <Stack direction="row" spacing={1.5} alignItems="center">
-              <Avatar sx={{ bgcolor: '#FF7900', color: 'white', width: 44, height: 44, fontWeight: 700 }}>
-                {user?.name?.[0]?.toUpperCase()}
-              </Avatar>
-              <Box>
-                <Typography variant="subtitle2" fontWeight={800} color={isLight ? '#172B30' : 'white'}>{user?.name}</Typography>
-                <Typography variant="caption" sx={{ color: isLight ? '#64748B' : '#94A3B8' }}>{user?.email}</Typography>
+            <Box>
+              <Stack direction="row" spacing={1.5} alignItems="center">
+                <Avatar sx={{ bgcolor: '#FF7900', color: 'white', width: 44, height: 44, fontWeight: 700 }}>
+                  {user?.name?.[0]?.toUpperCase()}
+                </Avatar>
+                <Box sx={{ overflow: 'hidden' }}>
+                  <Typography variant="subtitle2" fontWeight={800} color={isLight ? '#172B30' : 'white'} noWrap>{user?.name}</Typography>
+                  <Typography variant="caption" sx={{ color: isLight ? '#64748B' : '#94A3B8' }} noWrap>{user?.email}</Typography>
+                </Box>
+              </Stack>
+
+              {/* Wallet Information Banner inside Drawer */}
+              <Box
+                component={RouterLink}
+                to="/wallet"
+                onClick={() => setDrawerOpen(false)}
+                sx={{
+                  mt: 2,
+                  p: 1.5,
+                  borderRadius: 2,
+                  bgcolor: isLight ? '#FFFFFF' : '#0F172A',
+                  border: '1px solid',
+                  borderColor: isLight ? 'rgba(255, 121, 0, 0.35)' : 'rgba(255, 121, 0, 0.45)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  textDecoration: 'none',
+                  color: 'inherit',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+                  transition: 'all 0.2s',
+                  '&:hover': {
+                    borderColor: '#FF7900',
+                    transform: 'translateY(-1px)',
+                  },
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
+                  <Box
+                    sx={{
+                      width: 34,
+                      height: 34,
+                      borderRadius: 1.5,
+                      bgcolor: 'rgba(255, 121, 0, 0.15)',
+                      color: '#FF7900',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <WalletIcon sx={{ fontSize: 20 }} />
+                  </Box>
+                  <Box>
+                    <Typography variant="caption" sx={{ color: isLight ? '#64748B' : '#94A3B8', fontWeight: 600, display: 'block', fontSize: '0.7rem' }}>
+                      Wallet Balance
+                    </Typography>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 800, color: '#FF7900', lineHeight: 1.1 }}>
+                      ₹{walletBalanceRupees}
+                    </Typography>
+                  </Box>
+                </Box>
+                <Chip
+                  label="Manage"
+                  size="small"
+                  sx={{
+                    bgcolor: '#FF7900',
+                    color: 'white',
+                    fontWeight: 700,
+                    fontSize: '0.675rem',
+                    height: 22,
+                    cursor: 'pointer',
+                  }}
+                />
               </Box>
-            </Stack>
+            </Box>
           ) : (
             <Box>
               <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 1, color: isLight ? '#172B30' : 'white' }}>Welcome to E-Shophy</Typography>
@@ -663,8 +761,77 @@ export default function StorefrontLayout() {
           )}
         </Box>
 
+        {/* Authenticated Quick Links */}
+        {isAuthenticated && (
+          <List sx={{ px: 1.5, pt: 1.5, pb: 0.5 }}>
+            <ListItem disablePadding>
+              <ListItemButton
+                component={RouterLink}
+                to="/wallet"
+                onClick={() => setDrawerOpen(false)}
+                sx={{
+                  borderRadius: 2,
+                  py: 1,
+                  bgcolor: location.pathname === '/wallet' ? (isLight ? 'rgba(255, 121, 0, 0.08)' : 'rgba(255, 121, 0, 0.15)') : 'transparent',
+                  '&:hover': { bgcolor: isLight ? '#F5F6F7' : 'rgba(255,255,255,0.06)' },
+                }}
+              >
+                <WalletIcon sx={{ color: '#FF7900', mr: 1.5, fontSize: 20 }} />
+                <ListItemText
+                  primary="My Wallet"
+                  primaryTypographyProps={{ fontSize: '0.9rem', fontWeight: 700, color: isLight ? '#172B30' : 'white' }}
+                />
+                <Chip
+                  label={`₹${walletBalanceRupees}`}
+                  size="small"
+                  sx={{
+                    fontWeight: 700,
+                    fontSize: '0.725rem',
+                    bgcolor: 'rgba(255, 121, 0, 0.15)',
+                    color: '#FF7900',
+                    height: 22,
+                  }}
+                />
+              </ListItemButton>
+            </ListItem>
+
+            <ListItem disablePadding sx={{ mt: 0.5 }}>
+              <ListItemButton
+                component={RouterLink}
+                to="/orders"
+                onClick={() => setDrawerOpen(false)}
+                sx={{ borderRadius: 2, py: 1 }}
+              >
+                <OrdersIcon sx={{ color: '#64748B', mr: 1.5, fontSize: 20 }} />
+                <ListItemText
+                  primary="My Orders"
+                  primaryTypographyProps={{ fontSize: '0.9rem', fontWeight: 600, color: isLight ? '#172B30' : 'white' }}
+                />
+                <ChevronRightIcon sx={{ color: '#9CA3AF', fontSize: 18 }} />
+              </ListItemButton>
+            </ListItem>
+
+            <ListItem disablePadding sx={{ mt: 0.5 }}>
+              <ListItemButton
+                component={RouterLink}
+                to="/account"
+                onClick={() => setDrawerOpen(false)}
+                sx={{ borderRadius: 2, py: 1 }}
+              >
+                <PersonIcon sx={{ color: '#64748B', mr: 1.5, fontSize: 20 }} />
+                <ListItemText
+                  primary="My Account & Addresses"
+                  primaryTypographyProps={{ fontSize: '0.9rem', fontWeight: 600, color: isLight ? '#172B30' : 'white' }}
+                />
+                <ChevronRightIcon sx={{ color: '#9CA3AF', fontSize: 18 }} />
+              </ListItemButton>
+            </ListItem>
+            <Divider sx={{ my: 1 }} />
+          </List>
+        )}
+
         {/* Category Links */}
-        <List sx={{ px: 1.5, py: 2 }}>
+        <List sx={{ px: 1.5, py: 1 }}>
           <Typography variant="caption" sx={{ px: 2, color: isLight ? '#6B7280' : '#64748b', fontWeight: 800, letterSpacing: '0.05em' }}>
             DEPARTMENTS
           </Typography>

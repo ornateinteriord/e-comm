@@ -33,6 +33,7 @@ export const createProductSchema = z.object({
     status: z.enum(['draft', 'active', 'archived']).optional(),
     isPublished: z.boolean().optional(),
     isFeatured: z.boolean().optional(),
+    images: z.array(z.object({ id: z.string().optional(), url: z.string(), alt: z.string().optional(), name: z.string().optional(), order: z.number().optional() })).optional(),
     attributes: z.array(z.object({ key: z.string(), value: z.string() })).optional(),
     variants: z
       .array(
