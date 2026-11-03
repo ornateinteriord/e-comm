@@ -104,6 +104,14 @@ export async function lookupReferralCode(rawCode: string): Promise<ReferralLooku
     });
 
     if (vendor) {
+      const vendorStatus = String(vendor.status || '').trim().toLowerCase();
+      if (vendorStatus !== 'active') {
+        return {
+          valid: false,
+          message: 'User no longer active.',
+        };
+      }
+
       const referralName = vendor.Name || vendor.name || 'Vendor';
       const vendorId = String(vendor.Member_id || vendor.member_id || code);
       return {
@@ -136,6 +144,13 @@ export async function lookupReferralCode(rawCode: string): Promise<ReferralLooku
     });
 
     if (customer) {
+      if (!customer.isActive) {
+        return {
+          valid: false,
+          message: 'User no longer active.',
+        };
+      }
+
       const referralName = customer.fullName || customer.name || 'Customer';
       const referralCode = customer.customerId || customer.customer_id || customer.mobileNumber || code;
       const { vendor_id, vendor_name } = await resolveCustomerVendor(customer);
@@ -156,6 +171,129 @@ export async function lookupReferralCode(rawCode: string): Promise<ReferralLooku
   // 3. Not found in either collection
   return {
     valid: false,
-    message: 'Invalid referral code. A valid sponsor or referral code is required to register.',
+    message: 'Invalid referral code or user not found.',
   };
+}
+
+export interface ReferralRewardResult {
+  vendorUpdated: boolean;
+  vendorId?: string | null;
+  customerUpdated: boolean;
+  customerId?: string | null;
+}
+
+/**
+ * Applies level and token rewards upon a successful customer registration:
+ * - If referred by Vendor: Vendor receives level +1 and token +1.
+ * - If referred by Customer: Referring customer receives level +1 (no tokens),
+ *   and the customer's upstream vendor receives level +1 and token +1.
+ */
+export async function applyReferralRewards(params: {
+  referralType?: 'vendor' | 'customer' | string | null;
+  referralCode?: string | null;
+  vendor_id?: string | null;
+}): Promise<ReferralRewardResult> {
+  const result: ReferralRewardResult = {
+    vendorUpdated: false,
+    customerUpdated: false,
+  };
+
+  try {
+    const client = typeof (mongoose.connection as any).getClient === 'function'
+      ? (mongoose.connection as any).getClient()
+      : (mongoose.connection as any).client;
+    const ecashDb = client ? client.db('e-cash') : mongoose.connection.useDb('e-cash').db;
+
+    if (params.referralType === 'vendor') {
+      const vendorId = params.vendor_id || params.referralCode;
+      if (vendorId && ecashDb) {
+        const updateRes = await ecashDb.collection('vendor_tbl').updateOne(
+          {
+            $and: [
+              {
+                $or: [
+                  { Member_id: vendorId },
+                  { member_id: vendorId },
+                  { Member_id: new RegExp(`^${vendorId}$`, 'i') },
+                  { member_id: new RegExp(`^${vendorId}$`, 'i') },
+                ],
+              },
+              { status: { $regex: /^active$/i } },
+            ],
+          },
+          {
+            $inc: { level: 1, token: 1 },
+          }
+        );
+
+        if (updateRes.matchedCount > 0) {
+          result.vendorUpdated = true;
+          result.vendorId = vendorId;
+        }
+      }
+    } else if (params.referralType === 'customer') {
+      const refCode = params.referralCode;
+      if (refCode) {
+        // Customer only receives level +1 (no tokens) if active
+        const custRes = await Customer.updateOne(
+          {
+            $and: [
+              {
+                $or: [
+                  { customerId: refCode },
+                  { customer_id: refCode },
+                  { customerId: new RegExp(`^${refCode}$`, 'i') },
+                  { customer_id: new RegExp(`^${refCode}$`, 'i') },
+                  { mobileNumber: refCode },
+                  { phone: refCode },
+                  { username: refCode },
+                ],
+              },
+              { isActive: true },
+            ],
+          },
+          {
+            $inc: { level: 1 },
+          }
+        );
+
+        if (custRes.matchedCount > 0) {
+          result.customerUpdated = true;
+          result.customerId = refCode;
+        }
+      }
+
+      // Reffered customer's vendor receives level +1 and token +1 if vendor is active
+      const vendorId = params.vendor_id;
+      if (vendorId && ecashDb) {
+        const vRes = await ecashDb.collection('vendor_tbl').updateOne(
+          {
+            $and: [
+              {
+                $or: [
+                  { Member_id: vendorId },
+                  { member_id: vendorId },
+                  { Member_id: new RegExp(`^${vendorId}$`, 'i') },
+                  { member_id: new RegExp(`^${vendorId}$`, 'i') },
+                ],
+              },
+              { status: { $regex: /^active$/i } },
+            ],
+          },
+          {
+            $inc: { level: 1, token: 1 },
+          }
+        );
+
+        if (vRes.matchedCount > 0) {
+          result.vendorUpdated = true;
+          result.vendorId = vendorId;
+        }
+      }
+    }
+  } catch (err) {
+    console.error('Failed to apply referral rewards to vendor/customer:', err);
+  }
+
+  return result;
 }

@@ -32,6 +32,7 @@ export interface PublicUser {
   mobileNumber?: string;
   username?: string;
   role: UserRole;
+  level?: number;
   referralCode?: string;
   referralName?: string;
   referralType?: 'vendor' | 'customer';
@@ -463,4 +464,21 @@ export interface DashboardMetrics {
   pendingOrders: number;
   lowStockProducts: number;
   recentOrders: Order[];
+}
+
+// ---- Contact Inquiries ----
+export type ContactMessageStatus = 'new' | 'in_progress' | 'resolved' | 'archived';
+
+export interface ContactMessage {
+  id: string;
+  _id?: string;
+  name: string;
+  email: string;
+  phone?: string;
+  subject?: string;
+  message: string;
+  status: ContactMessageStatus;
+  adminNotes?: string;
+  createdAt: string;
+  updatedAt: string;
 }

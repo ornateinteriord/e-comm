@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs';
 import crypto from 'node:crypto';
 import { Customer, generateNextCustomerId } from '../models/customer.model.js';
 import { AuditLog } from '../models/audit-log.model.js';
-import { lookupReferralCode } from '../utils/referral.js';
+import { lookupReferralCode, applyReferralRewards } from '../utils/referral.js';
 import {
   signAccessToken,
   signRefreshToken,
@@ -185,6 +185,13 @@ export async function register(req: Request, res: Response, next: NextFunction):
       emailVerified: false,
     });
 
+    // Apply level and token increments for vendor and referring customer
+    await applyReferralRewards({
+      referralType: customer.referralType || refResult.referralType || 'vendor',
+      referralCode: customer.referralCode || rawRefCode,
+      vendor_id: customer.vendor_id,
+    });
+
     const accessToken = signAccessToken({ userId: customer.id, email: customer.email, role: customer.role });
     const refreshToken = signRefreshToken({ userId: customer.id });
     setRefreshCookie(res, refreshToken);
@@ -213,6 +220,7 @@ export async function register(req: Request, res: Response, next: NextFunction):
           mobileNumber: customer.mobileNumber,
           phone: customer.phone,
           role: customer.role,
+          level: customer.level ?? 0,
           referralCode: customer.referralCode,
           referralName: customer.referralName,
           referralType: customer.referralType,
@@ -301,6 +309,7 @@ export async function login(req: Request, res: Response, next: NextFunction): Pr
           mobileNumber: customer.mobileNumber || customer.phone,
           phone: customer.phone,
           role: customer.role,
+          level: customer.level ?? 0,
           referralCode: customer.referralCode,
           referralName: customer.referralName,
           referralType: customer.referralType,
@@ -393,6 +402,7 @@ export async function getMe(req: Request, res: Response, next: NextFunction): Pr
         mobileNumber: customer.mobileNumber || customer.phone,
         phone: customer.phone,
         role: customer.role,
+        level: customer.level ?? 0,
         emailVerified: customer.emailVerified,
         referralCode: customer.referralCode,
         referralName: customer.referralName,

@@ -14,6 +14,7 @@ import {
   ReceiptLong as InvoicesIcon,
   People as CustomersIcon,
   LocalOffer as CouponsIcon,
+  ContactMail as ContactMailIcon,
   History as AuditIcon,
   Logout as LogoutIcon,
   Storefront as StorefrontIcon,
@@ -32,6 +33,7 @@ const NAV_ITEMS = [
   { text: 'Live Inventory', path: '/inventory', icon: <InventoryIcon /> },
   { text: 'Tax Invoices', path: '/invoices', icon: <InvoicesIcon /> },
   { text: 'Customers', path: '/customers', icon: <CustomersIcon /> },
+  { text: 'Inquiries & Messages', path: '/contact-messages', icon: <ContactMailIcon /> },
   { text: 'Coupons & Promos', path: '/coupons', icon: <CouponsIcon /> },
   { text: 'Audit Logs', path: '/audit-logs', icon: <AuditIcon /> },
 ];

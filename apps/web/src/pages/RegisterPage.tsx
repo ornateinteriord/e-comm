@@ -213,7 +213,7 @@ export default function RegisterPage() {
               <Grid container spacing={2}>
                 <Grid item xs={12} sm={7}>
                   <TextField
-                    label="Referral Code *"
+                    label="Referral Code"
                     required
                     fullWidth
                     size="small"
@@ -315,7 +315,7 @@ export default function RegisterPage() {
             <Grid container spacing={2}>
               <Grid item xs={12} sm={7}>
                 <TextField
-                  label="Full Name *"
+                  label="Full Name"
                   required
                   fullWidth
                   value={fullName}
@@ -327,7 +327,7 @@ export default function RegisterPage() {
               <Grid item xs={12} sm={5}>
                 <TextField
                   select
-                  label="Gender *"
+                  label="Gender"
                   required
                   fullWidth
                   value={gender}
@@ -342,7 +342,7 @@ export default function RegisterPage() {
 
               <Grid item xs={12} sm={6}>
                 <TextField
-                  label="Mobile Number *"
+                  label="Mobile Number"
                   type="tel"
                   required
                   fullWidth
@@ -377,7 +377,7 @@ export default function RegisterPage() {
 
               <Grid item xs={12} sm={6}>
                 <TextField
-                  label="Email Address *"
+                  label="Email Address"
                   type="email"
                   required
                   fullWidth
@@ -389,7 +389,7 @@ export default function RegisterPage() {
 
               <Grid item xs={12}>
                 <TextField
-                  label="Password (min 8 chars) *"
+                  label="Password (min 8 chars)"
                   type={showPassword ? 'text' : 'password'}
                   required
                   fullWidth

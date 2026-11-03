@@ -95,7 +95,13 @@ export default function AccountPage() {
               <Box>
                 <Typography variant="h6" fontWeight={800}>{user?.name || 'Customer'}</Typography>
                 <Typography variant="body2" color="text.secondary">{user?.email}</Typography>
-                <Chip label={`Role: ${user?.role || 'customer'}`} size="small" color="primary" sx={{ mt: 0.5, fontWeight: 700 }} />
+                <Box sx={{ display: 'flex', gap: 1, mt: 0.5, flexWrap: 'wrap' }}>
+                  <Chip label={`Role: ${user?.role || 'customer'}`} size="small" color="primary" sx={{ fontWeight: 700 }} />
+                  <Chip label={`Level: ${user?.level ?? 0}`} size="small" color="secondary" sx={{ fontWeight: 800 }} />
+                  {user?.customerId && (
+                    <Chip label={`Referral Code: ${user.customerId}`} size="small" variant="outlined" sx={{ fontWeight: 700 }} />
+                  )}
+                </Box>
               </Box>
             </Box>
 
