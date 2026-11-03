@@ -1,5 +1,10 @@
 import { Request, Response, NextFunction } from 'express';
+import mongoose from 'mongoose';
 import { Order, IOrder } from '../models/order.model.js';
+import { createLogger } from '@ornate/logger';
+import { distributeOrderCommissions } from '../utils/commission.js';
+
+const log = createLogger('order-controller');
 
 export async function createCheckoutOrder(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
@@ -62,6 +67,123 @@ export async function createCheckoutOrder(req: Request, res: Response, next: Nex
     const orderNumber = `ORD-${Date.now().toString().slice(-6)}-${randomSuffix}`;
 
     const subtotal = items.reduce((sum: number, it: any) => sum + it.lineTotal, 0);
+    const orderPricing = pricing ? { ...pricing } : {
+      subtotal,
+      couponDiscount: 0,
+      shippingCharge: 0,
+      tax: Math.round(subtotal * 0.18),
+      grandTotal: Math.round(subtotal * 1.18),
+    };
+
+    // Pre-checkout stock verification
+    try {
+      const client = typeof (mongoose.connection as any).getClient === 'function'
+        ? (mongoose.connection as any).getClient()
+        : (mongoose.connection as any).client;
+      const productDb = client ? client.db('ornate_products') : null;
+      if (productDb) {
+        for (const item of items) {
+          const isObjectId = mongoose.Types.ObjectId.isValid(item.productId);
+          const pQuery: any[] = [{ sku: item.sku }];
+          if (isObjectId) {
+            pQuery.unshift({ _id: new mongoose.Types.ObjectId(item.productId) });
+          }
+          const product = await productDb.collection('products').findOne({ $or: pQuery });
+          if (product && (product.stock ?? 0) < item.quantity) {
+            res.status(400).json({
+              success: false,
+              error: {
+                code: 'OUT_OF_STOCK',
+                message: `Product "${product.name || item.name}" is out of stock (available: ${product.stock ?? 0}).`,
+              },
+            });
+            return;
+          }
+        }
+      }
+    } catch (stockErr) {
+      log.warn({ stockErr }, 'Could not verify stock before order creation');
+    }
+
+    // ---- Wallet Payment (Full or Split) ----
+    const requestedWalletAmount = Math.max(0, Number(req.body.walletAmountToUse || 0));
+    let walletAmountPaid = 0;
+    let isFullyPaidByWallet = false;
+
+    if (requestedWalletAmount > 0 && userId && userId !== 'guest_user') {
+      try {
+        const client =
+          typeof (mongoose.connection as any).getClient === 'function'
+            ? (mongoose.connection as any).getClient()
+            : (mongoose.connection as any).client;
+        const authDb = client ? client.db('ornate_auth') : null;
+
+        if (authDb) {
+          const isObjectId = mongoose.Types.ObjectId.isValid(userId);
+          const customer = await authDb.collection('customers').findOne({
+            $or: [
+              ...(isObjectId ? [{ _id: new mongoose.Types.ObjectId(userId) }] : []),
+              { userId },
+              { customerId: userId },
+              { customer_id: userId },
+              { email: customerEmail.toLowerCase() },
+            ],
+          });
+
+          if (customer && (customer.walletBalance || 0) > 0) {
+            const actualDeduction = Math.min(requestedWalletAmount, customer.walletBalance || 0, orderPricing.grandTotal);
+
+            if (actualDeduction > 0) {
+              const updateResult = await authDb.collection('customers').findOneAndUpdate(
+                { _id: customer._id, walletBalance: { $gte: actualDeduction } },
+                { $inc: { walletBalance: -actualDeduction } },
+                { returnDocument: 'after' },
+              );
+
+              if (updateResult) {
+                walletAmountPaid = actualDeduction;
+                const newBal = (updateResult.walletBalance ?? updateResult.value?.walletBalance) ?? 0;
+
+                // Record debit transaction in wallettransactions
+                await authDb.collection('wallettransactions').insertOne({
+                  transactionId: `txn_debit_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+                  userId: String(customer._id),
+                  customerId: customer.customerId || customer.customer_id,
+                  type: 'debit',
+                  category: 'order_payment',
+                  amount: actualDeduction,
+                  amountRupees: Number((actualDeduction / 100).toFixed(2)),
+                  balanceAfter: newBal,
+                  balanceAfterRupees: Number((newBal / 100).toFixed(2)),
+                  status: 'success',
+                  referenceId: orderNumber,
+                  description: `Payment for Order #${orderNumber}`,
+                  metadata: { orderNumber },
+                  createdAt: new Date(),
+                  updatedAt: new Date(),
+                });
+
+                if (walletAmountPaid >= orderPricing.grandTotal) {
+                  isFullyPaidByWallet = true;
+                }
+              }
+            }
+          }
+        }
+      } catch (walletErr) {
+        log.error({ walletErr, userId, orderNumber }, 'Error processing wallet deduction during checkout');
+      }
+    }
+
+    orderPricing.walletAmountPaid = walletAmountPaid;
+    orderPricing.gatewayAmount = Math.max(0, orderPricing.grandTotal - walletAmountPaid);
+
+    const effectivePaymentMethod = isFullyPaidByWallet
+      ? 'Wallet'
+      : walletAmountPaid > 0
+      ? 'Cashfree + Wallet'
+      : paymentMethod || 'Cashfree';
+
     const order = await Order.create({
       orderNumber,
       userId,
@@ -70,32 +192,61 @@ export async function createCheckoutOrder(req: Request, res: Response, next: Nex
       shippingAddress,
       billingAddress,
       items,
-      pricing: pricing || {
-        subtotal,
-        couponDiscount: 0,
-        shippingCharge: 0,
-        tax: Math.round(subtotal * 0.18),
-        grandTotal: Math.round(subtotal * 1.18),
-      },
+      pricing: orderPricing,
       couponCode: couponCode || null,
-      paymentStatus: 'pending',
-      fulfilmentStatus: 'pending',
-      paymentMethod: paymentMethod || 'Cashfree',
+      paymentStatus: isFullyPaidByWallet ? 'paid' : 'pending',
+      fulfilmentStatus: isFullyPaidByWallet ? 'confirmed' : 'pending',
+      paymentMethod: effectivePaymentMethod,
       cashfreeOrderId: req.body.cashfreeOrderId || null,
       statusHistory: [
         {
-          status: 'pending',
-          changedBy: customerName,
+          status: isFullyPaidByWallet ? 'confirmed' : 'pending',
+          changedBy: isFullyPaidByWallet ? 'Customer Wallet' : customerName,
           changedAt: new Date().toISOString(),
-          note: 'Order placed by customer.',
+          note: isFullyPaidByWallet
+            ? `Order paid in full using customer wallet balance (₹${(walletAmountPaid / 100).toFixed(2)}).`
+            : walletAmountPaid > 0
+            ? `Order placed. Paid ₹${(walletAmountPaid / 100).toFixed(2)} from wallet, remaining ₹${(orderPricing.gatewayAmount / 100).toFixed(2)} pending via Cashfree.`
+            : 'Order placed by customer.',
         },
       ],
     });
 
+    // Decrement stock for ordered items
+    try {
+      const client = typeof (mongoose.connection as any).getClient === 'function'
+        ? (mongoose.connection as any).getClient()
+        : (mongoose.connection as any).client;
+      const productDb = client ? client.db('ornate_products') : null;
+      if (productDb) {
+        for (const item of items) {
+          const isObjectId = mongoose.Types.ObjectId.isValid(item.productId);
+          const pQuery: any[] = [{ sku: item.sku }];
+          if (isObjectId) {
+            pQuery.unshift({ _id: new mongoose.Types.ObjectId(item.productId) });
+          }
+          await productDb.collection('products').updateOne(
+            { $or: pQuery },
+            { $inc: { stock: -item.quantity } },
+          );
+        }
+      }
+    } catch (stockDecErr) {
+      log.warn({ stockDecErr }, 'Could not decrement product stock after order creation');
+    }
+
+    if (isFullyPaidByWallet) {
+      distributeOrderCommissions(order).catch((err) => {
+        log.error({ err, orderId: order._id, orderNumber: order.orderNumber }, 'Failed to distribute commission on 100% wallet payment');
+      });
+    }
+
     res.status(201).json({
       success: true,
       data: order,
-      message: 'Order placed successfully! Please proceed to payment.',
+      message: isFullyPaidByWallet
+        ? 'Order placed and paid successfully via Wallet!'
+        : 'Order placed successfully! Please proceed to payment.',
     });
   } catch (err) {
     next(err);
@@ -261,6 +412,13 @@ export async function adminUpdateOrderStatus(req: Request, res: Response, next: 
     });
 
     await order.save();
+
+    if (order.paymentStatus === 'paid') {
+      distributeOrderCommissions(order).catch((err) => {
+        log.error({ err, orderId: order._id, orderNumber: order.orderNumber }, 'Failed to distribute commission on admin update');
+      });
+    }
+
     res.json({ success: true, data: order, message: 'Order updated successfully' });
   } catch (err) {
     next(err);
@@ -314,7 +472,32 @@ export async function confirmOrderPayment(req: Request, res: Response, next: Nex
       note: note || 'Payment verified successfully.',
     });
     await order.save();
+
+    if (order.paymentStatus === 'paid') {
+      distributeOrderCommissions(order).catch((err) => {
+        log.error({ err, orderId: order._id, orderNumber: order.orderNumber }, 'Failed to distribute commission on payment confirmation');
+      });
+    }
+
     res.json({ success: true, data: order });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function adminTriggerOrderCommission(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const order = await Order.findOne(getOrderQuery(req.params.id));
+    if (!order) {
+      res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Order not found.' } });
+      return;
+    }
+
+    const summary = await distributeOrderCommissions(order);
+    res.json({
+      success: true,
+      data: summary || { message: 'No new commissions generated (already processed or zero margin)' },
+    });
   } catch (err) {
     next(err);
   }

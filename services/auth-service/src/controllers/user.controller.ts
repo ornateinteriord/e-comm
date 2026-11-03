@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import mongoose from 'mongoose';
 import { Customer } from '../models/customer.model.js';
 import { Address } from '../models/address.model.js';
 import { Wishlist } from '../models/wishlist.model.js';
@@ -8,7 +9,11 @@ export async function getProfile(req: Request, res: Response, next: NextFunction
   try {
     const userId = req.user!.userId;
     let customer = await Customer.findOne({
-      $or: [{ _id: userId }, { userId }],
+      $or: [
+        ...(mongoose.Types.ObjectId.isValid(userId) ? [{ _id: new mongoose.Types.ObjectId(userId) }] : []),
+        { _id: userId },
+        { userId },
+      ],
     });
     if (!customer) {
       res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Profile not found.' } });

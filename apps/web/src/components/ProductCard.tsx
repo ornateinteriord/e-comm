@@ -9,6 +9,7 @@ import {
   Favorite as FavoriteFilledIcon,
   FavoriteBorder as FavoriteBorderIcon,
   Check as CheckIcon,
+  RemoveShoppingCart as OutOfStockIcon,
 } from '@mui/icons-material';
 import { useCartStore } from '../store/cart.store';
 import api from '../api/client';
@@ -29,11 +30,13 @@ export default function ProductCard({ product }: ProductCardProps) {
   const hasDiscount = mrp > applicablePrice;
   const savingsPercent = product.pricing?.savingsPercent ?? (hasDiscount ? Math.round(((mrp - applicablePrice) / mrp) * 100) : 0);
   const isDeal = product.pricing?.dealActive;
-  const isLowStock = product.stock > 0 && product.stock <= 5;
+  const isOutOfStock = (product.stock ?? 0) <= 0;
+  const isLowStock = !isOutOfStock && product.stock > 0 && product.stock <= 5;
 
   const handleAddToCart = (e: MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    if (isOutOfStock) return;
     addItem({
       productId: product.id,
       variantId: null,
@@ -74,17 +77,18 @@ export default function ProductCard({ product }: ProductCardProps) {
         flexDirection: 'column',
         borderRadius: '8px',
         border: '1px solid',
-        borderColor: 'divider',
+        borderColor: isOutOfStock ? '#e2e8f0' : 'divider',
         bgcolor: 'background.paper',
         overflow: 'hidden',
         position: 'relative',
+        opacity: isOutOfStock ? 0.92 : 1,
         transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
         '&:hover': {
-          transform: { xs: 'none', sm: 'translateY(-6px)' },
-          boxShadow: '0 20px 30px -10px rgba(255, 121, 0, 0.12)',
-          borderColor: '#FF7900',
+          transform: isOutOfStock ? 'none' : { xs: 'none', sm: 'translateY(-6px)' },
+          boxShadow: isOutOfStock ? 'none' : '0 20px 30px -10px rgba(255, 121, 0, 0.12)',
+          borderColor: isOutOfStock ? '#cbd5e1' : '#FF7900',
           '& .product-image': {
-            transform: 'scale(1.05)',
+            transform: isOutOfStock ? 'none' : 'scale(1.05)',
           },
         },
       }}
@@ -115,8 +119,41 @@ export default function ProductCard({ product }: ProductCardProps) {
             height: '100%',
             objectFit: 'cover',
             transition: 'transform 0.4s ease',
+            filter: isOutOfStock ? 'grayscale(70%) opacity(0.7)' : 'none',
           }}
         />
+
+        {/* Center Out of Stock Banner over Image */}
+        {isOutOfStock && (
+          <Box
+            sx={{
+              position: 'absolute',
+              inset: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              bgcolor: 'rgba(15, 23, 42, 0.4)',
+              backdropFilter: 'blur(2px)',
+              zIndex: 1,
+            }}
+          >
+            <Chip
+              label="OUT OF STOCK"
+              sx={{
+                bgcolor: 'rgba(15, 23, 42, 0.9)',
+                color: '#ffffff',
+                fontWeight: 900,
+                fontSize: { xs: '0.72rem', sm: '0.8rem' },
+                letterSpacing: '0.06em',
+                py: 0.5,
+                px: 1,
+                borderRadius: '6px',
+                border: '1px solid rgba(255, 255, 255, 0.25)',
+                boxShadow: '0 4px 16px rgba(0, 0, 0, 0.35)',
+              }}
+            />
+          </Box>
+        )}
 
         {/* Badges Overlay */}
         <Stack
@@ -129,48 +166,66 @@ export default function ProductCard({ product }: ProductCardProps) {
             zIndex: 2,
           }}
         >
-          {hasDiscount && (
+          {isOutOfStock ? (
             <Chip
-              label={`${savingsPercent}% OFF`}
+              label="OUT OF STOCK"
               size="small"
               sx={{
-                bgcolor: '#D92D20', // Discount label #D92D20
+                bgcolor: '#dc2626',
                 color: 'white',
                 fontWeight: 800,
                 fontSize: { xs: '0.65rem', sm: '0.72rem' },
                 height: { xs: 20, sm: 24 },
                 borderRadius: 1,
+                letterSpacing: '0.02em',
               }}
             />
-          )}
+          ) : (
+            <>
+              {hasDiscount && (
+                <Chip
+                  label={`${savingsPercent}% OFF`}
+                  size="small"
+                  sx={{
+                    bgcolor: '#D92D20', // Discount label #D92D20
+                    color: 'white',
+                    fontWeight: 800,
+                    fontSize: { xs: '0.65rem', sm: '0.72rem' },
+                    height: { xs: 20, sm: 24 },
+                    borderRadius: 1,
+                  }}
+                />
+              )}
 
-          {isDeal && (
-            <Chip
-              label="SPECIAL DEAL"
-              size="small"
-              sx={{
-                bgcolor: '#FF7900',
-                color: 'white',
-                fontWeight: 800,
-                fontSize: '0.65rem',
-                height: 20,
-                borderRadius: 1,
-              }}
-            />
-          )}
+              {isDeal && (
+                <Chip
+                  label="SPECIAL DEAL"
+                  size="small"
+                  sx={{
+                    bgcolor: '#FF7900',
+                    color: 'white',
+                    fontWeight: 800,
+                    fontSize: '0.65rem',
+                    height: 20,
+                    borderRadius: 1,
+                  }}
+                />
+              )}
 
-          {isLowStock && (
-            <Chip
-              label={`Only ${product.stock} left`}
-              size="small"
-              sx={{
-                bgcolor: '#fef3c7',
-                color: '#b45309',
-                fontWeight: 800,
-                fontSize: '0.65rem',
-                height: 20,
-              }}
-            />
+              {isLowStock && (
+                <Chip
+                  label={`Only ${product.stock} left`}
+                  size="small"
+                  sx={{
+                    bgcolor: '#fef3c7',
+                    color: '#b45309',
+                    fontWeight: 800,
+                    fontSize: '0.65rem',
+                    height: 20,
+                  }}
+                />
+              )}
+            </>
           )}
         </Stack>
 
@@ -223,8 +278,15 @@ export default function ProductCard({ product }: ProductCardProps) {
             {product.brand || product.categoryName || 'FLAGSHIP'}
           </Typography>
 
-          <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
-            {product.stock > 0 ? 'In Stock' : 'Sold Out'}
+          <Typography
+            variant="caption"
+            sx={{
+              fontSize: '0.72rem',
+              fontWeight: 800,
+              color: isOutOfStock ? '#dc2626' : '#16a34a',
+            }}
+          >
+            {isOutOfStock ? 'Out of Stock' : 'In Stock'}
           </Typography>
         </Box>
 
@@ -234,7 +296,7 @@ export default function ProductCard({ product }: ProductCardProps) {
           to={`/products/${product.slug}`}
           variant="subtitle2"
           sx={{
-            color: 'text.primary',
+            color: isOutOfStock ? 'text.secondary' : 'text.primary',
             textDecoration: 'none',
             fontWeight: 700,
             fontSize: { xs: '0.85rem', sm: '0.95rem' },
@@ -245,7 +307,7 @@ export default function ProductCard({ product }: ProductCardProps) {
             WebkitBoxOrient: 'vertical',
             overflow: 'hidden',
             minHeight: { xs: 36, sm: 42 },
-            '&:hover': { color: '#FF7900' },
+            '&:hover': { color: isOutOfStock ? 'text.secondary' : '#FF7900' },
           }}
         >
           {product.name}
@@ -258,7 +320,7 @@ export default function ProductCard({ product }: ProductCardProps) {
               variant="h6"
               fontWeight={900}
               sx={{
-                color: isDeal ? '#D92D20' : 'text.primary',
+                color: isOutOfStock ? '#94a3b8' : (isDeal ? '#D92D20' : 'text.primary'),
                 fontSize: { xs: '1rem', sm: '1.25rem' },
                 letterSpacing: '-0.02em',
               }}
@@ -282,7 +344,15 @@ export default function ProductCard({ product }: ProductCardProps) {
           </Box>
 
           {hasDiscount && (
-            <Typography variant="caption" sx={{ color: '#10b981', fontWeight: 700, display: 'block', mt: 0.25 }}>
+            <Typography
+              variant="caption"
+              sx={{
+                color: isOutOfStock ? '#94a3b8' : '#10b981',
+                fontWeight: 700,
+                display: 'block',
+                mt: 0.25,
+              }}
+            >
               Save ₹{((mrp - applicablePrice) / 100).toLocaleString('en-IN')}
             </Typography>
           )}
@@ -293,24 +363,27 @@ export default function ProductCard({ product }: ProductCardProps) {
           variant="contained"
           fullWidth
           size="small"
+          disabled={isOutOfStock}
           onClick={handleAddToCart}
-          startIcon={addedAnim ? <CheckIcon fontSize="small" /> : <CartIcon fontSize="small" />}
+          startIcon={isOutOfStock ? <OutOfStockIcon fontSize="small" /> : (addedAnim ? <CheckIcon fontSize="small" /> : <CartIcon fontSize="small" />)}
           sx={{
             mt: 2,
             py: { xs: 0.85, sm: 1 },
             borderRadius: '6px',
             fontWeight: 700,
             fontSize: { xs: '0.75rem', sm: '0.85rem' },
-            bgcolor: addedAnim ? '#16a34a' : '#FF7900',
-            color: 'white',
+            bgcolor: isOutOfStock ? '#f1f5f9 !important' : (addedAnim ? '#16a34a' : '#FF7900'),
+            color: isOutOfStock ? '#94a3b8 !important' : 'white',
+            border: isOutOfStock ? '1px solid #e2e8f0' : 'none',
             boxShadow: 'none',
+            cursor: isOutOfStock ? 'not-allowed' : 'pointer',
             '&:hover': {
-              bgcolor: addedAnim ? '#15803d' : '#E85D04',
-              boxShadow: '0 4px 12px rgba(255, 121, 0, 0.25)',
+              bgcolor: isOutOfStock ? '#f1f5f9 !important' : (addedAnim ? '#15803d' : '#E85D04'),
+              boxShadow: isOutOfStock ? 'none' : '0 4px 12px rgba(255, 121, 0, 0.25)',
             },
           }}
         >
-          {addedAnim ? 'Added to Bag' : 'Add to Cart'}
+          {isOutOfStock ? 'Out of Stock' : (addedAnim ? 'Added to Bag' : 'Add to Cart')}
         </Button>
       </CardContent>
     </Card>

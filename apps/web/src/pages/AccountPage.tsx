@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Box, Container, Typography, Paper, Grid, TextField, Button,
@@ -17,8 +17,44 @@ export default function AccountPage() {
   const queryClient = useQueryClient();
   const { user, setAuth } = useAuthStore();
 
-  const [name, setName] = useState(user?.name || '');
+  // Real-time user profile query (fetches updated level, name, customerId, etc.)
+  const { data: profile } = useQuery({
+    queryKey: ['my-profile'],
+    queryFn: async () => {
+      try {
+        const { data } = await api.get('/users/profile');
+        const cust = data.data;
+        if (cust) {
+          const currentToken = useAuthStore.getState().accessToken;
+          if (currentToken) {
+            setAuth(currentToken, {
+              ...user,
+              ...cust,
+              id: cust._id || cust.id || user?.id,
+              name: cust.fullName || cust.name || user?.name,
+              level: cust.level ?? 0,
+            });
+          }
+        }
+        return cust;
+      } catch {
+        return null;
+      }
+    },
+    staleTime: 1000 * 10,
+  });
+
+  const effectiveUser = profile || user;
+  const currentLevel = profile?.level ?? user?.level ?? 0;
+
+  const [name, setName] = useState(effectiveUser?.fullName || effectiveUser?.name || '');
   const [profileSuccess, setProfileSuccess] = useState(false);
+
+  useEffect(() => {
+    if (effectiveUser?.fullName || effectiveUser?.name) {
+      setName(effectiveUser.fullName || effectiveUser.name);
+    }
+  }, [effectiveUser?.fullName, effectiveUser?.name]);
 
   const [newAddress, setNewAddress] = useState({
     name: user?.name || '',
@@ -93,13 +129,13 @@ export default function AccountPage() {
                 <UserIcon sx={{ fontSize: 32 }} />
               </Box>
               <Box>
-                <Typography variant="h6" fontWeight={800}>{user?.name || 'Customer'}</Typography>
-                <Typography variant="body2" color="text.secondary">{user?.email}</Typography>
+                <Typography variant="h6" fontWeight={800}>{effectiveUser?.fullName || effectiveUser?.name || 'Customer'}</Typography>
+                <Typography variant="body2" color="text.secondary">{effectiveUser?.email}</Typography>
                 <Box sx={{ display: 'flex', gap: 1, mt: 0.5, flexWrap: 'wrap' }}>
-                  <Chip label={`Role: ${user?.role || 'customer'}`} size="small" color="primary" sx={{ fontWeight: 700 }} />
-                  <Chip label={`Level: ${user?.level ?? 0}`} size="small" color="secondary" sx={{ fontWeight: 800 }} />
-                  {user?.customerId && (
-                    <Chip label={`Referral Code: ${user.customerId}`} size="small" variant="outlined" sx={{ fontWeight: 700 }} />
+                  <Chip label={`Role: ${effectiveUser?.role || 'customer'}`} size="small" color="primary" sx={{ fontWeight: 700 }} />
+                  <Chip label={`Level: ${currentLevel}`} size="small" color="secondary" sx={{ fontWeight: 800 }} />
+                  {(effectiveUser?.customerId || effectiveUser?.customer_id) && (
+                    <Chip label={`Referral Code: ${effectiveUser.customerId || effectiveUser.customer_id}`} size="small" variant="outlined" sx={{ fontWeight: 700 }} />
                   )}
                 </Box>
               </Box>
@@ -133,6 +169,7 @@ export default function AccountPage() {
                 onClick={async () => {
                   try {
                     await api.put('/users/profile', { name });
+                    queryClient.invalidateQueries({ queryKey: ['my-profile'] });
                     if (user) setAuth(useAuthStore.getState().accessToken || '', { ...user, name });
                     setProfileSuccess(true);
                   } catch {

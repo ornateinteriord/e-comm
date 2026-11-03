@@ -232,6 +232,7 @@ export async function register(req: Request, res: Response, next: NextFunction):
           city: customer.city,
           pincode: customer.pincode,
           gender: customer.gender,
+          walletBalance: customer.walletBalance ?? 0,
         },
       },
     });
@@ -321,6 +322,7 @@ export async function login(req: Request, res: Response, next: NextFunction): Pr
           city: customer.city,
           pincode: customer.pincode,
           gender: customer.gender,
+          walletBalance: customer.walletBalance ?? 0,
         },
       },
     });
@@ -414,6 +416,7 @@ export async function getMe(req: Request, res: Response, next: NextFunction): Pr
         city: customer.city,
         pincode: customer.pincode,
         gender: customer.gender,
+        walletBalance: customer.walletBalance ?? 0,
         createdAt: customer.createdAt,
       },
     });

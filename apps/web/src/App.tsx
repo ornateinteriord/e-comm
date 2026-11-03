@@ -16,6 +16,7 @@ const PaymentReturnPage = React.lazy(() => import('./pages/PaymentReturnPage.tsx
 const OrdersPage = React.lazy(() => import('./pages/OrdersPage.tsx'));
 const OrderDetailPage = React.lazy(() => import('./pages/OrderDetailPage.tsx'));
 const WishlistPage = React.lazy(() => import('./pages/WishlistPage.tsx'));
+const WalletPage = React.lazy(() => import('./pages/WalletPage.tsx'));
 const AccountPage = React.lazy(() => import('./pages/AccountPage.tsx'));
 const LoginPage = React.lazy(() => import('./pages/LoginPage.tsx'));
 const RegisterPage = React.lazy(() => import('./pages/RegisterPage.tsx'));
@@ -49,6 +50,7 @@ export default function App() {
             <Route path="orders" element={<OrdersPage />} />
             <Route path="orders/:id" element={<OrderDetailPage />} />
             <Route path="wishlist" element={<WishlistPage />} />
+            <Route path="wallet" element={<WalletPage />} />
             <Route path="account" element={<AccountPage />} />
             <Route path="login" element={<LoginPage />} />
             <Route path="register" element={<RegisterPage />} />

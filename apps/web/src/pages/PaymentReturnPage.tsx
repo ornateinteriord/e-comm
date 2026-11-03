@@ -110,8 +110,21 @@ export default function PaymentReturnPage() {
 
   // Initial call on mount
   useEffect(() => {
+    if (searchParams.get('paid_by') === 'wallet' && orderId) {
+      setStatus('success');
+      setPaymentDetails({
+        orderId,
+        message: 'Order paid in full using your E-Shophy wallet balance!',
+      });
+      if (!hasClearedCart.current) {
+        clearCart();
+        hasClearedCart.current = true;
+        api.post('/invoices/generate', { orderId }).catch(() => {});
+      }
+      return;
+    }
     verifyPayment(1);
-  }, [verifyPayment]);
+  }, [verifyPayment, orderId, searchParams, clearCart]);
 
   // Polling loop when status is 'verifying' and attempt is between 2 and MAX_ATTEMPTS
   useEffect(() => {

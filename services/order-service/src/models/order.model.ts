@@ -21,6 +21,18 @@ export interface IOrder extends Document {
   shippingProvider?: string;
   statusHistory: StatusHistoryEntry[];
   notes?: string;
+  commissionProcessed?: boolean;
+  commissionMargin?: number;
+  commissionTotal?: number;
+  commissionBreakdown?: Array<{
+    level: number;
+    role: string;
+    beneficiaryId: string;
+    beneficiaryName?: string;
+    rate: number;
+    amount: number;
+    commissionId: string;
+  }>;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -73,6 +85,8 @@ const orderSchema = new Schema<IOrder>(
       shippingCharge: { type: Number, default: 0 },
       tax: { type: Number, default: 0 },
       grandTotal: { type: Number, required: true },
+      walletAmountPaid: { type: Number, default: 0 },
+      gatewayAmount: { type: Number },
     },
     couponCode: { type: String, default: null },
     paymentStatus: {
@@ -102,6 +116,10 @@ const orderSchema = new Schema<IOrder>(
       },
     ],
     notes: { type: String },
+    commissionProcessed: { type: Boolean, default: false },
+    commissionMargin: { type: Number, default: 0 },
+    commissionTotal: { type: Number, default: 0 },
+    commissionBreakdown: { type: Array, default: [] },
   },
   { timestamps: true },
 );

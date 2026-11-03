@@ -33,6 +33,7 @@ export interface ICustomer extends Document {
   resetPasswordExpires?: Date;
   totalOrders: number;
   totalSpent: number;
+  walletBalance: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -94,6 +95,7 @@ const customerSchema = new Schema<ICustomer>(
     resetPasswordExpires: { type: Date, select: false },
     totalOrders: { type: Number, default: 0 },
     totalSpent: { type: Number, default: 0 },
+    walletBalance: { type: Number, default: 0, min: 0 },
   },
   {
     timestamps: true,

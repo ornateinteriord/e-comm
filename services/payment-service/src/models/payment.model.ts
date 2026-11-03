@@ -21,6 +21,7 @@ export interface IPaymentTransaction extends Document {
   errorDescription?: string;
   failureReason?: string;
   webhookProcessed?: boolean;
+  environment?: 'production' | 'sandbox';
   createdAt: Date;
   updatedAt: Date;
 }
@@ -52,6 +53,7 @@ const paymentTransactionSchema = new Schema<IPaymentTransaction>(
     errorDescription: { type: String },
     failureReason: { type: String },
     webhookProcessed: { type: Boolean, default: false },
+    environment: { type: String, enum: ['production', 'sandbox'], default: 'sandbox' },
   },
   { timestamps: true },
 );

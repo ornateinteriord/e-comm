@@ -77,12 +77,14 @@ export default function ProductDetailPage() {
   const savingsPercent = product.pricing?.savingsPercent ?? (hasDiscount ? Math.round(((mrp - applicablePrice) / mrp) * 100) : 0);
   const savingsAmount = mrp - applicablePrice;
   const isDeal = product.pricing?.dealActive;
+  const isOutOfStock = (product.stock ?? 0) <= 0;
 
   const images = product.images?.length
     ? product.images
     : [{ id: 'default', url: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800&q=80', order: 0 }];
 
   const handleAddToCart = () => {
+    if (isOutOfStock) return;
     addItem({
       productId: product.id,
       variantId: selectedVariant?.id || null,
@@ -99,6 +101,7 @@ export default function ProductDetailPage() {
   };
 
   const handleBuyNow = () => {
+    if (isOutOfStock) return;
     handleAddToCart();
     navigate('/checkout');
   };
@@ -157,22 +160,63 @@ export default function ProductDetailPage() {
                     width: '100%',
                     height: '100%',
                     objectFit: 'cover',
+                    filter: isOutOfStock ? 'grayscale(70%) opacity(0.75)' : 'none',
                   }}
                 />
 
+                {isOutOfStock && (
+                  <Box
+                    sx={{
+                      position: 'absolute',
+                      inset: 0,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      bgcolor: 'rgba(15, 23, 42, 0.45)',
+                      backdropFilter: 'blur(2px)',
+                      zIndex: 1,
+                    }}
+                  >
+                    <Chip
+                      label="OUT OF STOCK"
+                      sx={{
+                        bgcolor: 'rgba(15, 23, 42, 0.95)',
+                        color: '#ffffff',
+                        fontWeight: 900,
+                        fontSize: '0.95rem',
+                        letterSpacing: '0.08em',
+                        py: 1,
+                        px: 2,
+                        borderRadius: '8px',
+                        border: '1px solid rgba(255, 255, 255, 0.25)',
+                        boxShadow: '0 6px 20px rgba(0, 0, 0, 0.4)',
+                      }}
+                    />
+                  </Box>
+                )}
+
                 {/* Badges on Gallery */}
-                <Stack direction="row" spacing={1} sx={{ position: 'absolute', top: 16, left: 16 }}>
-                  {hasDiscount && (
+                <Stack direction="row" spacing={1} sx={{ position: 'absolute', top: 16, left: 16, zIndex: 2 }}>
+                  {isOutOfStock ? (
                     <Chip
-                      label={`${savingsPercent}% OFF`}
-                      sx={{ bgcolor: '#D92D20', color: 'white', fontWeight: 800, fontSize: '0.75rem' }}
+                      label="OUT OF STOCK"
+                      sx={{ bgcolor: '#dc2626', color: 'white', fontWeight: 900, fontSize: '0.75rem', borderRadius: 1 }}
                     />
-                  )}
-                  {isDeal && (
-                    <Chip
-                      label="SPECIAL DEAL"
-                      sx={{ bgcolor: '#FF7900', color: 'white', fontWeight: 800, fontSize: '0.75rem', borderRadius: 1 }}
-                    />
+                  ) : (
+                    <>
+                      {hasDiscount && (
+                        <Chip
+                          label={`${savingsPercent}% OFF`}
+                          sx={{ bgcolor: '#D92D20', color: 'white', fontWeight: 800, fontSize: '0.75rem' }}
+                        />
+                      )}
+                      {isDeal && (
+                        <Chip
+                          label="SPECIAL DEAL"
+                          sx={{ bgcolor: '#FF7900', color: 'white', fontWeight: 800, fontSize: '0.75rem', borderRadius: 1 }}
+                        />
+                      )}
+                    </>
                   )}
                 </Stack>
 
@@ -356,11 +400,11 @@ export default function ProductDetailPage() {
                         bgcolor: 'background.paper',
                       }}
                     >
-                      <IconButton size="small" onClick={() => setQuantity(Math.max(1, quantity - 1))}>
+                      <IconButton size="small" disabled={isOutOfStock || quantity <= 1} onClick={() => setQuantity(Math.max(1, quantity - 1))}>
                         <RemoveIcon fontSize="small" />
                       </IconButton>
                       <Typography sx={{ px: 2, fontWeight: 800 }}>{quantity}</Typography>
-                      <IconButton size="small" onClick={() => setQuantity(quantity + 1)}>
+                      <IconButton size="small" disabled={isOutOfStock || quantity >= product.stock} onClick={() => setQuantity(quantity + 1)}>
                         <AddIcon fontSize="small" />
                       </IconButton>
                     </Box>
@@ -371,41 +415,47 @@ export default function ProductDetailPage() {
                       variant="outlined"
                       size="large"
                       fullWidth
-                      startIcon={<CartIcon />}
+                      disabled={isOutOfStock}
+                      startIcon={isOutOfStock ? undefined : <CartIcon />}
                       onClick={handleAddToCart}
                       sx={{
-                        borderColor: isLight ? '#172B30' : 'rgba(255, 255, 255, 0.3)',
-                        color: isLight ? '#172B30' : '#FFFFFF',
+                        borderColor: isOutOfStock ? '#cbd5e1 !important' : (isLight ? '#172B30' : 'rgba(255, 255, 255, 0.3)'),
+                        color: isOutOfStock ? '#94a3b8 !important' : (isLight ? '#172B30' : '#FFFFFF'),
+                        bgcolor: isOutOfStock ? '#f1f5f9 !important' : 'transparent',
+                        cursor: isOutOfStock ? 'not-allowed' : 'pointer',
                         py: 1.5,
                         borderRadius: 1,
                         fontWeight: 700,
                         fontSize: '0.95rem',
                         '&:hover': {
-                          borderColor: '#FF7900',
-                          color: '#FF7900',
-                          bgcolor: isLight ? 'rgba(255, 121, 0, 0.04)' : 'rgba(255, 121, 0, 0.1)',
+                          borderColor: isOutOfStock ? '#cbd5e1 !important' : '#FF7900',
+                          color: isOutOfStock ? '#94a3b8 !important' : '#FF7900',
+                          bgcolor: isOutOfStock ? '#f1f5f9 !important' : (isLight ? 'rgba(255, 121, 0, 0.04)' : 'rgba(255, 121, 0, 0.1)'),
                         },
                       }}
                     >
-                      Add to Shopping Bag
+                      {isOutOfStock ? 'Out of Stock' : 'Add to Shopping Bag'}
                     </Button>
                     <Button
                       variant="contained"
                       size="large"
                       fullWidth
-                      startIcon={<BuyNowIcon />}
+                      disabled={isOutOfStock}
+                      startIcon={isOutOfStock ? undefined : <BuyNowIcon />}
                       onClick={handleBuyNow}
                       sx={{
-                        bgcolor: '#FF7900',
-                        color: '#FFFFFF',
+                        bgcolor: isOutOfStock ? '#e2e8f0 !important' : '#FF7900',
+                        color: isOutOfStock ? '#94a3b8 !important' : '#FFFFFF',
+                        border: isOutOfStock ? '1px solid #cbd5e1' : 'none',
+                        cursor: isOutOfStock ? 'not-allowed' : 'pointer',
                         py: 1.5,
                         borderRadius: 1,
                         fontWeight: 700,
                         fontSize: '0.95rem',
-                        '&:hover': { bgcolor: '#E85D04' },
+                        '&:hover': { bgcolor: isOutOfStock ? '#e2e8f0 !important' : '#E85D04' },
                       }}
                     >
-                      Buy Now
+                      {isOutOfStock ? 'Sold Out' : 'Buy Now'}
                     </Button>
                   </Stack>
                 </Box>
@@ -493,39 +543,37 @@ export default function ProductDetailPage() {
             <Button
               variant="outlined"
               size="small"
+              disabled={isOutOfStock}
               onClick={handleAddToCart}
               sx={{
                 py: 0.75,
                 px: 2,
                 borderRadius: 1,
                 fontWeight: 700,
-                color: isLight ? '#172B30' : '#FFFFFF',
-                borderColor: isLight ? '#172B30' : 'rgba(255, 255, 255, 0.25)',
+                color: isOutOfStock ? '#94a3b8 !important' : (isLight ? '#172B30' : '#FFFFFF'),
+                borderColor: isOutOfStock ? '#cbd5e1 !important' : (isLight ? '#172B30' : 'rgba(255, 255, 255, 0.25)'),
+                bgcolor: isOutOfStock ? '#f1f5f9 !important' : 'transparent',
                 fontSize: '0.8rem',
-                '&:hover': {
-                  borderColor: '#FF7900',
-                  color: '#FF7900',
-                },
               }}
             >
-              Add to Bag
+              {isOutOfStock ? 'Out of Stock' : 'Add to Bag'}
             </Button>
             <Button
               variant="contained"
               size="small"
+              disabled={isOutOfStock}
               onClick={handleBuyNow}
               sx={{
                 py: 0.75,
                 px: 2.5,
                 borderRadius: 1,
                 fontWeight: 700,
-                bgcolor: '#FF7900',
-                color: '#FFFFFF',
+                bgcolor: isOutOfStock ? '#e2e8f0 !important' : '#FF7900',
+                color: isOutOfStock ? '#94a3b8 !important' : '#FFFFFF',
                 fontSize: '0.8rem',
-                '&:hover': { bgcolor: '#E85D04' },
               }}
             >
-              Buy Now
+              {isOutOfStock ? 'Sold Out' : 'Buy Now'}
             </Button>
           </Stack>
         </Paper>
