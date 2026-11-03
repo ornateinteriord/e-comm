@@ -13,6 +13,7 @@ export interface ICustomer extends Document {
   username?: string;
   passwordHash: string;
   role: UserRole;
+  level: number;
   referralCode?: string;
   referralName?: string;
   referralType?: 'vendor' | 'customer';
@@ -69,6 +70,7 @@ const customerSchema = new Schema<ICustomer>(
       ],
       default: 'customer',
     },
+    level: { type: Number, default: 0, min: 0 },
     referralCode: { type: String, trim: true, index: true },
     referralName: { type: String, trim: true },
     referralType: { type: String, enum: ['vendor', 'customer'], default: 'vendor' },

@@ -21,6 +21,7 @@ const LoginPage = React.lazy(() => import('./pages/LoginPage.tsx'));
 const RegisterPage = React.lazy(() => import('./pages/RegisterPage.tsx'));
 const PrivacyPolicyPage = React.lazy(() => import('./pages/PrivacyPolicyPage.tsx'));
 const TermsPage = React.lazy(() => import('./pages/TermsPage.tsx'));
+const ContactPage = React.lazy(() => import('./pages/ContactPage.tsx'));
 const NotFoundPage = React.lazy(() => import('./pages/NotFoundPage.tsx'));
 
 function PageLoader() {
@@ -53,6 +54,8 @@ export default function App() {
             <Route path="register" element={<RegisterPage />} />
             <Route path="privacy-policy" element={<PrivacyPolicyPage />} />
             <Route path="terms-and-conditions" element={<TermsPage />} />
+            <Route path="contact" element={<ContactPage />} />
+            <Route path="contact-us" element={<ContactPage />} />
             <Route path="*" element={<NotFoundPage />} />
           </Route>
         </Routes>

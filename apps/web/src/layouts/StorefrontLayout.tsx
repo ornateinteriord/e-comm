@@ -104,7 +104,7 @@ export default function StorefrontLayout() {
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', bgcolor: 'background.default', width: '100%', maxWidth: '100vw', overflowX: 'hidden' }}>
       {/* ---- Desktop Top Banner ---- */}
-      {!isMobile && (
+      {/* {true && (
         <Box
           sx={{
             bgcolor: isLight ? '#172B30' : '#0B0F19',
@@ -128,7 +128,7 @@ export default function StorefrontLayout() {
             <span>Express Shipping on Orders Over ₹500</span>
           </Box>
         </Box>
-      )}
+      )} */}
 
       {/* ---- Main Desktop Header ---- */}
       {!isMobile && (

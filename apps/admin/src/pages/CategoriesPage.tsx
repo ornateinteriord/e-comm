@@ -45,8 +45,21 @@ export default function CategoriesPage() {
   const { data: categories, isLoading } = useQuery<Category[]>({
     queryKey: ['admin-categories'],
     queryFn: async () => {
-      const { data } = await api.get('/categories');
-      return data.data;
+      try {
+        const { data } = await api.get('/categories');
+        const list = data?.data?.categories || data?.data || data || [];
+        if (Array.isArray(list) && list.length > 0) return list;
+      } catch {
+        // try admin route
+      }
+      try {
+        const { data } = await api.get('/admin/categories');
+        const list = data?.data?.categories || data?.data || data || [];
+        if (Array.isArray(list)) return list;
+      } catch {
+        // ignore
+      }
+      return [];
     },
   });
 

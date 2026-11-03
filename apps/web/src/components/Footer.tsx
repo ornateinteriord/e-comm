@@ -70,6 +70,7 @@ export default function Footer() {
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
               <Link component={RouterLink} to="/orders" sx={{ color: '#94A3B8', textDecoration: 'none', fontSize: '0.875rem', '&:hover': { color: '#FF7900' }, transition: 'color 0.15s' }}>Track Orders</Link>
               <Link component={RouterLink} to="/wishlist" sx={{ color: '#94A3B8', textDecoration: 'none', fontSize: '0.875rem', '&:hover': { color: '#FF7900' }, transition: 'color 0.15s' }}>Wishlist</Link>
+              <Link component={RouterLink} to="/contact" sx={{ color: '#94A3B8', textDecoration: 'none', fontSize: '0.875rem', '&:hover': { color: '#FF7900' }, transition: 'color 0.15s' }}>Contact Us</Link>
               <Link component={RouterLink} to="/privacy-policy" sx={{ color: '#94A3B8', textDecoration: 'none', fontSize: '0.875rem', '&:hover': { color: '#FF7900' }, transition: 'color 0.15s' }}>Privacy Policy</Link>
               <Link component={RouterLink} to="/terms-and-conditions" sx={{ color: '#94A3B8', textDecoration: 'none', fontSize: '0.875rem', '&:hover': { color: '#FF7900' }, transition: 'color 0.15s' }}>Terms & Conditions</Link>
             </Box>

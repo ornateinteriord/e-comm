@@ -9,6 +9,7 @@ import { connectDB } from '@ornate/db';
 import { createLogger } from '@ornate/logger';
 import authRoutes from './routes/auth.routes.js';
 import userRoutes from './routes/user.routes.js';
+import contactRoutes from './routes/contact.routes.js';
 import { requireAuth, requireRole } from './middleware/auth.middleware.js';
 import {
   getProfile,
@@ -119,6 +120,9 @@ app.post('/api/v1/wishlist', requireAuth, addToWishlist);
 app.delete('/api/v1/wishlist/:productId', requireAuth, removeFromWishlist);
 
 app.get('/api/v1/admin/customers', requireAuth, requireRole('support', 'admin', 'super_admin'), adminListCustomers);
+
+// Contact Us Inquiries (public submission & admin management)
+app.use(contactRoutes);
 
 // Admin routes (forwarded by gateway preserving path)
 app.use('/api/v1/admin', authRoutes);

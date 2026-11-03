@@ -18,6 +18,15 @@ import {
 import api from '../api/client';
 import type { AdminProduct } from '@ornate/types';
 
+export const DEFAULT_CATEGORIES = [
+  { id: '6ad1ef935be79206b89816e5', _id: '6ad1ef935be79206b89816e5', name: 'Electronics & Audio', slug: 'electronics' },
+  { id: '6ad1ef935be79206b89816e6', _id: '6ad1ef935be79206b89816e6', name: 'Fashion & Apparel', slug: 'clothing' },
+  { id: '6ad1ef935be79206b89816e7', _id: '6ad1ef935be79206b89816e7', name: 'Watches & Accessories', slug: 'accessories' },
+  { id: '6ad1ef935be79206b89816e8', _id: '6ad1ef935be79206b89816e8', name: 'Home, Living & Coffee', slug: 'home-kitchen' },
+  { id: '6ad1ef935be79206b89816e9', _id: '6ad1ef935be79206b89816e9', name: 'Fitness & Outdoors', slug: 'sports' },
+  { id: '6ad1ef935be79206b89816ea', _id: '6ad1ef935be79206b89816ea', name: 'Books & Stationery', slug: 'books' },
+];
+
 export default function ProductsPage() {
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -79,19 +88,45 @@ export default function ProductsPage() {
     },
   });
 
-  const { data: categories } = useQuery({
-    queryKey: ['admin-categories-list'],
+  const { data: rawCategories } = useQuery({
+    queryKey: ['admin-categories'],
     queryFn: async () => {
-      const { data } = await api.get('/categories');
-      const rawList = Array.isArray(data.data) ? data.data : [];
-      return rawList.map((cat: any) => ({
-        id: String(cat.id || cat._id || ''),
-        _id: String(cat._id || cat.id || ''),
-        name: cat.name,
-        slug: cat.slug,
-      }));
+      try {
+        const res = await api.get('/categories');
+        const raw = res.data?.data?.categories || res.data?.data || res.data || [];
+        const rawList = Array.isArray(raw) ? raw : [];
+        if (rawList.length > 0) {
+          return rawList.map((cat: any) => ({
+            id: String(cat.id || cat._id || ''),
+            _id: String(cat._id || cat.id || ''),
+            name: cat.name,
+            slug: cat.slug,
+          }));
+        }
+      } catch {
+        // Fallback to /admin/categories
+        try {
+          const res2 = await api.get('/admin/categories');
+          const raw2 = res2.data?.data?.categories || res2.data?.data || res2.data || [];
+          const rawList2 = Array.isArray(raw2) ? raw2 : [];
+          if (rawList2.length > 0) {
+            return rawList2.map((cat: any) => ({
+              id: String(cat.id || cat._id || ''),
+              _id: String(cat._id || cat.id || ''),
+              name: cat.name,
+              slug: cat.slug,
+            }));
+          }
+        } catch {
+          // Fall through to default categories
+        }
+      }
+      return DEFAULT_CATEGORIES;
     },
+    initialData: DEFAULT_CATEGORIES,
   });
+
+  const categories = rawCategories && rawCategories.length > 0 ? rawCategories : DEFAULT_CATEGORIES;
 
   const saveMutation = useMutation({
     mutationFn: async () => {
@@ -206,7 +241,7 @@ export default function ProductsPage() {
 
   const openCreateDialog = () => {
     setEditingProduct(null);
-    const firstCat = categories?.[0];
+    const firstCat = categories?.[0] || DEFAULT_CATEGORIES[0];
     const defaultCatId = firstCat ? (firstCat.id || (firstCat as any)._id) : '';
     setForm({
       name: '',
@@ -586,17 +621,30 @@ export default function ProductsPage() {
                 size="small"
                 value={form.category}
                 onChange={(e) => setForm({ ...form, category: e.target.value })}
+                InputLabelProps={{ shrink: true }}
                 SelectProps={{
                   displayEmpty: true,
+                  renderValue: (selected) => {
+                    const selStr = String(selected || '');
+                    if (!selStr) {
+                      return (
+                        <Typography component="span" sx={{ color: 'text.disabled', fontStyle: 'italic', fontSize: '0.875rem' }}>
+                          Select a Category
+                        </Typography>
+                      );
+                    }
+                    const found = categories.find((c) => (c.id || c._id) === selStr || c.slug === selStr || c.name === selStr);
+                    return found ? found.name : selStr;
+                  },
                 }}
                 error={Boolean(formError && !form.category)}
                 helperText={!form.category ? 'Please select a product category' : ''}
               >
-                <MenuItem value="" disabled>
-                  <em>Select a Category</em>
+                <MenuItem value="" disabled sx={{ color: 'text.disabled', fontStyle: 'italic' }}>
+                  Select a Category
                 </MenuItem>
-                {categories?.map((cat) => {
-                  const val = cat.id || cat._id;
+                {categories.map((cat, idx) => {
+                  const val = cat.id || cat._id || `cat-${idx}`;
                   return (
                     <MenuItem key={val} value={val}>
                       {cat.name}

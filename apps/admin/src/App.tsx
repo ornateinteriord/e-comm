@@ -12,6 +12,7 @@ const OrdersPage = React.lazy(() => import('./pages/OrdersPage.tsx'));
 const InventoryPage = React.lazy(() => import('./pages/InventoryPage.tsx'));
 const InvoicesPage = React.lazy(() => import('./pages/InvoicesPage.tsx'));
 const CustomersPage = React.lazy(() => import('./pages/CustomersPage.tsx'));
+const ContactMessagesPage = React.lazy(() => import('./pages/ContactMessagesPage.tsx'));
 const CouponsPage = React.lazy(() => import('./pages/CouponsPage.tsx'));
 const AuditLogsPage = React.lazy(() => import('./pages/AuditLogsPage.tsx'));
 const SystemHealthPage = React.lazy(() => import('./pages/SystemHealthPage.tsx'));
@@ -60,6 +61,7 @@ export default function App() {
             <Route path="inventory" element={<InventoryPage />} />
             <Route path="invoices" element={<InvoicesPage />} />
             <Route path="customers" element={<CustomersPage />} />
+            <Route path="contact-messages" element={<ContactMessagesPage />} />
             <Route path="coupons" element={<CouponsPage />} />
             <Route path="audit-logs" element={<AuditLogsPage />} />
             {/* Also accessible inside admin shell if logged in */}
