@@ -6,8 +6,8 @@ import { createLogger } from '@ornate/logger';
 const log = createLogger('mailer');
 
 function getTransporter() {
-  const user = process.env.EMAIL_USER || process.env.SMTP_USER || 'ornateinteriord@gmail.com';
-  const pass = process.env.EMAIL_PASS || process.env.SMTP_PASS || 'wjrjoxmcinltblps';
+  const user = process.env.EMAIL_USER || process.env.SMTP_USER || '';
+  const pass = process.env.EMAIL_PASS || process.env.SMTP_PASS || '';
 
   return nodemailer.createTransport({
     host: process.env.SMTP_HOST || 'smtp.gmail.com',

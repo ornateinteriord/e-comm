@@ -9,8 +9,12 @@ const log = createLogger('wallet-controller');
 /**
  * Synchronizes any credited commission records from e-cash.commission_tbl into
  * ornate_auth.wallettransactions for the customer if not already present.
+ * Also atomically credits walletBalance on the customer document for each
+ * newly-discovered commission (fixes the ₹0 balance bug).
+ * Returns total paise newly credited (0 if everything was already in sync).
  */
-async function syncCustomerCommissions(customer: any): Promise<void> {
+async function syncCustomerCommissions(customer: any): Promise<number> {
+  let totalNewlyCreditedPaise = 0;
   try {
     const client =
       typeof (mongoose.connection as any).getClient === 'function'
@@ -18,6 +22,7 @@ async function syncCustomerCommissions(customer: any): Promise<void> {
         : (mongoose.connection as any).client;
 
     const ecashDb = client ? client.db('e-cash') : mongoose.connection.useDb('e-cash');
+    const authDb  = client ? client.db('ornate_auth') : (mongoose.connection.useDb('ornate_auth') as any).db;
 
     const customerIdentifiers = [
       String(customer._id),
@@ -36,7 +41,7 @@ async function syncCustomerCommissions(customer: any): Promise<void> {
       status: 'CREDITED',
     }).toArray();
 
-    if (!comms || comms.length === 0) return;
+    if (!comms || comms.length === 0) return 0;
 
     for (const comm of comms) {
       const commId = String(comm.commission_id || '');
@@ -55,6 +60,19 @@ async function syncCustomerCommissions(customer: any): Promise<void> {
         const orderNumber = comm.transaction_id || refId;
         const createdAtDate = comm.transaction_date || comm.credited_at || comm.createdAt || new Date();
 
+        if (amountPaise <= 0) continue;
+
+        // ── KEY FIX: atomically increment walletBalance on the customer document ──
+        const updatedCustomer = await authDb.collection('customers').findOneAndUpdate(
+          { _id: customer._id },
+          { $inc: { walletBalance: amountPaise } },
+          { returnDocument: 'after' },
+        );
+
+        const newBalancePaise =
+          (updatedCustomer && (updatedCustomer.walletBalance ?? updatedCustomer.value?.walletBalance)) ??
+          ((customer.walletBalance || 0) + amountPaise);
+
         await WalletTransaction.create({
           transactionId: `txn_comm_${commId}`,
           userId: String(customer._id),
@@ -63,8 +81,8 @@ async function syncCustomerCommissions(customer: any): Promise<void> {
           category: 'commission',
           amount: amountPaise,
           amountRupees,
-          balanceAfter: customer.walletBalance || 0,
-          balanceAfterRupees: Number(((customer.walletBalance || 0) / 100).toFixed(2)),
+          balanceAfter: newBalancePaise,
+          balanceAfterRupees: Number((newBalancePaise / 100).toFixed(2)),
           status: 'success',
           referenceId: orderNumber,
           description: `Commission from Order #${orderNumber} (Level ${comm.level || 1})`,
@@ -81,15 +99,20 @@ async function syncCustomerCommissions(customer: any): Promise<void> {
           updatedAt: comm.updatedAt || createdAtDate,
         });
 
+        // Keep local reference in sync for subsequent iterations
+        customer.walletBalance = newBalancePaise;
+        totalNewlyCreditedPaise += amountPaise;
+
         log.info(
-          { commissionId: commId, customerId: customer.customerId, amountRupees },
-          '[WALLET] Synchronized missing commission record to wallettransactions',
+          { commissionId: commId, customerId: customer.customerId, amountRupees, newBalancePaise },
+          '[WALLET] Synced commission record + credited walletBalance',
         );
       }
     }
   } catch (syncErr) {
     log.warn({ syncErr }, '[WALLET] Non-fatal error while syncing commissions from commission_tbl');
   }
+  return totalNewlyCreditedPaise;
 }
 
 function getCashfreeConfig(requestedMode?: string): {
@@ -121,6 +144,133 @@ function getCashfreeConfig(requestedMode?: string): {
   };
 }
 
+// ─── HELPER: Reconcile & get customer balance + stats ────────────────────────
+export async function reconcileAndGetCustomerBalance(customer: any): Promise<{
+  balancePaise: number;
+  balanceRupees: number;
+  stats: {
+    totalTopupPaise: number;
+    totalTopupRupees: number;
+    totalSpentPaise: number;
+    totalSpentRupees: number;
+    totalCommissionPaise: number;
+    totalCommissionRupees: number;
+  };
+  freshCustomer: any;
+}> {
+  // 1. Auto-sync any un-synced commissions from commission_tbl
+  const newlyCredited = await syncCustomerCommissions(customer);
+
+  let freshCustomer =
+    newlyCredited > 0
+      ? (await Customer.findById(customer._id)) ?? customer
+      : customer;
+
+  const userIds = [String(freshCustomer._id), freshCustomer.userId, freshCustomer.customerId].filter(Boolean);
+  const customerIds = [freshCustomer.customerId, freshCustomer.customer_id].filter(Boolean);
+
+  // 2. Aggregate actual transaction totals
+  const [stats] = await WalletTransaction.aggregate([
+    {
+      $match: {
+        $or: [
+          { userId: { $in: userIds } },
+          { customerId: { $in: customerIds } },
+        ],
+        status: 'success',
+      },
+    },
+    {
+      $group: {
+        _id: null,
+        totalTopup: {
+          $sum: { $cond: [{ $eq: ['$category', 'topup'] }, '$amount', 0] },
+        },
+        totalSpent: {
+          $sum: { $cond: [{ $eq: ['$category', 'order_payment'] }, '$amount', 0] },
+        },
+        totalCommission: {
+          $sum: { $cond: [{ $eq: ['$category', 'commission'] }, '$amount', 0] },
+        },
+      },
+    },
+  ]);
+
+  const totalTopupPaise = stats?.totalTopup || 0;
+  const totalSpentPaise = stats?.totalSpent || 0;
+  const totalCommissionPaise = stats?.totalCommission || 0;
+
+  const expectedBalancePaise = Math.max(0, totalTopupPaise + totalCommissionPaise - totalSpentPaise);
+  const currentDbBalancePaise = freshCustomer.walletBalance || 0;
+
+  let resolvedBalancePaise = currentDbBalancePaise;
+
+  // 3. Reconcile DB customer.walletBalance if ledger has more credits
+  if (expectedBalancePaise > currentDbBalancePaise) {
+    await Customer.findByIdAndUpdate(freshCustomer._id, {
+      $set: { walletBalance: expectedBalancePaise },
+    });
+    freshCustomer.walletBalance = expectedBalancePaise;
+    resolvedBalancePaise = expectedBalancePaise;
+    log.info(
+      {
+        customerId: freshCustomer.customerId,
+        oldBalance: currentDbBalancePaise,
+        reconciledBalance: expectedBalancePaise,
+      },
+      '[WALLET] Reconciled customer walletBalance from transaction ledger',
+    );
+  }
+
+  // 4. Fix any historical transactions that recorded balanceAfter = 0 for successful credits
+  if (resolvedBalancePaise > 0) {
+    await WalletTransaction.updateMany(
+      {
+        $and: [
+          {
+            $or: [
+              { userId: { $in: userIds } },
+              { customerId: { $in: customerIds } },
+            ],
+          },
+          {
+            $or: [
+              { balanceAfter: 0 },
+              { balanceAfter: null },
+              { balanceAfterRupees: 0 },
+              { balanceAfterRupees: null },
+            ],
+          },
+        ],
+        type: 'credit',
+        status: 'success',
+      },
+      {
+        $set: {
+          balanceAfter: resolvedBalancePaise,
+          balanceAfterRupees: Number((resolvedBalancePaise / 100).toFixed(2)),
+        },
+      },
+    ).catch(() => {});
+  }
+
+  const balanceRupees = Number((resolvedBalancePaise / 100).toFixed(2));
+
+  return {
+    balancePaise: resolvedBalancePaise,
+    balanceRupees,
+    stats: {
+      totalTopupPaise,
+      totalTopupRupees: Number((totalTopupPaise / 100).toFixed(2)),
+      totalSpentPaise,
+      totalSpentRupees: Number((totalSpentPaise / 100).toFixed(2)),
+      totalCommissionPaise,
+      totalCommissionRupees: Number((totalCommissionPaise / 100).toFixed(2)),
+    },
+    freshCustomer,
+  };
+}
+
 // ─── GET /api/v1/wallet (or /balance) ─────────────────────────────────────────
 export async function getWalletBalance(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
@@ -134,54 +284,14 @@ export async function getWalletBalance(req: Request, res: Response, next: NextFu
       return;
     }
 
-    // Auto-sync any credited commissions from commission_tbl
-    await syncCustomerCommissions(customer);
-
-    const balancePaise = customer.walletBalance || 0;
-    const balanceRupees = Number((balancePaise / 100).toFixed(2));
-
-    const userIds = [String(customer._id), customer.userId, customer.customerId].filter(Boolean);
-
-    // Calculate quick stats from transactions
-    const [stats] = await WalletTransaction.aggregate([
-      {
-        $match: {
-          $or: [
-            { userId: { $in: userIds } },
-            { customerId: { $in: [customer.customerId, customer.customer_id].filter(Boolean) } },
-          ],
-          status: 'success',
-        },
-      },
-      {
-        $group: {
-          _id: null,
-          totalTopup: {
-            $sum: { $cond: [{ $eq: ['$category', 'topup'] }, '$amount', 0] },
-          },
-          totalSpent: {
-            $sum: { $cond: [{ $eq: ['$category', 'order_payment'] }, '$amount', 0] },
-          },
-          totalCommission: {
-            $sum: { $cond: [{ $eq: ['$category', 'commission'] }, '$amount', 0] },
-          },
-        },
-      },
-    ]);
+    const { balancePaise, balanceRupees, stats } = await reconcileAndGetCustomerBalance(customer);
 
     res.json({
       success: true,
       data: {
         balance: balancePaise,
         balanceRupees,
-        stats: {
-          totalTopupPaise: stats?.totalTopup || 0,
-          totalTopupRupees: Number(((stats?.totalTopup || 0) / 100).toFixed(2)),
-          totalSpentPaise: stats?.totalSpent || 0,
-          totalSpentRupees: Number(((stats?.totalSpent || 0) / 100).toFixed(2)),
-          totalCommissionPaise: stats?.totalCommission || 0,
-          totalCommissionRupees: Number(((stats?.totalCommission || 0) / 100).toFixed(2)),
-        },
+        stats,
       },
     });
   } catch (err) {
@@ -202,8 +312,7 @@ export async function getWalletTransactions(req: Request, res: Response, next: N
       return;
     }
 
-    // Auto-sync any credited commissions from commission_tbl
-    await syncCustomerCommissions(customer);
+    const { balancePaise, balanceRupees, freshCustomer } = await reconcileAndGetCustomerBalance(customer);
 
     const page = Math.max(1, Number(req.query.page ?? 1));
     const limit = Math.min(100, Math.max(1, Number(req.query.limit ?? 10)));
@@ -212,8 +321,8 @@ export async function getWalletTransactions(req: Request, res: Response, next: N
 
     const query: any = {
       $or: [
-        { userId: { $in: [String(customer._id), customer.userId, customer.customerId].filter(Boolean) } },
-        { customerId: { $in: [customer.customerId, customer.customer_id].filter(Boolean) } },
+        { userId: { $in: [String(freshCustomer._id), freshCustomer.userId, freshCustomer.customerId].filter(Boolean) } },
+        { customerId: { $in: [freshCustomer.customerId, freshCustomer.customer_id].filter(Boolean) } },
       ],
     };
 
@@ -232,14 +341,12 @@ export async function getWalletTransactions(req: Request, res: Response, next: N
       WalletTransaction.countDocuments(query),
     ]);
 
-    const balancePaise = customer.walletBalance || 0;
-
     res.json({
       success: true,
       data: {
         items,
         balance: balancePaise,
-        balanceRupees: Number((balancePaise / 100).toFixed(2)),
+        balanceRupees,
         pagination: {
           page,
           limit,

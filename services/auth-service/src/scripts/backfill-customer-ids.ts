@@ -1,8 +1,9 @@
 import { connectDB, mongoose } from '@ornate/db';
 
-const uri =
-  process.env.MONGODB_URI ??
-  'mongodb+srv://ornateinteriord:22k3ZVbQMZDpybDP@cluster0.plzr559.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0';
+const uri = process.env.MONGODB_URI || '';
+if (!uri) {
+  throw new Error('MONGODB_URI environment variable is required.');
+}
 
 async function backfill() {
   await connectDB(uri, 'ornate_auth');

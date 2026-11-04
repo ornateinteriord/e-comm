@@ -148,14 +148,11 @@ app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
   });
 });
 
-const DEFAULT_MONGODB_URI =
-  'mongodb+srv://ornateinteriord:22k3ZVbQMZDpybDP@cluster0.plzr559.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0';
-
 // ---- Start ----
 async function start(): Promise<void> {
   try {
     await connectDB(
-      process.env.MONGODB_URI ?? DEFAULT_MONGODB_URI,
+      process.env.MONGODB_URI || '',
       process.env.AUTH_DB_NAME ?? 'ornate_auth',
       { exitOnError: false, maxRetries: 2, serverSelectionTimeoutMS: 5000, connectTimeoutMS: 5000 },
     );

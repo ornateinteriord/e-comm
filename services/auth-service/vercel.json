@@ -1,5 +1,7 @@
 {
+  "$schema": "https://openapi.vercel.sh/vercel.json",
   "version": 2,
+  "ignoreCommand": "npx turbo-ignore auth-service --fallback=HEAD~1",
   "builds": [
     {
       "src": "index.js",
