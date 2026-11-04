@@ -1,5 +1,5 @@
-import { useState, type FormEvent } from 'react';
-import { useNavigate, Link as RouterLink } from 'react-router';
+import { useState, useEffect, type FormEvent } from 'react';
+import { useNavigate, Link as RouterLink, useSearchParams } from 'react-router';
 import {
   Box,
   Container,
@@ -26,7 +26,16 @@ import api from '../api/client';
 
 export default function LoginPage() {
   const navigate = useNavigate();
-  const setAuth = useAuthStore((s) => s.setAuth);
+  const [searchParams] = useSearchParams();
+  const { setAuth, isAuthenticated } = useAuthStore();
+
+  // Redirect away if already logged in
+  useEffect(() => {
+    if (isAuthenticated) {
+      const redirectUrl = searchParams.get('redirect') || '/';
+      navigate(redirectUrl, { replace: true });
+    }
+  }, [isAuthenticated, navigate, searchParams]);
 
   const [mobileNumber, setMobileNumber] = useState('');
   const [password, setPassword] = useState('');
@@ -72,6 +81,10 @@ export default function LoginPage() {
       setIsLoading(false);
     }
   };
+
+  if (isAuthenticated) {
+    return null;
+  }
 
   return (
     <Container maxWidth="xs" sx={{ py: { xs: 6, sm: 10 } }}>

@@ -1,9 +1,96 @@
 import { Request, Response, NextFunction } from 'express';
+import mongoose from 'mongoose';
 import { Customer } from '../models/customer.model.js';
 import { WalletTransaction } from '../models/wallet-transaction.model.js';
 import { createLogger } from '@ornate/logger';
 
 const log = createLogger('wallet-controller');
+
+/**
+ * Synchronizes any credited commission records from e-cash.commission_tbl into
+ * ornate_auth.wallettransactions for the customer if not already present.
+ */
+async function syncCustomerCommissions(customer: any): Promise<void> {
+  try {
+    const client =
+      typeof (mongoose.connection as any).getClient === 'function'
+        ? (mongoose.connection as any).getClient()
+        : (mongoose.connection as any).client;
+
+    const ecashDb = client ? client.db('e-cash') : mongoose.connection.useDb('e-cash');
+
+    const customerIdentifiers = [
+      String(customer._id),
+      customer.customerId,
+      customer.customer_id,
+      customer.mobileNumber,
+      customer.phone,
+      customer.username,
+    ].filter(Boolean);
+
+    const comms = await ecashDb.collection('commission_tbl').find({
+      $or: [
+        { userId: { $in: customerIdentifiers } },
+        { beneficiary_id: { $in: customerIdentifiers } },
+      ],
+      status: 'CREDITED',
+    }).toArray();
+
+    if (!comms || comms.length === 0) return;
+
+    for (const comm of comms) {
+      const commId = String(comm.commission_id || '');
+      const refId = String(comm.transaction_id || commId);
+
+      const existing = await WalletTransaction.findOne({
+        $or: [
+          { transactionId: `txn_comm_${commId}` },
+          { 'metadata.commissionId': commId },
+        ],
+      });
+
+      if (!existing) {
+        const amountPaise = Math.round(Number(comm.commission_amount) * 100);
+        const amountRupees = Number(comm.commission_amount);
+        const orderNumber = comm.transaction_id || refId;
+        const createdAtDate = comm.transaction_date || comm.credited_at || comm.createdAt || new Date();
+
+        await WalletTransaction.create({
+          transactionId: `txn_comm_${commId}`,
+          userId: String(customer._id),
+          customerId: customer.customerId || customer.customer_id,
+          type: 'credit',
+          category: 'commission',
+          amount: amountPaise,
+          amountRupees,
+          balanceAfter: customer.walletBalance || 0,
+          balanceAfterRupees: Number(((customer.walletBalance || 0) / 100).toFixed(2)),
+          status: 'success',
+          referenceId: orderNumber,
+          description: `Commission from Order #${orderNumber} (Level ${comm.level || 1})`,
+          metadata: {
+            orderNumber,
+            commissionId: commId,
+            level: comm.level || 1,
+            role: comm.account_type || 'Commission Margin',
+            rate: comm.commission_rate,
+            sourceName: comm.source_name,
+            sourceId: comm.source_id,
+          },
+          createdAt: createdAtDate,
+          updatedAt: comm.updatedAt || createdAtDate,
+        });
+
+        log.info(
+          { commissionId: commId, customerId: customer.customerId, amountRupees },
+          '[WALLET] Synchronized missing commission record to wallettransactions',
+        );
+      }
+    }
+  } catch (syncErr) {
+    log.warn({ syncErr }, '[WALLET] Non-fatal error while syncing commissions from commission_tbl');
+  }
+}
 
 function getCashfreeConfig(requestedMode?: string): {
   isProd: boolean;
@@ -47,12 +134,25 @@ export async function getWalletBalance(req: Request, res: Response, next: NextFu
       return;
     }
 
+    // Auto-sync any credited commissions from commission_tbl
+    await syncCustomerCommissions(customer);
+
     const balancePaise = customer.walletBalance || 0;
     const balanceRupees = Number((balancePaise / 100).toFixed(2));
 
+    const userIds = [String(customer._id), customer.userId, customer.customerId].filter(Boolean);
+
     // Calculate quick stats from transactions
     const [stats] = await WalletTransaction.aggregate([
-      { $match: { userId: String(customer._id), status: 'success' } },
+      {
+        $match: {
+          $or: [
+            { userId: { $in: userIds } },
+            { customerId: { $in: [customer.customerId, customer.customer_id].filter(Boolean) } },
+          ],
+          status: 'success',
+        },
+      },
       {
         $group: {
           _id: null,
@@ -102,13 +202,19 @@ export async function getWalletTransactions(req: Request, res: Response, next: N
       return;
     }
 
+    // Auto-sync any credited commissions from commission_tbl
+    await syncCustomerCommissions(customer);
+
     const page = Math.max(1, Number(req.query.page ?? 1));
-    const limit = Math.min(50, Math.max(1, Number(req.query.limit ?? 15)));
+    const limit = Math.min(100, Math.max(1, Number(req.query.limit ?? 10)));
     const category = req.query.category as string | undefined;
     const type = req.query.type as string | undefined;
 
     const query: any = {
-      userId: { $in: [String(customer._id), customer.userId, customer.customerId].filter(Boolean) },
+      $or: [
+        { userId: { $in: [String(customer._id), customer.userId, customer.customerId].filter(Boolean) } },
+        { customerId: { $in: [customer.customerId, customer.customer_id].filter(Boolean) } },
+      ],
     };
 
     if (category && category !== 'all') {

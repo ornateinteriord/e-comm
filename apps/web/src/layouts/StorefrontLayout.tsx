@@ -23,6 +23,8 @@ import {
   LightMode as LightModeIcon,
   DarkMode as DarkModeIcon,
   AccountBalanceWalletOutlined as WalletIcon,
+  Login as LoginIcon,
+  PersonAddOutlined as PersonAddIcon,
 } from '@mui/icons-material';
 import { useCartStore } from '../store/cart.store';
 import { useAuthStore } from '../store/auth.store';
@@ -880,14 +882,18 @@ export default function StorefrontLayout() {
         onClose={() => setAnchorEl(null)}
         transformOrigin={{ horizontal: 'right', vertical: 'top' }}
         anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+        MenuListProps={{ sx: { p: 0 } }}
         PaperProps={{
-          elevation: 4,
+          elevation: 6,
           sx: {
             mt: 1.5,
-            minWidth: 220,
-            borderRadius: '8px',
-            p: 1,
-            border: '1px solid #e2e8f0',
+            minWidth: isAuthenticated ? 230 : 285,
+            borderRadius: '12px',
+            p: isAuthenticated ? 1 : 0,
+            border: `1px solid ${isLight ? '#e2e8f0' : 'rgba(255,255,255,0.1)'}`,
+            boxShadow: isLight
+              ? '0 12px 32px rgba(0, 0, 0, 0.12), 0 2px 6px rgba(0,0,0,0.04)'
+              : '0 12px 32px rgba(0, 0, 0, 0.45)',
           },
         }}
       >
@@ -936,21 +942,169 @@ export default function StorefrontLayout() {
           </MenuItem>,
           <MenuItem key="account" component={RouterLink} to="/account" onClick={() => setAnchorEl(null)} sx={{ borderRadius: 1.5 }}>
             <PersonIcon fontSize="small" sx={{ mr: 1.5, color: '#64748b' }} />
-            Saved Addresses & Profile
+            Profile
           </MenuItem>,
           <Divider key="div2" sx={{ my: 1 }} />,
           <MenuItem key="logout" onClick={handleLogout} sx={{ borderRadius: 1.5, color: 'error.main', fontWeight: 600 }}>
             <LogoutIcon fontSize="small" sx={{ mr: 1.5 }} />
             Sign Out
           </MenuItem>,
-        ] : [
-          <MenuItem key="login" component={RouterLink} to="/login" onClick={() => setAnchorEl(null)} sx={{ borderRadius: 1.5, fontWeight: 700 }}>
-            Sign In to E-Shophy
-          </MenuItem>,
-          <MenuItem key="register" component={RouterLink} to="/register" onClick={() => setAnchorEl(null)} sx={{ borderRadius: 1.5 }}>
-            Create New Account
-          </MenuItem>,
-        ]}
+        ] : (
+          <Box sx={{ p: 2, minWidth: 275, maxWidth: 310 }}>
+            {/* Header */}
+            <Box sx={{ mb: 1.75 }}>
+              <Typography
+                variant="subtitle2"
+                sx={{
+                  fontWeight: 800,
+                  fontSize: '0.95rem',
+                  color: isLight ? '#172B30' : '#FFFFFF',
+                  lineHeight: 1.3,
+                }}
+              >
+                Welcome to E-Shophy
+              </Typography>
+              <Typography
+                variant="caption"
+                sx={{
+                  color: isLight ? '#64748B' : '#94A3B8',
+                  display: 'block',
+                  mt: 0.5,
+                  fontSize: '0.78rem',
+                  lineHeight: 1.4,
+                }}
+              >
+                Sign in to track orders, earn referral margins & manage your wallet.
+              </Typography>
+            </Box>
+
+            {/* Action Buttons */}
+            <Stack spacing={1.25} sx={{ mb: 1.5 }}>
+              <Button
+                component={RouterLink}
+                to="/login"
+                onClick={() => setAnchorEl(null)}
+                variant="contained"
+                fullWidth
+                startIcon={<LoginIcon sx={{ fontSize: '1.1rem !important' }} />}
+                sx={{
+                  bgcolor: '#FF7900',
+                  color: '#FFFFFF',
+                  fontWeight: 800,
+                  fontSize: '0.875rem',
+                  textTransform: 'none',
+                  borderRadius: '10px',
+                  py: 1,
+                  boxShadow: '0 4px 14px rgba(255, 121, 0, 0.35)',
+                  '&:hover': {
+                    bgcolor: '#E06B00',
+                    boxShadow: '0 6px 18px rgba(255, 121, 0, 0.45)',
+                  },
+                }}
+              >
+                Sign In
+              </Button>
+
+              <Button
+                component={RouterLink}
+                to="/register"
+                onClick={() => setAnchorEl(null)}
+                variant="outlined"
+                fullWidth
+                startIcon={<PersonAddIcon sx={{ fontSize: '1.1rem !important' }} />}
+                sx={{
+                  borderColor: isLight ? '#FF7900' : '#FF7900',
+                  color: '#FF7900',
+                  fontWeight: 700,
+                  fontSize: '0.875rem',
+                  textTransform: 'none',
+                  borderRadius: '10px',
+                  py: 0.85,
+                  borderWidth: '1.5px',
+                  bgcolor: isLight ? 'rgba(255, 121, 0, 0.04)' : 'rgba(255, 121, 0, 0.08)',
+                  '&:hover': {
+                    borderWidth: '1.5px',
+                    borderColor: '#E06B00',
+                    bgcolor: isLight ? 'rgba(255, 121, 0, 0.1)' : 'rgba(255, 121, 0, 0.16)',
+                  },
+                }}
+              >
+                Create New Account
+              </Button>
+            </Stack>
+
+            <Divider sx={{ my: 1.25 }} />
+
+            {/* Quick Access Menu Items */}
+            <Typography
+              variant="caption"
+              sx={{
+                px: 0.5,
+                fontWeight: 700,
+                color: isLight ? '#94A3B8' : '#64748B',
+                letterSpacing: '0.04em',
+                textTransform: 'uppercase',
+                fontSize: '0.675rem',
+              }}
+            >
+              Quick Access
+            </Typography>
+
+            <Box sx={{ mt: 0.5, display: 'flex', flexDirection: 'column', gap: 0.25 }}>
+              <MenuItem
+                component={RouterLink}
+                to="/orders"
+                onClick={() => setAnchorEl(null)}
+                sx={{
+                  borderRadius: '8px',
+                  py: 0.75,
+                  px: 1,
+                  fontSize: '0.825rem',
+                  fontWeight: 600,
+                  color: isLight ? '#334155' : '#CBD5E1',
+                  '&:hover': { bgcolor: isLight ? 'rgba(0,0,0,0.04)' : 'rgba(255,255,255,0.06)' },
+                }}
+              >
+                <OrdersIcon sx={{ fontSize: '1.05rem', mr: 1.25, color: '#64748B' }} />
+                My Orders
+              </MenuItem>
+              <MenuItem
+                component={RouterLink}
+                to="/wishlist"
+                onClick={() => setAnchorEl(null)}
+                sx={{
+                  borderRadius: '8px',
+                  py: 0.75,
+                  px: 1,
+                  fontSize: '0.825rem',
+                  fontWeight: 600,
+                  color: isLight ? '#334155' : '#CBD5E1',
+                  '&:hover': { bgcolor: isLight ? 'rgba(0,0,0,0.04)' : 'rgba(255,255,255,0.06)' },
+                }}
+              >
+                <WishlistIcon sx={{ fontSize: '1.05rem', mr: 1.25, color: '#64748B' }} />
+                My Wishlist
+              </MenuItem>
+              <MenuItem
+                component={RouterLink}
+                to="/wallet"
+                onClick={() => setAnchorEl(null)}
+                sx={{
+                  borderRadius: '8px',
+                  py: 0.75,
+                  px: 1,
+                  fontSize: '0.825rem',
+                  fontWeight: 600,
+                  color: isLight ? '#334155' : '#CBD5E1',
+                  '&:hover': { bgcolor: isLight ? 'rgba(0,0,0,0.04)' : 'rgba(255,255,255,0.06)' },
+                }}
+              >
+                <WalletIcon sx={{ fontSize: '1.05rem', mr: 1.25, color: '#FF7900' }} />
+                Wallet & Commissions
+              </MenuItem>
+            </Box>
+          </Box>
+        )}
       </Menu>
 
       {/* Main Page Outlet */}
