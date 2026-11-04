@@ -22,6 +22,7 @@ import {
   Close as CloseIcon,
 } from '@mui/icons-material';
 import { useAdminAuthStore } from '../store/auth.store';
+import api from '../api/client';
 
 const DRAWER_WIDTH = 260;
 
@@ -46,7 +47,12 @@ export default function AdminLayout() {
   const { user, clearAuth } = useAdminAuthStore();
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await api.post('/auth/logout');
+    } catch {
+      // ignore
+    }
     clearAuth();
     navigate('/login');
   };

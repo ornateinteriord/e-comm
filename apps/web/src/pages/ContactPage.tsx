@@ -358,7 +358,7 @@ export default function ContactPage() {
                           const digits = e.target.value.replace(/\D/g, '').slice(0, 10);
                           setForm({ ...form, phone: digits });
                         }}
-                        placeholder="9876543210"
+                        placeholder="Enter 10-digit mobile number"
                         InputProps={{
                           startAdornment: (
                             <InputAdornment position="start">

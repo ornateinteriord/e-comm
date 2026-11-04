@@ -14,6 +14,7 @@ export interface ICustomer extends Document {
   passwordHash: string;
   role: UserRole;
   level: number;
+  token: number;
   referralCode?: string;
   referralName?: string;
   referralType?: 'vendor' | 'customer';
@@ -25,8 +26,12 @@ export interface ICustomer extends Document {
   pincode?: string;
   gender?: 'male' | 'female' | 'other' | 'prefer_not_to_say';
   avatar?: string;
+  profilePicture?: string;
   isActive: boolean;
   emailVerified: boolean;
+  isEmailVerified: boolean;
+  emailOtp?: string;
+  emailOtpExpires?: Date;
   emailVerificationToken?: string;
   emailVerificationExpires?: Date;
   resetPasswordToken?: string;
@@ -72,6 +77,7 @@ const customerSchema = new Schema<ICustomer>(
       default: 'customer',
     },
     level: { type: Number, default: 0, min: 0 },
+    token: { type: Number, default: 0, min: 0 },
     referralCode: { type: String, trim: true, index: true },
     referralName: { type: String, trim: true },
     referralType: { type: String, enum: ['vendor', 'customer'], default: 'vendor' },
@@ -87,8 +93,12 @@ const customerSchema = new Schema<ICustomer>(
       default: 'prefer_not_to_say',
     },
     avatar: { type: String },
+    profilePicture: { type: String },
     isActive: { type: Boolean, default: true },
     emailVerified: { type: Boolean, default: false },
+    isEmailVerified: { type: Boolean, default: false },
+    emailOtp: { type: String, select: false },
+    emailOtpExpires: { type: Date, select: false },
     emailVerificationToken: { type: String, select: false },
     emailVerificationExpires: { type: Date, select: false },
     resetPasswordToken: { type: String, select: false },
@@ -128,6 +138,18 @@ customerSchema.pre('save', function (next) {
   }
   if (!this.customerId && this.customer_id) {
     this.customerId = this.customer_id;
+  }
+  if (this.isEmailVerified && !this.emailVerified) {
+    this.emailVerified = true;
+  }
+  if (this.emailVerified && !this.isEmailVerified) {
+    this.isEmailVerified = true;
+  }
+  if (this.avatar && !this.profilePicture) {
+    this.profilePicture = this.avatar;
+  }
+  if (this.profilePicture && !this.avatar) {
+    this.avatar = this.profilePicture;
   }
   if (this.referralType === 'vendor') {
     if (!this.vendor_id && this.referralCode) {

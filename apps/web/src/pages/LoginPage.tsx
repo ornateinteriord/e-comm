@@ -73,8 +73,15 @@ export default function LoginPage() {
         username: mobileNumber,
         password,
       });
-      setAuth(data.data.accessToken, data.data.user);
-      navigate('/');
+      const loggedUser = data.data.user;
+      if (loggedUser && loggedUser.role !== 'customer') {
+        setError('Admin and staff accounts must log in via the Admin Portal, not the web storefront.');
+        return;
+      }
+      setAuth(data.data.accessToken, loggedUser);
+      const searchParams = new URLSearchParams(window.location.search);
+      const targetRedirect = searchParams.get('redirect') || '/';
+      navigate(targetRedirect);
     } catch (err: any) {
       setError(err.response?.data?.error?.message || 'Login failed. Please verify your credentials.');
     } finally {
@@ -134,7 +141,7 @@ export default function LoginPage() {
               fullWidth
               value={mobileNumber}
               onChange={handleMobileChange}
-              placeholder="9876543210"
+              placeholder="Enter 10-digit mobile number"
               inputProps={{
                 maxLength: 10,
                 inputMode: 'numeric',

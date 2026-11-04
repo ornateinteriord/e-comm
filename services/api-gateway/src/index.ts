@@ -104,6 +104,8 @@ const corsOptions: cors.CorsOptions = {
     'Cookie',
     'X-CSRF-Token',
     'x-session-id',
+    'X-Client-Type',
+    'x-client-type',
   ],
   exposedHeaders: ['Set-Cookie'],
   optionsSuccessStatus: 200, // some legacy browsers choke on 204

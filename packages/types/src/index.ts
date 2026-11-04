@@ -33,6 +33,7 @@ export interface PublicUser {
   username?: string;
   role: UserRole;
   level?: number;
+  token?: number;
   referralCode?: string;
   referralName?: string;
   referralType?: 'vendor' | 'customer';
@@ -43,7 +44,10 @@ export interface PublicUser {
   city?: string;
   pincode?: string;
   gender?: 'male' | 'female' | 'other' | 'prefer_not_to_say';
+  avatar?: string;
+  profilePicture?: string;
   emailVerified: boolean;
+  isEmailVerified?: boolean;
   walletBalance?: number;
   createdAt: string;
 }
