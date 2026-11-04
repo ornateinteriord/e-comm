@@ -134,7 +134,7 @@ export default function LoginPage() {
               fullWidth
               value={mobileNumber}
               onChange={handleMobileChange}
-              placeholder="9876543210"
+              placeholder="Enter 10-digit mobile number"
               inputProps={{
                 maxLength: 10,
                 inputMode: 'numeric',

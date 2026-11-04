@@ -401,6 +401,7 @@ export default function StorefrontLayout() {
                 sx={{ ml: 0.5, p: 0.5 }}
               >
                 <Avatar
+                  src={user?.profilePicture || user?.avatar}
                   sx={{
                     width: 36,
                     height: 36,
@@ -673,7 +674,7 @@ export default function StorefrontLayout() {
           {isAuthenticated ? (
             <Box>
               <Stack direction="row" spacing={1.5} alignItems="center">
-                <Avatar sx={{ bgcolor: '#FF7900', color: 'white', width: 44, height: 44, fontWeight: 700 }}>
+                <Avatar src={user?.profilePicture || user?.avatar} sx={{ bgcolor: '#FF7900', color: 'white', width: 44, height: 44, fontWeight: 700 }}>
                   {user?.name?.[0]?.toUpperCase()}
                 </Avatar>
                 <Box sx={{ overflow: 'hidden' }}>

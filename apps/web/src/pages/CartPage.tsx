@@ -438,7 +438,7 @@ export default function CartPage() {
                   setLoginMobile(cleanDigits);
                   if (loginError) setLoginError(null);
                 }}
-                placeholder="9876543210"
+                placeholder="Enter 10-digit mobile number"
                 inputProps={{
                   maxLength: 10,
                   inputMode: 'numeric',

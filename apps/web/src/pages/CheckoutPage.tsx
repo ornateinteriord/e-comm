@@ -1248,7 +1248,7 @@ export default function CheckoutPage() {
                   setLoginMobile(cleanDigits);
                   if (loginError) setLoginError(null);
                 }}
-                placeholder="9876543210"
+                placeholder="Enter 10-digit mobile number"
                 inputProps={{
                   maxLength: 10,
                   inputMode: 'numeric',
@@ -1409,7 +1409,7 @@ export default function CheckoutPage() {
                     size="small"
                     value={addressForm.phone}
                     onChange={(e) => setAddressForm({ ...addressForm, phone: e.target.value })}
-                    placeholder="e.g. 9876543210"
+                    placeholder="10-digit mobile number"
                   />
                 </Grid>
                 <Grid item xs={12}>

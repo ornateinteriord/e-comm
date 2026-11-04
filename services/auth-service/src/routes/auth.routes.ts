@@ -14,6 +14,8 @@ import {
 } from '../controllers/auth.controller.js';
 import { attachUser, requireAuth, requireRole } from '../middleware/auth.middleware.js';
 import { validate } from '../middleware/validate.middleware.js';
+import { uploadProfileAvatar, sendEmailOtp, verifyEmailOtp } from '../controllers/user.controller.js';
+import { uploadAvatarMiddleware } from '../utils/imagekit.js';
 import {
   registerSchema,
   loginSchema,
@@ -47,6 +49,9 @@ router.post('/reset-password', authLimiter, validate(resetPasswordSchema), reset
 
 // Authenticated user routes
 router.get('/me', attachUser, requireAuth, getMe);
+router.post('/upload-avatar', attachUser, requireAuth, uploadAvatarMiddleware.single('avatar'), uploadProfileAvatar);
+router.post('/send-email-otp', attachUser, requireAuth, sendEmailOtp);
+router.post('/verify-email-otp', attachUser, requireAuth, verifyEmailOtp);
 
 // Admin routes
 router.get('/admin/users', attachUser, requireRole('admin'), listUsers);

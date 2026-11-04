@@ -43,6 +43,7 @@ export default function RegisterPage() {
 
   // Form Fields
   const [referralCode, setReferralCode] = useState('');
+  const [resolvedReferralCode, setResolvedReferralCode] = useState('');
   const [referralName, setReferralName] = useState('');
   const [referralType, setReferralType] = useState<'vendor' | 'customer' | ''>('');
   const [isReferralVerified, setIsReferralVerified] = useState(false);
@@ -81,16 +82,18 @@ export default function RegisterPage() {
       const { data } = await api.get(`/auth/verify-referral?code=${encodeURIComponent(code)}`);
       if (data.success && data.data?.valid) {
         setIsReferralVerified(true);
-        setReferralCode(data.data.referralCode || code);
+        setResolvedReferralCode(data.data.referralCode || code);
         setReferralName(data.data.referralName || '');
         setReferralType(data.data.referralType || 'vendor');
       } else {
         setIsReferralVerified(false);
+        setResolvedReferralCode('');
         setReferralName('');
         setReferralError(data.error?.message || 'Invalid referral code. A valid sponsor is required.');
       }
     } catch (err: any) {
       setIsReferralVerified(false);
+      setResolvedReferralCode('');
       setReferralName('');
       setReferralError(
         err.response?.data?.error?.message ||
@@ -148,7 +151,7 @@ export default function RegisterPage() {
 
     try {
       const payload = {
-        referralCode: referralCode.trim(),
+        referralCode: (resolvedReferralCode || referralCode).trim(),
         fullName: fullName.trim(),
         name: fullName.trim(),
         email: email.trim().toLowerCase(),
@@ -252,6 +255,7 @@ export default function RegisterPage() {
                     value={referralCode}
                     onChange={(e) => {
                       setReferralCode(e.target.value);
+                      setResolvedReferralCode('');
                       setIsReferralVerified(false);
                       setReferralName('');
                       setReferralError(null);
@@ -309,10 +313,10 @@ export default function RegisterPage() {
                 {isReferralVerified && (
                   <Grid item xs={12}>
                     <TextField
-                      label="Referral Name"
+                      label="Verified Sponsor / Referral"
                       fullWidth
                       size="small"
-                      value={referralName}
+                      value={resolvedReferralCode && resolvedReferralCode !== referralName ? `${referralName} (${resolvedReferralCode})` : referralName}
                       InputProps={{
                         readOnly: true,
                         endAdornment: (
@@ -383,7 +387,7 @@ export default function RegisterPage() {
                     const cleanDigits = e.target.value.replace(/\D/g, '').slice(0, 10);
                     setMobileNumber(cleanDigits);
                   }}
-                  placeholder="9876543210"
+                  placeholder="Enter 10-digit mobile number"
                   inputProps={{
                     maxLength: 10,
                     inputMode: 'numeric',
