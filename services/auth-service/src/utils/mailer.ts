@@ -1,4 +1,6 @@
 import nodemailer from 'nodemailer';
+import path from 'node:path';
+import fs from 'node:fs';
 import { createLogger } from '@ornate/logger';
 
 const log = createLogger('mailer');
@@ -19,7 +21,33 @@ function getTransporter() {
 }
 
 /**
+ * Searches for the official logo PNG file in known public directories.
+ */
+function findLogoFile(): string | null {
+  const baseDir = typeof __dirname !== 'undefined' ? __dirname : process.cwd();
+  const candidates = [
+    path.resolve(process.cwd(), 'public/logo-cropped-light.png'),
+    path.resolve(process.cwd(), 'public/logo.png'),
+    path.resolve(process.cwd(), 'public/logo-cropped-dark.png'),
+    path.resolve(process.cwd(), '../../public/logo-cropped-light.png'),
+    path.resolve(process.cwd(), '../../public/logo.png'),
+    path.resolve(process.cwd(), '../../public/logo-cropped-dark.png'),
+    path.resolve(baseDir, '../../../../../public/logo-cropped-light.png'),
+    path.resolve(baseDir, '../../../../../public/logo.png'),
+    path.resolve(process.cwd(), 'apps/web/public/android-chrome-192x192.png'),
+    path.resolve(process.cwd(), '../../apps/web/public/android-chrome-192x192.png'),
+  ];
+  for (const file of candidates) {
+    if (fs.existsSync(file)) {
+      return file;
+    }
+  }
+  return null;
+}
+
+/**
  * Sends a custom themed HTML email with a 6-digit OTP code to verify customer email.
+ * Includes the official E-Shophy logo embedded via CID attachment.
  */
 export async function sendEmailVerificationOtp(email: string, name: string, otp: string): Promise<boolean> {
   try {
@@ -27,6 +55,7 @@ export async function sendEmailVerificationOtp(email: string, name: string, otp:
     const transporter = getTransporter();
 
     const safeName = name ? name.trim() : 'Customer';
+    const logoFile = findLogoFile();
 
     const htmlContent = `
 <!DOCTYPE html>
@@ -49,14 +78,18 @@ export async function sendEmailVerificationOtp(email: string, name: string, otp:
               <table role="presentation" align="center" cellspacing="0" cellpadding="0">
                 <tr>
                   <td align="center">
-                    <!-- Brand Icon & Name -->
-                    <div style="display: inline-block; background-color: #FF7900; width: 44px; height: 44px; border-radius: 12px; line-height: 44px; text-align: center; margin-bottom: 12px; box-shadow: 0 4px 12px rgba(255, 121, 0, 0.4);">
-                      <span style="font-size: 24px; color: #FFFFFF;">🛒</span>
-                    </div>
-                    <div style="font-size: 26px; font-weight: 900; letter-spacing: -0.5px; color: #FFFFFF; margin: 0;">
-                      E-<span style="color: #FF7900;">Shophy</span>
-                    </div>
-                    <div style="font-size: 13px; color: #94A3B8; margin-top: 4px; font-weight: 500;">
+                    <!-- Brand Logo -->
+                    ${
+                      logoFile
+                        ? `<img src="cid:eshopylogo" alt="E-Shophy" style="height: 54px; max-height: 54px; width: auto; max-width: 240px; object-fit: contain; display: block; margin: 0 auto 10px auto;" />`
+                        : `<div style="display: inline-block; background-color: #FF7900; width: 44px; height: 44px; border-radius: 12px; line-height: 44px; text-align: center; margin-bottom: 12px; box-shadow: 0 4px 12px rgba(255, 121, 0, 0.4);">
+                            <span style="font-size: 24px; color: #FFFFFF;">🛒</span>
+                          </div>
+                          <div style="font-size: 26px; font-weight: 900; letter-spacing: -0.5px; color: #FFFFFF; margin: 0;">
+                            E-<span style="color: #FF7900;">Shophy</span>
+                          </div>`
+                    }
+                    <div style="font-size: 13px; color: #94A3B8; margin-top: 6px; font-weight: 500; letter-spacing: 0.5px;">
                       Official Email Verification
                     </div>
                   </td>
@@ -129,20 +162,28 @@ export async function sendEmailVerificationOtp(email: string, name: string, otp:
 </html>
     `;
 
-    const mailOptions = {
+    const mailOptions: any = {
       from: `"E-Shophy" <${user}>`,
       to: email,
       subject: `${otp} is your E-Shophy Email Verification Code`,
       html: htmlContent,
       text: `Hello ${safeName},\n\nYour 6-digit email verification code for E-Shophy is: ${otp}\n\nThis code is valid for 10 minutes.\n\nIf you did not request this code, please ignore this email.\n\n© 2026 E-Shophy`,
+      attachments: logoFile
+        ? [
+            {
+              filename: 'eshopy-logo.png',
+              path: logoFile,
+              cid: 'eshopylogo',
+            },
+          ]
+        : [],
     };
 
     const info = await transporter.sendMail(mailOptions);
-    log.info({ messageId: info.messageId, to: email }, 'Verification OTP email sent successfully');
+    log.info({ messageId: info.messageId, to: email, hasLogo: Boolean(logoFile) }, 'Verification OTP email sent successfully');
     return true;
   } catch (err: any) {
     log.error({ err: err.message, to: email }, 'Failed to send verification OTP email');
     throw err;
   }
 }
-

@@ -129,6 +129,7 @@ export default function AccountPage() {
   const [profileError, setProfileError] = useState<string | null>(null);
 
   // Avatar Upload State
+  const [previewAvatar, setPreviewAvatar] = useState<string | null>(null);
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [avatarSuccess, setAvatarSuccess] = useState<string | null>(null);
@@ -205,7 +206,7 @@ export default function AccountPage() {
       setNewAddress((prev) => ({
         ...prev,
         name: prev.name || effectiveUser.fullName || effectiveUser.name || '',
-        phone: prev.phone || userPhone,
+        phone: userPhone || prev.phone || '',
         city: prev.city || effectiveUser.city || 'Bengaluru',
         state: prev.state || effectiveUser.state || 'Karnataka',
         pincode: prev.pincode || effectiveUser.pincode || '',
@@ -240,6 +241,10 @@ export default function AccountPage() {
       return;
     }
 
+    // Immediately show local image preview so Hero Banner and Profile Card update instantly
+    const localPreviewUrl = URL.createObjectURL(file);
+    setPreviewAvatar(localPreviewUrl);
+
     setIsUploadingAvatar(true);
     setAvatarError(null);
     setAvatarSuccess(null);
@@ -268,6 +273,16 @@ export default function AccountPage() {
 
       if (resData?.success) {
         const newUrl = resData.data.url || resData.data.avatar || resData.data.profilePicture;
+        setPreviewAvatar(newUrl);
+
+        // Update react-query cache synchronously so effectiveUser updates instantly without delay
+        queryClient.setQueryData(['my-profile'], (old: any) =>
+          old ? { ...old, avatar: newUrl, profilePicture: newUrl } : old,
+        );
+        queryClient.setQueryData(['auth-me-sync'], (old: any) =>
+          old ? { ...old, avatar: newUrl, profilePicture: newUrl } : old,
+        );
+
         if (user) {
           setAuth(useAuthStore.getState().accessToken || '', {
             ...user,
@@ -276,6 +291,7 @@ export default function AccountPage() {
           });
         }
         queryClient.invalidateQueries({ queryKey: ['my-profile'] });
+        queryClient.invalidateQueries({ queryKey: ['auth-me-sync'] });
         setAvatarSuccess('Profile picture updated successfully!');
         setTimeout(() => setAvatarSuccess(null), 4000);
       }
@@ -471,7 +487,7 @@ export default function AccountPage() {
         >
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2.5 }}>
             <Avatar
-              src={effectiveUser?.profilePicture || effectiveUser?.avatar}
+              src={previewAvatar || effectiveUser?.profilePicture || effectiveUser?.avatar || user?.profilePicture || user?.avatar}
               sx={{
                 width: { xs: 64, md: 74 },
                 height: { xs: 64, md: 74 },
@@ -483,7 +499,7 @@ export default function AccountPage() {
                 border: '3px solid #FFFFFF',
               }}
             >
-              {(effectiveUser?.fullName || effectiveUser?.name || 'C')?.[0]?.toUpperCase()}
+              {(effectiveUser?.fullName || effectiveUser?.name || user?.name || 'C')?.[0]?.toUpperCase()}
             </Avatar>
 
             <Box>
@@ -1025,7 +1041,7 @@ export default function AccountPage() {
                 >
                   <Box sx={{ position: 'relative' }}>
                     <Avatar
-                      src={effectiveUser?.profilePicture || effectiveUser?.avatar}
+                      src={previewAvatar || effectiveUser?.profilePicture || effectiveUser?.avatar || user?.profilePicture || user?.avatar}
                       sx={{
                         width: 72,
                         height: 72,
@@ -1037,7 +1053,7 @@ export default function AccountPage() {
                         boxShadow: '0 4px 14px rgba(0,0,0,0.12)',
                       }}
                     >
-                      {(effectiveUser?.fullName || effectiveUser?.name || 'C')?.[0]?.toUpperCase()}
+                      {(effectiveUser?.fullName || effectiveUser?.name || user?.name || 'C')?.[0]?.toUpperCase()}
                     </Avatar>
                     {isUploadingAvatar && (
                       <CircularProgress
@@ -1507,7 +1523,7 @@ export default function AccountPage() {
                         required
                         fullWidth
                         size="small"
-                        value={newAddress.phone || userPhone}
+                        value={newAddress.phone || userPhone || ''}
                         onChange={(e) => {
                           const cleanDigits = e.target.value.replace(/\D/g, '').slice(0, 10);
                           setNewAddress({ ...newAddress, phone: cleanDigits });

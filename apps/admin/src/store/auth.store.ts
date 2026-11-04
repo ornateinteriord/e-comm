@@ -29,7 +29,14 @@ export const useAdminAuthStore = create<AuthState>()(
       accessToken: null,
       user: null,
       isAuthenticated: false,
-      setAuth: (token, user) => set({ accessToken: token, user, isAuthenticated: true }),
+      setAuth: (token, user) => {
+        if (user && user.role === 'customer') {
+          console.warn('[Admin Auth] Customer accounts cannot access the admin store');
+          set({ accessToken: null, user: null, isAuthenticated: false });
+          return;
+        }
+        set({ accessToken: token, user, isAuthenticated: true });
+      },
       setAccessToken: (token) => set({ accessToken: token }),
       clearAuth: () => set({ accessToken: null, user: null, isAuthenticated: false }),
       hasRole: (...roles) => {
@@ -41,7 +48,16 @@ export const useAdminAuthStore = create<AuthState>()(
     }),
     {
       name: 'ornate-admin-auth',
-      partialize: (state) => ({ user: state.user, accessToken: state.accessToken, isAuthenticated: state.isAuthenticated }),
+      partialize: (state) => ({
+        user: state.isAuthenticated && state.user?.role !== 'customer' ? state.user : null,
+        accessToken: state.user?.role !== 'customer' ? state.accessToken : null,
+        isAuthenticated: state.isAuthenticated && state.user?.role !== 'customer',
+      }),
+      onRehydrateStorage: () => (state) => {
+        if (!state?.isAuthenticated || !state?.accessToken || state?.user?.role === 'customer') {
+          state?.clearAuth();
+        }
+      },
     },
   ),
 );

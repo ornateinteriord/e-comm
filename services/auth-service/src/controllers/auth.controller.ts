@@ -16,25 +16,71 @@ const BCRYPT_ROUNDS = Number(process.env.BCRYPT_ROUNDS ?? 12);
 const COOKIE_SECURE = process.env.COOKIE_SECURE === 'true';
 const COOKIE_DOMAIN = process.env.COOKIE_DOMAIN ?? 'localhost';
 
-function setRefreshCookie(res: Response, token: string): void {
-  res.cookie('refreshToken', token, {
-    httpOnly: true,
-    secure: COOKIE_SECURE,
-    sameSite: 'strict',
-    domain: COOKIE_DOMAIN,
-    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-    path: '/api/v1/auth',
-  });
+const ADMIN_ROLES = [
+  'admin',
+  'super_admin',
+  'catalog_manager',
+  'inventory_manager',
+  'order_manager',
+  'finance_manager',
+  'support',
+];
+
+function getCookieDomain(): string | undefined {
+  if (process.env.COOKIE_DOMAIN && process.env.COOKIE_DOMAIN !== 'localhost') {
+    return process.env.COOKIE_DOMAIN;
+  }
+  return undefined;
 }
 
-function clearRefreshCookie(res: Response): void {
-  res.clearCookie('refreshToken', {
+export function getClientType(req: Request): 'admin' | 'storefront' {
+  const header = String(req.headers['x-client-type'] || '').trim().toLowerCase();
+  if (header === 'admin') return 'admin';
+  if (header === 'storefront') return 'storefront';
+
+  const origin = String(req.headers['origin'] || req.headers['referer'] || '');
+  if (origin.includes(':5174') || origin.includes('admin.') || origin.includes('-admin')) {
+    return 'admin';
+  }
+  return 'storefront';
+}
+
+function setRefreshCookie(res: Response, token: string, cookieName: string = 'refreshToken'): void {
+  const domain = getCookieDomain();
+  const cookieOpts: any = {
     httpOnly: true,
     secure: COOKIE_SECURE,
     sameSite: 'strict',
-    domain: COOKIE_DOMAIN,
+    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     path: '/api/v1/auth',
-  });
+  };
+  if (domain) cookieOpts.domain = domain;
+  res.cookie(cookieName, token, cookieOpts);
+}
+
+function clearRefreshCookie(res: Response, specificCookieName?: string): void {
+  const domain = getCookieDomain();
+  const names = specificCookieName
+    ? [specificCookieName]
+    : ['refreshToken', 'customerRefreshToken', 'adminRefreshToken'];
+
+  for (const name of names) {
+    if (domain) {
+      res.clearCookie(name, {
+        httpOnly: true,
+        secure: COOKIE_SECURE,
+        sameSite: 'strict',
+        domain,
+        path: '/api/v1/auth',
+      });
+    }
+    res.clearCookie(name, {
+      httpOnly: true,
+      secure: COOKIE_SECURE,
+      sameSite: 'strict',
+      path: '/api/v1/auth',
+    });
+  }
 }
 
 // GET/POST /api/v1/auth/verify-referral?code=:code
@@ -194,7 +240,8 @@ export async function register(req: Request, res: Response, next: NextFunction):
 
     const accessToken = signAccessToken({ userId: customer.id, email: customer.email, role: customer.role });
     const refreshToken = signRefreshToken({ userId: customer.id });
-    setRefreshCookie(res, refreshToken);
+    clearRefreshCookie(res);
+    setRefreshCookie(res, refreshToken, 'customerRefreshToken');
 
     await AuditLog.create({
       action: 'auth.register',
@@ -249,6 +296,7 @@ export async function register(req: Request, res: Response, next: NextFunction):
 export async function login(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const { email, username, mobileNumber, password } = req.body;
+    const clientType = getClientType(req);
     const identifier = String(mobileNumber || username || email || '').trim();
 
     if (!identifier || !password) {
@@ -286,9 +334,42 @@ export async function login(req: Request, res: Response, next: NextFunction): Pr
       return;
     }
 
+    const isAdminRole = ADMIN_ROLES.includes(customer.role);
+
+    // RESTRICTION 1: Admin and staff accounts CANNOT log in via web storefront!
+    if (clientType === 'storefront' && isAdminRole) {
+      clearRefreshCookie(res);
+      res.status(403).json({
+        success: false,
+        error: {
+          code: 'ADMIN_ACCESS_RESTRICTED',
+          message: 'Admin and staff accounts must log in via the Admin Portal, not the web storefront.',
+        },
+      });
+      return;
+    }
+
+    // RESTRICTION 2: Customers CANNOT log in via Admin Portal!
+    if (clientType === 'admin' && !isAdminRole) {
+      clearRefreshCookie(res);
+      res.status(403).json({
+        success: false,
+        error: {
+          code: 'CUSTOMER_ACCESS_RESTRICTED',
+          message: 'Customer accounts cannot access the Admin Portal.',
+        },
+      });
+      return;
+    }
+
+    const cookieName = isAdminRole ? 'adminRefreshToken' : 'customerRefreshToken';
+    // Clear opposite cookie to prevent cross-portal pollution
+    clearRefreshCookie(res, isAdminRole ? 'customerRefreshToken' : 'adminRefreshToken');
+    clearRefreshCookie(res, 'refreshToken');
+
     const accessToken = signAccessToken({ userId: customer.id, email: customer.email, role: customer.role });
     const refreshToken = signRefreshToken({ userId: customer.id });
-    setRefreshCookie(res, refreshToken);
+    setRefreshCookie(res, refreshToken, cookieName);
 
     await AuditLog.create({
       action: 'auth.login',
@@ -341,14 +422,28 @@ export async function login(req: Request, res: Response, next: NextFunction): Pr
 
 // POST /api/v1/auth/logout
 export async function logout(req: Request, res: Response): Promise<void> {
-  clearRefreshCookie(res);
+  const clientType = getClientType(req);
+  if (clientType === 'admin') {
+    clearRefreshCookie(res, 'adminRefreshToken');
+  } else {
+    clearRefreshCookie(res, 'customerRefreshToken');
+  }
+  clearRefreshCookie(res, 'refreshToken');
   res.json({ success: true, data: null, message: 'Logged out successfully.' });
 }
 
 // POST /api/v1/auth/refresh
 export async function refresh(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const token = req.cookies?.refreshToken as string | undefined;
+    const clientType = getClientType(req);
+
+    let token: string | undefined;
+    if (clientType === 'admin') {
+      token = (req.cookies?.adminRefreshToken || req.cookies?.refreshToken) as string | undefined;
+    } else {
+      token = (req.cookies?.customerRefreshToken || req.cookies?.refreshToken) as string | undefined;
+    }
+
     if (!token) {
       res.status(401).json({
         success: false,
@@ -379,9 +474,40 @@ export async function refresh(req: Request, res: Response, next: NextFunction): 
       return;
     }
 
+    const isAdminRole = ADMIN_ROLES.includes(customer.role);
+
+    // RESTRICTION 1: Admin and staff accounts CANNOT refresh into a storefront session!
+    if (clientType === 'storefront' && isAdminRole) {
+      clearRefreshCookie(res, 'customerRefreshToken');
+      clearRefreshCookie(res, 'refreshToken');
+      res.status(403).json({
+        success: false,
+        error: {
+          code: 'ADMIN_ACCESS_RESTRICTED',
+          message: 'Admin accounts cannot access storefront sessions.',
+        },
+      });
+      return;
+    }
+
+    // RESTRICTION 2: Customers CANNOT refresh into an admin session!
+    if (clientType === 'admin' && !isAdminRole) {
+      clearRefreshCookie(res, 'adminRefreshToken');
+      clearRefreshCookie(res, 'refreshToken');
+      res.status(403).json({
+        success: false,
+        error: {
+          code: 'CUSTOMER_ACCESS_RESTRICTED',
+          message: 'Customer accounts cannot access admin sessions.',
+        },
+      });
+      return;
+    }
+
+    const cookieName = isAdminRole ? 'adminRefreshToken' : 'customerRefreshToken';
     const accessToken = signAccessToken({ userId: customer.id, email: customer.email, role: customer.role });
     const newRefreshToken = signRefreshToken({ userId: customer.id });
-    setRefreshCookie(res, newRefreshToken);
+    setRefreshCookie(res, newRefreshToken, cookieName);
 
     res.json({ success: true, data: { accessToken } });
   } catch (err) {

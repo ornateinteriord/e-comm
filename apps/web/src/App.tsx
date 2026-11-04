@@ -5,6 +5,7 @@ import StorefrontLayout from './layouts/StorefrontLayout.tsx';
 import ErrorBoundary from './components/ErrorBoundary.tsx';
 import ScrollToTop from './components/ScrollToTop.tsx';
 import GuestRoute from './components/GuestRoute.tsx';
+import ProtectedRoute from './components/ProtectedRoute.tsx';
 
 // Lazy-loaded pages for code splitting
 const HomePage = React.lazy(() => import('./pages/HomePage.tsx'));
@@ -46,18 +47,24 @@ export default function App() {
             <Route path="categories/:slug" element={<CategoryPage />} />
             <Route path="products/:slug" element={<ProductDetailPage />} />
             <Route path="cart" element={<CartPage />} />
-            <Route path="checkout" element={<CheckoutPage />} />
-            <Route path="payment/return" element={<PaymentReturnPage />} />
-            <Route path="orders" element={<OrdersPage />} />
-            <Route path="orders/:id" element={<OrderDetailPage />} />
-            <Route path="wishlist" element={<WishlistPage />} />
-            <Route path="wallet" element={<WalletPage />} />
-            <Route path="account" element={<AccountPage />} />
+
+            {/* Protected Customer Routes */}
+            <Route element={<ProtectedRoute />}>
+              <Route path="checkout" element={<CheckoutPage />} />
+              <Route path="payment/return" element={<PaymentReturnPage />} />
+              <Route path="orders" element={<OrdersPage />} />
+              <Route path="orders/:id" element={<OrderDetailPage />} />
+              <Route path="wishlist" element={<WishlistPage />} />
+              <Route path="wallet" element={<WalletPage />} />
+              <Route path="account" element={<AccountPage />} />
+            </Route>
+
             {/* Guest-only routes: Logged-in users are redirected to home */}
             <Route element={<GuestRoute />}>
               <Route path="login" element={<LoginPage />} />
               <Route path="register" element={<RegisterPage />} />
             </Route>
+
             <Route path="privacy-policy" element={<PrivacyPolicyPage />} />
             <Route path="terms-and-conditions" element={<TermsPage />} />
             <Route path="contact" element={<ContactPage />} />
