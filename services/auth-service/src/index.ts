@@ -105,6 +105,7 @@ app.get('/health', (_req: Request, res: Response) => {
 app.use('/api/v1/auth', authRoutes);
 
 // User Profile, Addresses, Wishlist & Customer routes (merged from user-service)
+app.use('/api/v1/users', userRoutes);
 app.use('/api/v1', userRoutes);
 app.get('/api/v1/users/me', requireAuth, getProfile);
 app.get('/api/v1/users/profile', requireAuth, getProfile);

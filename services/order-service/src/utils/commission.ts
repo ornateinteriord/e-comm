@@ -26,6 +26,8 @@ export interface UplineMember {
   id: string;
   name?: string;
   type: 'customer' | 'vendor';
+  level: number;
+  rate: number;
 }
 
 export interface CommissionEntryBreakdown {
@@ -114,6 +116,125 @@ export async function calculateOrderMargin(order: IOrder, productDb: any): Promi
   };
 }
 
+function escapeRegex(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function getSearchVariants(raw: string) {
+  const trimmed = String(raw || '').trim();
+  if (!trimmed) {
+    return { strings: [], numbers: [], regexes: [] };
+  }
+
+  const strSet = new Set<string>();
+  strSet.add(trimmed);
+  strSet.add(trimmed.toLowerCase());
+
+  const cleanDigits = trimmed.replace(/\D/g, '');
+  if (cleanDigits.length === 10) {
+    strSet.add(cleanDigits);
+    strSet.add(`+91${cleanDigits}`);
+    strSet.add(`91${cleanDigits}`);
+    strSet.add(`0${cleanDigits}`);
+  } else if (cleanDigits.length === 12 && cleanDigits.startsWith('91')) {
+    const tenDigits = cleanDigits.slice(2);
+    strSet.add(tenDigits);
+    strSet.add(`+91${tenDigits}`);
+    strSet.add(`91${tenDigits}`);
+    strSet.add(`0${tenDigits}`);
+  }
+
+  const numbers: number[] = [];
+  for (const s of strSet) {
+    if (/^\d+$/.test(s)) {
+      const n = Number(s);
+      if (!isNaN(n)) numbers.push(n);
+    }
+  }
+
+  const regexes = Array.from(strSet).map(
+    (s) => new RegExp(`^${escapeRegex(s)}$`, 'i')
+  );
+
+  return { strings: Array.from(strSet), numbers, regexes };
+}
+
+function buildVendorQuery(code: string): { $or: any[] } {
+  const { strings, numbers, regexes } = getSearchVariants(code);
+  const conditions: any[] = [];
+
+  const vendorFields = [
+    'Member_id',
+    'member_id',
+    'member_code',
+    'Member_Code',
+    'mobileno',
+    'MobileNo',
+    'contactno',
+    'ContactNo',
+    'email',
+    'Email',
+    'emailid',
+    'EmailId',
+    'email_id',
+  ];
+
+  for (const field of vendorFields) {
+    for (const s of strings) {
+      conditions.push({ [field]: s });
+    }
+    for (const r of regexes) {
+      conditions.push({ [field]: r });
+    }
+  }
+
+  const numericVendorFields = ['Member_id', 'member_id', 'member_code', 'mobileno', 'contactno'];
+  for (const field of numericVendorFields) {
+    for (const n of numbers) {
+      conditions.push({ [field]: n });
+    }
+  }
+
+  return { $or: conditions.length > 0 ? conditions : [{ Member_id: code }] };
+}
+
+function buildCustomerQuery(code: string): { $or: any[] } {
+  const { strings, numbers, regexes } = getSearchVariants(code);
+  const conditions: any[] = [];
+
+  if (mongoose.Types.ObjectId.isValid(code)) {
+    conditions.push({ _id: new mongoose.Types.ObjectId(code) });
+  }
+
+  const customerFields = [
+    'customerId',
+    'customer_id',
+    'email',
+    'mobileNumber',
+    'phone',
+    'username',
+    'referralCode',
+  ];
+
+  for (const field of customerFields) {
+    for (const s of strings) {
+      conditions.push({ [field]: s });
+    }
+    for (const r of regexes) {
+      conditions.push({ [field]: r });
+    }
+  }
+
+  const numericCustomerFields = ['mobileNumber', 'phone', 'username'];
+  for (const field of numericCustomerFields) {
+    for (const n of numbers) {
+      conditions.push({ [field]: n });
+    }
+  }
+
+  return { $or: conditions.length > 0 ? conditions : [{ customerId: code }] };
+}
+
 /**
  * Finds customer document from ornate_auth.customers matching the order's user identifier.
  */
@@ -123,15 +244,12 @@ export async function findCustomerForOrder(order: IOrder, authDb: any): Promise<
     query.push({ _id: new mongoose.Types.ObjectId(order.userId) });
   }
   if (order.userId) {
-    query.push({ userId: order.userId });
-    query.push({ customerId: order.userId });
-    query.push({ customer_id: order.userId });
-    query.push({ mobileNumber: order.userId });
-    query.push({ phone: order.userId });
-    query.push({ username: order.userId });
+    const custQ = buildCustomerQuery(order.userId);
+    query.push(...custQ.$or);
   }
   if (order.customerEmail) {
-    query.push({ email: order.customerEmail.toLowerCase().trim() });
+    const emailQ = buildCustomerQuery(order.customerEmail);
+    query.push(...emailQ.$or);
   }
 
   if (query.length === 0) return null;
@@ -145,162 +263,180 @@ export async function findCustomerForOrder(order: IOrder, authDb: any): Promise<
 }
 
 /**
- * Resolves the upline referral chain from Level 3 up to Level 20.
+ * Resolves the upline referral chain from Level 2 up to Level 20.
  * Follows upstream customers in ornate_auth.customers, then vendors in e-cash.vendor_tbl.
+ * Level 2 receives 5% commission rate, while Levels 3 to 20 receive 0.5% each.
  */
 export async function traceReferralChain(
   customer: any,
   authDb: any,
   ecashDb: any,
   sponsorId: string | null,
-  vendorId: string | null,
 ): Promise<UplineMember[]> {
   const upline: UplineMember[] = [];
   const visited = new Set<string>();
 
-  const customerId = String(customer.customerId || customer.customer_id || customer.mobileNumber || customer._id || '');
-  if (customerId) visited.add(customerId);
-  if (sponsorId) visited.add(sponsorId);
-  if (vendorId) visited.add(vendorId);
+  const customerId = String(customer?.customerId || customer?.customer_id || customer?.mobileNumber || customer?._id || '').trim();
+  if (customerId) visited.add(customerId.toLowerCase());
+  if (sponsorId) visited.add(String(sponsorId).trim().toLowerCase());
 
-  let currentCode = customer.referralCode;
-  let vendorStartId: string | null = null;
+  let currentLevel = 2;
+  let currentCode: string | null = null;
+  let reachedVendorId: string | null = null;
 
-  // 1. Trace upstream customers (up to 18 hops)
-  let customerDepth = 0;
-  while (currentCode && customerDepth < 18 && upline.length < 18) {
+  // Determine where Level 2 starts based on the direct sponsor
+  if (sponsorId) {
     try {
-      const parentCust = await authDb.collection('customers').findOne({
-        $or: [
-          { customerId: currentCode },
-          { customer_id: currentCode },
-          { mobileNumber: currentCode },
-          { phone: currentCode },
-          { username: currentCode },
-        ],
-      });
-
-      if (!parentCust) {
-        // Not a customer, could be a vendor ID
-        vendorStartId = currentCode;
-        break;
-      }
-
-      const nextCode = parentCust.referralCode;
-      if (!nextCode) {
-        if (parentCust.vendor_id) {
-          vendorStartId = parentCust.vendor_id;
+      const sponsorCust = await authDb.collection('customers').findOne(buildCustomerQuery(sponsorId));
+      if (sponsorCust) {
+        const parentRef = String(sponsorCust.referralCode || '').trim();
+        const parentType = sponsorCust.referralType;
+        if (parentType === 'vendor') {
+          reachedVendorId = sponsorCust.vendor_id || parentRef;
+        } else if (parentRef) {
+          currentCode = parentRef;
+        } else if (sponsorCust.vendor_id) {
+          reachedVendorId = sponsorCust.vendor_id;
         }
-        break;
-      }
-
-      // Check if next parent is a customer or a vendor
-      const isNextCust = await authDb.collection('customers').findOne({
-        $or: [
-          { customerId: nextCode },
-          { customer_id: nextCode },
-          { mobileNumber: nextCode },
-          { phone: nextCode },
-          { username: nextCode },
-        ],
-      });
-
-      if (isNextCust) {
-        const pId = String(isNextCust.customerId || isNextCust.customer_id || isNextCust.mobileNumber || nextCode);
-        if (!visited.has(pId)) {
-          visited.add(pId);
-          upline.push({
-            id: pId,
-            name: isNextCust.fullName || isNextCust.name,
-            type: 'customer',
-          });
-        }
-        currentCode = nextCode;
       } else {
-        vendorStartId = nextCode || parentCust.vendor_id;
-        break;
+        // Direct sponsor is a vendor in vendor_tbl
+        reachedVendorId = sponsorId;
+      }
+    } catch (err) {
+      log.warn({ err, sponsorId }, 'Error looking up sponsor for upline trace');
+    }
+  }
+
+  // 1. Trace upstream customers
+  while (currentCode && currentLevel <= 20) {
+    const custId = String(currentCode).trim();
+    if (!custId || visited.has(custId.toLowerCase())) break;
+
+    try {
+      const custDoc = await authDb.collection('customers').findOne(buildCustomerQuery(custId));
+
+      if (custDoc) {
+        const canonicalId = String(custDoc.customerId || custDoc.customer_id || custDoc.mobileNumber || custId);
+        visited.add(canonicalId.toLowerCase());
+        visited.add(custId.toLowerCase());
+
+        upline.push({
+          id: canonicalId,
+          name: custDoc.fullName || custDoc.name || 'Customer',
+          type: 'customer',
+          level: currentLevel,
+          rate: currentLevel === 2 ? 5 : 0.5,
+        });
+        currentLevel++;
+
+        if (currentLevel > 20) break;
+
+        const parentRef = String(custDoc.referralCode || '').trim();
+        const parentType = custDoc.referralType;
+
+        if (parentType === 'vendor') {
+          reachedVendorId = custDoc.vendor_id || parentRef;
+          currentCode = null;
+        } else if (parentRef) {
+          currentCode = parentRef;
+        } else if (custDoc.vendor_id) {
+          reachedVendorId = custDoc.vendor_id;
+          currentCode = null;
+        } else {
+          currentCode = null;
+        }
+      } else {
+        // If code is not found in customers, it points to a vendor in vendor_tbl
+        reachedVendorId = custId;
+        currentCode = null;
       }
     } catch {
       break;
     }
-    customerDepth++;
   }
 
   // 2. Trace upstream vendors via e-cash vendor_tbl
-  const targetVendor = vendorStartId || vendorId || sponsorId;
-  if (targetVendor && upline.length < 18) {
+  if (reachedVendorId && currentLevel <= 20) {
     try {
-      const vendorDoc = await ecashDb.collection('vendor_tbl').findOne({
-        $or: [
-          { Member_id: targetVendor },
-          { member_id: targetVendor },
-          { Member_id: new RegExp(`^${targetVendor}$`, 'i') },
-          { member_id: new RegExp(`^${targetVendor}$`, 'i') },
-        ],
-      });
+      const vendorDoc = await ecashDb.collection('vendor_tbl').findOne(buildVendorQuery(reachedVendorId));
 
       if (vendorDoc) {
-        // Check introducer_hierarchy array first (common in MLM / vendor_tbl)
+        const canonicalVendorId = String(vendorDoc.Member_id || vendorDoc.member_id || vendorDoc.member_code || reachedVendorId).trim();
+
+        // If this vendor is not the direct sponsor (which was added to visited at startup),
+        // add this vendor into the upline chain:
+        if (!visited.has(canonicalVendorId.toLowerCase()) && !visited.has(reachedVendorId.toLowerCase())) {
+          visited.add(canonicalVendorId.toLowerCase());
+          visited.add(reachedVendorId.toLowerCase());
+
+          upline.push({
+            id: canonicalVendorId,
+            name: vendorDoc.Name || vendorDoc.name || vendorDoc.firm_name || 'Vendor',
+            type: 'vendor',
+            level: currentLevel,
+            rate: currentLevel === 2 ? 5 : 0.5,
+          });
+          currentLevel++;
+        }
+
+        // Trace vendor's upline introducers
+        // A. Check introducer_hierarchy array
         if (Array.isArray(vendorDoc.introducer_hierarchy)) {
           for (const uplineId of vendorDoc.introducer_hierarchy) {
-            if (upline.length >= 18) break;
+            if (currentLevel > 20) break;
             const cleanId = String(uplineId || '').trim();
-            if (cleanId && !visited.has(cleanId)) {
-              visited.add(cleanId);
+            if (cleanId && !visited.has(cleanId.toLowerCase())) {
+              visited.add(cleanId.toLowerCase());
               let vName = 'Vendor';
               try {
-                const uDoc = await ecashDb.collection('vendor_tbl').findOne({
-                  $or: [
-                    { Member_id: cleanId },
-                    { member_id: cleanId },
-                    { Member_id: new RegExp(`^${cleanId}$`, 'i') },
-                    { member_id: new RegExp(`^${cleanId}$`, 'i') },
-                  ],
-                });
+                const uDoc = await ecashDb.collection('vendor_tbl').findOne(buildVendorQuery(cleanId));
                 if (uDoc) {
-                  vName = uDoc.Name || uDoc.name || 'Vendor';
+                  vName = uDoc.Name || uDoc.name || uDoc.firm_name || 'Vendor';
                 }
               } catch {}
-              upline.push({ id: cleanId, name: vName, type: 'vendor' });
+              upline.push({
+                id: cleanId,
+                name: vName,
+                type: 'vendor',
+                level: currentLevel,
+                rate: currentLevel === 2 ? 5 : 0.5,
+              });
+              currentLevel++;
             }
           }
         }
 
-        // Also traverse sponsor_id / introducer if needed to reach up to Level 20
+        // B. Also traverse sponsor_id / introducer / Sponsor_code
         let currentVendor = vendorDoc;
-        let vendorHops = 0;
-        while (currentVendor && upline.length < 18 && vendorHops < 18) {
+        let vHops = 0;
+        while (currentVendor && currentLevel <= 20 && vHops < 20) {
           const nextVId = String(currentVendor.sponsor_id || currentVendor.introducer || currentVendor.Sponsor_code || '').trim();
           if (!nextVId) break;
 
           let nextDoc: any = null;
           try {
-            nextDoc = await ecashDb.collection('vendor_tbl').findOne({
-              $or: [
-                { Member_id: nextVId },
-                { member_id: nextVId },
-                { Member_id: new RegExp(`^${nextVId}$`, 'i') },
-                { member_id: new RegExp(`^${nextVId}$`, 'i') },
-              ],
-            });
+            nextDoc = await ecashDb.collection('vendor_tbl').findOne(buildVendorQuery(nextVId));
           } catch {}
 
-          if (!visited.has(nextVId)) {
-            visited.add(nextVId);
-            const vName = nextDoc?.Name || nextDoc?.name || currentVendor.Sponsor_name || currentVendor.introducer_name || 'Vendor';
+          if (!visited.has(nextVId.toLowerCase())) {
+            visited.add(nextVId.toLowerCase());
+            const vName = nextDoc?.Name || nextDoc?.name || nextDoc?.firm_name || currentVendor.Sponsor_name || currentVendor.introducer_name || 'Vendor';
             upline.push({
               id: nextVId,
               name: vName,
               type: 'vendor',
+              level: currentLevel,
+              rate: currentLevel === 2 ? 5 : 0.5,
             });
+            currentLevel++;
           }
 
           currentVendor = nextDoc;
-          vendorHops++;
+          vHops++;
         }
       }
     } catch (err) {
-      log.warn({ err, targetVendor }, 'Error tracing vendor upline hierarchy');
+      log.warn({ err, reachedVendorId }, 'Error tracing vendor upline hierarchy');
     }
   }
 
@@ -432,7 +568,7 @@ async function executeCommissionDistribution(orderOrDoc: any): Promise<Commissio
     });
     breakdown.push({
       level: 1,
-      role: 'Sponsor',
+      role: 'Level 1 Sponsor',
       beneficiaryId: sponsorId,
       beneficiaryName: customer?.referralName,
       rate: 5,
@@ -442,11 +578,11 @@ async function executeCommissionDistribution(orderOrDoc: any): Promise<Commissio
     totalDistributed += level1Amount;
   }
 
-  // Level 2: Vendor (5%)
-  // If sponsor and vendor are the same person, this second 5% entry is still created so they receive 5% twice.
-  const level2Amount = Number(((marginRupees * 5) / 100).toFixed(2));
-  if (level2Amount > 0 && vendorId) {
-    const commId = `COM-${Date.now()}-2-${Math.floor(1000 + Math.random() * 9000)}`;
+  // Vendor Margin Bonus (5%)
+  // If sponsor and vendor are the same entity, both entries are created so they receive 5% two times (10% total).
+  const vendorAmount = Number(((marginRupees * 5) / 100).toFixed(2));
+  if (vendorAmount > 0 && vendorId) {
+    const commId = `COM-${Date.now()}-0-${Math.floor(1000 + Math.random() * 9000)}`;
     records.push({
       commission_id: commId,
       userId: vendorId,
@@ -458,44 +594,53 @@ async function executeCommissionDistribution(orderOrDoc: any): Promise<Commissio
       source_type: 'CUSTOMER',
       transaction_id: orderNumber,
       transaction_date: now,
-      account_type: 'Level 2 Vendor Bonus (Order Margin)',
+      account_type: 'Vendor Margin Bonus (Order Margin)',
       account_type_id: 'COMMISSION_MARGIN',
       transaction_amount: marginRupees,
       commission_rate: 5,
-      commission_amount: level2Amount,
-      level: 2,
+      commission_amount: vendorAmount,
+      level: 0,
       status: 'CREDITED',
       credited_at: now,
       failure_reason: null,
-      notes: `Level 2 Vendor (${vendorId}) - 5% Margin Commission for Order ${orderNumber}`,
+      notes: `Vendor (${vendorId}) - 5% Margin Commission for Order ${orderNumber}`,
       createdAt: now,
       updatedAt: now,
       __v: 0,
     });
     breakdown.push({
-      level: 2,
-      role: 'Vendor',
+      level: 0,
+      role: 'Vendor Bonus',
       beneficiaryId: vendorId,
       beneficiaryName: customer?.vendor_name,
       rate: 5,
-      amount: level2Amount,
+      amount: vendorAmount,
       commissionId: commId,
     });
-    totalDistributed += level2Amount;
+    totalDistributed += vendorAmount;
   }
 
-  // Levels 3 to 20: Referral Chain (0.5% each)
-  const uplineChain = await traceReferralChain(customer || {}, authDb, ecashDb, sponsorId, vendorId);
+  // Upline Referral Chain: Level 2 (5%) and Levels 3 to 20 (0.5% each)
+  const uplineChain = await traceReferralChain(customer || {}, authDb, ecashDb, sponsorId);
 
-  for (let idx = 0; idx < uplineChain.length; idx++) {
-    const levelNumber = idx + 3;
-    if (levelNumber > 20) break;
-
-    const member = uplineChain[idx];
-    const levelAmount = Number(((marginRupees * 0.5) / 100).toFixed(2));
+  for (const member of uplineChain) {
+    const levelNumber = member.level;
+    const rate = member.rate;
+    const levelAmount = Number(((marginRupees * rate) / 100).toFixed(2));
 
     if (levelAmount > 0) {
       const commId = `COM-${Date.now()}-${levelNumber}-${Math.floor(1000 + Math.random() * 9000)}`;
+      const isLevel2 = levelNumber === 2;
+      const accountType = isLevel2
+        ? 'Level 2 Sponsor Bonus (Order Margin)'
+        : `Level ${levelNumber} Network Bonus (Order Margin)`;
+      const role = isLevel2
+        ? `Level 2 Sponsor (${member.type})`
+        : `Level ${levelNumber} Network (${member.type})`;
+      const notes = isLevel2
+        ? `Level 2 Sponsor (${member.id}) - 5% Margin Commission for Order ${orderNumber}`
+        : `Level ${levelNumber} Network (${member.id}) - 0.5% Margin Commission for Order ${orderNumber}`;
+
       records.push({
         commission_id: commId,
         userId: member.id,
@@ -507,26 +652,27 @@ async function executeCommissionDistribution(orderOrDoc: any): Promise<Commissio
         source_type: 'CUSTOMER',
         transaction_id: orderNumber,
         transaction_date: now,
-        account_type: `Level ${levelNumber} Network Bonus (Order Margin)`,
+        account_type: accountType,
         account_type_id: 'COMMISSION_MARGIN',
         transaction_amount: marginRupees,
-        commission_rate: 0.5,
+        commission_rate: rate,
         commission_amount: levelAmount,
         level: levelNumber,
         status: 'CREDITED',
         credited_at: now,
         failure_reason: null,
-        notes: `Level ${levelNumber} Network (${member.id}) - 0.5% Margin Commission for Order ${orderNumber}`,
+        notes,
         createdAt: now,
         updatedAt: now,
         __v: 0,
       });
+
       breakdown.push({
         level: levelNumber,
-        role: `Network (${member.type})`,
+        role,
         beneficiaryId: member.id,
         beneficiaryName: member.name,
-        rate: 0.5,
+        rate,
         amount: levelAmount,
         commissionId: commId,
       });
@@ -559,16 +705,7 @@ async function executeCommissionDistribution(orderOrDoc: any): Promise<Commissio
 
         // 1. If beneficiary is a CUSTOMER -> Credit customer wallet in ornate_auth.customers
         if (rec.beneficiary_type === 'CUSTOMER') {
-          const customerDoc = await authDb.collection('customers').findOne({
-            $or: [
-              ...(mongoose.Types.ObjectId.isValid(benId) ? [{ _id: new mongoose.Types.ObjectId(benId) }] : []),
-              { customerId: benId },
-              { customer_id: benId },
-              { mobileNumber: benId },
-              { phone: benId },
-              { username: benId },
-            ],
-          });
+          const customerDoc = await authDb.collection('customers').findOne(buildCustomerQuery(benId));
 
           if (customerDoc) {
             // Atomically update customer's wallet balance
@@ -623,16 +760,7 @@ async function executeCommissionDistribution(orderOrDoc: any): Promise<Commissio
           }
         } else if (rec.beneficiary_type === 'MEMBER') {
           // 2. If beneficiary is a MEMBER (Vendor) -> Credit vendor wallet in e-cash.vendor_tbl
-          const vendorDoc = await ecashDb.collection('vendor_tbl').findOne({
-            $or: [
-              { Member_id: benId },
-              { member_id: benId },
-              { Member_id: new RegExp(`^${benId}$`, 'i') },
-              { member_id: new RegExp(`^${benId}$`, 'i') },
-              { mobileno: benId },
-              { contactno: benId },
-            ],
-          });
+          const vendorDoc = await ecashDb.collection('vendor_tbl').findOne(buildVendorQuery(benId));
 
           if (vendorDoc) {
             await ecashDb.collection('vendor_tbl').updateOne(
@@ -673,32 +801,33 @@ async function executeCommissionDistribution(orderOrDoc: any): Promise<Commissio
   });
 
   // ---- DETAILED HUMAN-READABLE LOGGING ----
-  console.log('\n' + '='.repeat(82));
+  console.log('\n' + '='.repeat(96));
   console.log(`[COMMISSION DISTRIBUTION SUCCESS] Order Number: ${orderNumber}`);
   console.log(`Customer: ${sourceName} (ID / Mobile: ${sourceId})`);
   console.log(`Order Margin Amount: ₹${marginRupees.toFixed(2)}`);
-  console.log(`Total Commission Distributed: ₹${totalDistributed.toFixed(2)} across ${records.length} levels`);
-  console.log('-'.repeat(82));
+  console.log(`Total Commission Distributed: ₹${totalDistributed.toFixed(2)} across ${records.length} records`);
+  console.log('-'.repeat(96));
   console.log(
-    'Level'.padEnd(8) +
-    'Role'.padEnd(18) +
-    'Beneficiary ID'.padEnd(18) +
+    'Level'.padEnd(10) +
+    'Role'.padEnd(28) +
+    'Beneficiary ID'.padEnd(20) +
     'Rate'.padEnd(8) +
     'Amount (₹)'.padEnd(14) +
     'Notes'
   );
-  console.log('-'.repeat(82));
+  console.log('-'.repeat(96));
   for (const item of breakdown) {
+    const lvlStr = item.level === 0 ? 'Vendor' : `L${item.level}`;
     console.log(
-      `L${item.level}`.padEnd(8) +
-      item.role.padEnd(18) +
-      item.beneficiaryId.padEnd(18) +
+      lvlStr.padEnd(10) +
+      item.role.padEnd(28) +
+      item.beneficiaryId.padEnd(20) +
       `${item.rate}%`.padEnd(8) +
       `₹${item.amount.toFixed(2)}`.padEnd(14) +
       (item.beneficiaryName ? `(${item.beneficiaryName})` : '')
     );
   }
-  console.log('='.repeat(82) + '\n');
+  console.log('='.repeat(96) + '\n');
 
   log.info(
     {

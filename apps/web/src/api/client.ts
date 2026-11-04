@@ -12,7 +12,11 @@ const API_BASE =
 const api = axios.create({
   baseURL: API_BASE,
   withCredentials: true,
-  headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+  headers: {
+    'Content-Type': 'application/json',
+    'X-Requested-With': 'XMLHttpRequest',
+    'X-Client-Type': 'storefront',
+  },
   timeout: 15000,
 });
 
@@ -22,6 +26,7 @@ let refreshQueue: Array<(token: string) => void> = [];
 api.interceptors.request.use((config) => {
   const token = useAuthStore.getState().accessToken;
   if (token) config.headers.Authorization = `Bearer ${token}`;
+  config.headers['X-Client-Type'] = 'storefront';
   return config;
 });
 
@@ -30,7 +35,20 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
-    if (error.response?.status === 401 && !originalRequest?._retry) {
+    // Reject and purge auth immediately on 403 Forbidden
+    if (error.response?.status === 403) {
+      useAuthStore.getState().clearAuth();
+      return Promise.reject(error);
+    }
+
+    const requestUrl = String(originalRequest?.url || '');
+    const isAuthEndpoint =
+      requestUrl.includes('/auth/login') ||
+      requestUrl.includes('/auth/register') ||
+      requestUrl.includes('/auth/refresh') ||
+      requestUrl.includes('/auth/logout');
+
+    if (error.response?.status === 401 && !originalRequest?._retry && !isAuthEndpoint) {
       originalRequest._retry = true;
 
       if (isRefreshing) {
@@ -47,17 +65,28 @@ api.interceptors.response.use(
         const refreshUrl = import.meta.env.VITE_API_GATEWAY_URL
           ? `${import.meta.env.VITE_API_GATEWAY_URL}/api/v1/auth/refresh`
           : '/api/v1/auth/refresh';
-        const { data } = await axios.post(refreshUrl, {}, { withCredentials: true });
+        const { data } = await axios.post(
+          refreshUrl,
+          {},
+          {
+            withCredentials: true,
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Requested-With': 'XMLHttpRequest',
+              'X-Client-Type': 'storefront',
+            },
+          },
+        );
         const newToken: string = data.data.accessToken;
         useAuthStore.getState().setAccessToken(newToken);
         refreshQueue.forEach((resolve) => resolve(newToken));
         refreshQueue = [];
         originalRequest.headers.Authorization = `Bearer ${newToken}`;
         return api(originalRequest);
-      } catch {
+      } catch (refreshErr) {
         useAuthStore.getState().clearAuth();
         refreshQueue = [];
-        return Promise.reject(error);
+        return Promise.reject(refreshErr);
       } finally {
         isRefreshing = false;
       }

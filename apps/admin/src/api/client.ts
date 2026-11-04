@@ -12,7 +12,11 @@ const API_BASE =
 const api = axios.create({
   baseURL: API_BASE,
   withCredentials: true,
-  headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+  headers: {
+    'Content-Type': 'application/json',
+    'X-Requested-With': 'XMLHttpRequest',
+    'X-Client-Type': 'admin',
+  },
   timeout: 20000,
 });
 
@@ -21,6 +25,7 @@ api.interceptors.request.use((config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+  config.headers['X-Client-Type'] = 'admin';
   return config;
 });
 
@@ -34,13 +39,31 @@ api.interceptors.response.use(
       }
       return Promise.reject(error);
     }
-    if (error.response?.status === 401 && !error.config?._retry) {
+
+    const requestUrl = String(error.config?.url || '');
+    const isAuthEndpoint =
+      requestUrl.includes('/auth/login') ||
+      requestUrl.includes('/auth/refresh') ||
+      requestUrl.includes('/auth/logout');
+
+    if (error.response?.status === 401 && !error.config?._retry && !isAuthEndpoint) {
       error.config._retry = true;
       try {
         const refreshUrl = import.meta.env.VITE_API_GATEWAY_URL
           ? `${import.meta.env.VITE_API_GATEWAY_URL}/api/v1/auth/refresh`
           : '/api/v1/auth/refresh';
-        const { data } = await axios.post(refreshUrl, {}, { withCredentials: true });
+        const { data } = await axios.post(
+          refreshUrl,
+          {},
+          {
+            withCredentials: true,
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Requested-With': 'XMLHttpRequest',
+              'X-Client-Type': 'admin',
+            },
+          },
+        );
         const newToken: string = data.data.accessToken;
         useAdminAuthStore.getState().setAccessToken(newToken);
         error.config.headers.Authorization = `Bearer ${newToken}`;

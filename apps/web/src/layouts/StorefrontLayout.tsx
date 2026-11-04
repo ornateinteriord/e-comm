@@ -1,4 +1,4 @@
-import { useState, useCallback, type FormEvent } from 'react';
+import { useState, useCallback, useEffect, type FormEvent } from 'react';
 import { Outlet, useNavigate, useLocation, Link as RouterLink } from 'react-router';
 import {
   AppBar, Toolbar, IconButton, Typography, InputBase, Badge,
@@ -29,7 +29,7 @@ import {
 import { useCartStore } from '../store/cart.store';
 import { useAuthStore } from '../store/auth.store';
 import { useThemeStore } from '../store/theme.store';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useDebounce } from '../hooks/useDebounce';
 import api from '../api/client';
 import Footer from '../components/Footer.tsx';
@@ -40,7 +40,16 @@ export default function StorefrontLayout() {
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const navigate = useNavigate();
   const location = useLocation();
+  const queryClient = useQueryClient();
   const { user, isAuthenticated, clearAuth } = useAuthStore();
+
+  // Guard: Storefront only permits customer accounts. If an admin user ever slips into state, immediately purge.
+  useEffect(() => {
+    if (user && user.role !== 'customer') {
+      clearAuth();
+      queryClient.clear();
+    }
+  }, [user, clearAuth, queryClient]);
   const itemCount = useCartStore((s) => s.itemCount);
   const { mode, toggleTheme } = useThemeStore();
   const isLight = mode === 'light';
@@ -66,6 +75,11 @@ export default function StorefrontLayout() {
       try {
         const { data } = await api.get('/auth/me');
         if (data.data) {
+          if (data.data.role !== 'customer') {
+            clearAuth();
+            queryClient.clear();
+            return null;
+          }
           const currentToken = useAuthStore.getState().accessToken;
           if (currentToken) {
             useAuthStore.getState().setAuth(currentToken, {
@@ -79,7 +93,7 @@ export default function StorefrontLayout() {
         return null;
       }
     },
-    enabled: isAuthenticated,
+    enabled: isAuthenticated && user?.role === 'customer',
     staleTime: 1000 * 30,
   });
 
@@ -132,8 +146,9 @@ export default function StorefrontLayout() {
       // ignore
     }
     clearAuth();
+    queryClient.clear();
     setAnchorEl(null);
-    navigate('/');
+    navigate('/login', { replace: true });
   };
 
   const getBottomNavValue = () => {
@@ -401,6 +416,7 @@ export default function StorefrontLayout() {
                 sx={{ ml: 0.5, p: 0.5 }}
               >
                 <Avatar
+                  src={user?.profilePicture || user?.avatar}
                   sx={{
                     width: 36,
                     height: 36,
@@ -673,7 +689,7 @@ export default function StorefrontLayout() {
           {isAuthenticated ? (
             <Box>
               <Stack direction="row" spacing={1.5} alignItems="center">
-                <Avatar sx={{ bgcolor: '#FF7900', color: 'white', width: 44, height: 44, fontWeight: 700 }}>
+                <Avatar src={user?.profilePicture || user?.avatar} sx={{ bgcolor: '#FF7900', color: 'white', width: 44, height: 44, fontWeight: 700 }}>
                   {user?.name?.[0]?.toUpperCase()}
                 </Avatar>
                 <Box sx={{ overflow: 'hidden' }}>

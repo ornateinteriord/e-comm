@@ -17,8 +17,15 @@ export const useAuthStore = create<AuthState>()(
       accessToken: null,
       user: null,
       isAuthenticated: false,
-      setAuth: (token, user) =>
-        set({ accessToken: token, user, isAuthenticated: true }),
+      setAuth: (token, user) => {
+        // Enforce storefront restriction: only customer accounts can have a session in web storefront
+        if (user && user.role !== 'customer') {
+          console.warn('[Storefront Auth] Rejecting non-customer account from storefront store:', user.role);
+          set({ accessToken: null, user: null, isAuthenticated: false });
+          return;
+        }
+        set({ accessToken: token, user, isAuthenticated: true });
+      },
       setAccessToken: (token) =>
         set({ accessToken: token, isAuthenticated: Boolean(token) }),
       clearAuth: () =>
@@ -27,12 +34,12 @@ export const useAuthStore = create<AuthState>()(
     {
       name: 'ornate-auth',
       partialize: (state) => ({
-        user: state.isAuthenticated ? state.user : null,
-        accessToken: state.accessToken,
-        isAuthenticated: state.isAuthenticated,
+        user: state.isAuthenticated && state.user?.role === 'customer' ? state.user : null,
+        accessToken: state.user?.role === 'customer' ? state.accessToken : null,
+        isAuthenticated: state.isAuthenticated && state.user?.role === 'customer',
       }),
       onRehydrateStorage: () => (state) => {
-        if (!state?.isAuthenticated || !state?.accessToken) {
+        if (!state?.isAuthenticated || !state?.accessToken || state?.user?.role !== 'customer') {
           state?.clearAuth();
         }
       },
