@@ -123,3 +123,66 @@ export async function deleteImage(req: Request, res: Response, next: NextFunctio
     next(err);
   }
 }
+
+/**
+ * Upload a single product image to ImageKit.
+ * Used when adding a new product (no productId yet) or updating an existing product image.
+ * Returns the ImageKit CDN URL and the clean image file name.
+ */
+export async function uploadSingleImage(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    upload.single('image')(req, res, async (err) => {
+      if (err) {
+        res.status(400).json({
+          success: false,
+          error: { code: 'UPLOAD_ERROR', message: err.message },
+        });
+        return;
+      }
+
+      const file = req.file || (req as any).files?.[0];
+      if (!file) {
+        res.status(400).json({
+          success: false,
+          error: { code: 'NO_FILE', message: 'No image file provided.' },
+        });
+        return;
+      }
+
+      const imageId = uuidv4();
+      const originalName = file.originalname || `product_${Date.now()}`;
+      // Clean safe fileName for ImageKit
+      const safeName = originalName.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const fileName = `${imageId}_${safeName}`;
+
+      const result = await imagekit.upload({
+        file: file.buffer,
+        fileName,
+        folder: '/ornate/products',
+        tags: ['product-catalog'],
+      });
+
+      // Human-readable clean name without extension (e.g. "Bose QC Ultra.png" -> "Bose QC Ultra")
+      const nameWithoutExt = originalName.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ').trim();
+
+      log.info({ fileId: result.fileId, url: result.url, originalName }, 'Product image uploaded to ImageKit successfully');
+
+      res.json({
+        success: true,
+        data: {
+          url: result.url,
+          name: originalName,
+          title: nameWithoutExt,
+          fileId: result.fileId,
+          thumbnailUrl: result.thumbnailUrl || result.url,
+        },
+      });
+    });
+  } catch (err) {
+    next(err);
+  }
+}

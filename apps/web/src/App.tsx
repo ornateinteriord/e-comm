@@ -4,6 +4,7 @@ import { CircularProgress, Box } from '@mui/material';
 import StorefrontLayout from './layouts/StorefrontLayout.tsx';
 import ErrorBoundary from './components/ErrorBoundary.tsx';
 import ScrollToTop from './components/ScrollToTop.tsx';
+import GuestRoute from './components/GuestRoute.tsx';
 
 // Lazy-loaded pages for code splitting
 const HomePage = React.lazy(() => import('./pages/HomePage.tsx'));
@@ -52,8 +53,11 @@ export default function App() {
             <Route path="wishlist" element={<WishlistPage />} />
             <Route path="wallet" element={<WalletPage />} />
             <Route path="account" element={<AccountPage />} />
-            <Route path="login" element={<LoginPage />} />
-            <Route path="register" element={<RegisterPage />} />
+            {/* Guest-only routes: Logged-in users are redirected to home */}
+            <Route element={<GuestRoute />}>
+              <Route path="login" element={<LoginPage />} />
+              <Route path="register" element={<RegisterPage />} />
+            </Route>
             <Route path="privacy-policy" element={<PrivacyPolicyPage />} />
             <Route path="terms-and-conditions" element={<TermsPage />} />
             <Route path="contact" element={<ContactPage />} />

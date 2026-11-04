@@ -1,5 +1,5 @@
-import { useState, type FormEvent } from 'react';
-import { useNavigate, Link as RouterLink } from 'react-router';
+import { useState, useEffect, type FormEvent } from 'react';
+import { useNavigate, Link as RouterLink, useSearchParams } from 'react-router';
 import {
   Box,
   Container,
@@ -30,7 +30,16 @@ import api from '../api/client';
 
 export default function RegisterPage() {
   const navigate = useNavigate();
-  const setAuth = useAuthStore((s) => s.setAuth);
+  const [searchParams] = useSearchParams();
+  const { setAuth, isAuthenticated } = useAuthStore();
+
+  // Redirect away if already logged in
+  useEffect(() => {
+    if (isAuthenticated) {
+      const redirectUrl = searchParams.get('redirect') || '/';
+      navigate(redirectUrl, { replace: true });
+    }
+  }, [isAuthenticated, navigate, searchParams]);
 
   // Form Fields
   const [referralCode, setReferralCode] = useState('');
@@ -56,8 +65,8 @@ export default function RegisterPage() {
   const [isLoading, setIsLoading] = useState(false);
 
   // Referral code verification handler
-  const handleVerifyReferral = async () => {
-    const code = referralCode.trim();
+  const handleVerifyReferral = async (overrideCode?: string) => {
+    const code = (typeof overrideCode === 'string' ? overrideCode : referralCode).trim();
     if (!code) {
       setReferralError('Please enter a referral or sponsor code.');
       setIsReferralVerified(false);
@@ -91,6 +100,25 @@ export default function RegisterPage() {
       setIsVerifyingReferral(false);
     }
   };
+
+  // Auto-fill and auto-verify when /register?refercode=somevalue is accessed
+  useEffect(() => {
+    const queryCode =
+      searchParams.get('refercode') ||
+      searchParams.get('referCode') ||
+      searchParams.get('referralCode') ||
+      searchParams.get('referralcode') ||
+      searchParams.get('referral_code') ||
+      searchParams.get('ref') ||
+      searchParams.get('code') ||
+      searchParams.get('sponsor');
+
+    if (queryCode && queryCode.trim()) {
+      const cleanCode = queryCode.trim();
+      setReferralCode(cleanCode);
+      handleVerifyReferral(cleanCode);
+    }
+  }, [searchParams]);
 
   const handleRegister = async (e: FormEvent) => {
     e.preventDefault();
@@ -147,6 +175,10 @@ export default function RegisterPage() {
       setIsLoading(false);
     }
   };
+
+  if (isAuthenticated) {
+    return null;
+  }
 
   return (
     <Container maxWidth="sm" sx={{ py: { xs: 4, sm: 8 } }}>
@@ -251,7 +283,7 @@ export default function RegisterPage() {
                     variant="contained"
                     fullWidth
                     size="medium"
-                    onClick={handleVerifyReferral}
+                    onClick={() => handleVerifyReferral()}
                     disabled={isVerifyingReferral || !referralCode.trim()}
                     sx={{
                       py: 1,

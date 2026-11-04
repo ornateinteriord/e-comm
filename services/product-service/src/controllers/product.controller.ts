@@ -165,7 +165,7 @@ export async function createProduct(req: Request, res: Response, next: NextFunct
       name, sku, brand, shortDescription, longDescription,
       category, subcategory, pricing, stock, lowStockThreshold,
       status, isPublished, isFeatured, attributes, variants, seoTitle, seoDescription,
-      taxClass, weight, dimensions,
+      taxClass, weight, dimensions, images,
     } = req.body;
 
     // Validate prices
@@ -205,6 +205,12 @@ export async function createProduct(req: Request, res: Response, next: NextFunct
       attributes: attributes ?? [],
       variants: (variants ?? []).map((v: Record<string, unknown>) => ({ ...v, id: uuidv4() })),
       seoTitle, seoDescription, taxClass, weight, dimensions,
+      images: (images ?? []).map((img: any, idx: number) => ({
+        id: img.id || uuidv4(),
+        url: img.url,
+        alt: img.alt || img.name || name,
+        order: img.order ?? idx,
+      })),
       priceHistory: [{ changedBy: req.user!.userId, changedAt: new Date(), snapshot: pricing }],
     });
 
@@ -247,6 +253,16 @@ export async function updateProduct(req: Request, res: Response, next: NextFunct
       });
       Object.assign(product.pricing, updates.pricing);
       delete updates.pricing;
+    }
+
+    if (updates.images) {
+      product.images = (updates.images ?? []).map((img: any, idx: number) => ({
+        id: img.id || uuidv4(),
+        url: img.url,
+        alt: img.alt || img.name || product.name,
+        order: img.order ?? idx,
+      }));
+      delete updates.images;
     }
 
     // Update other fields

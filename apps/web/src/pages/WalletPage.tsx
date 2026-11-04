@@ -29,9 +29,12 @@ import {
   TableHead,
   TableRow,
   useTheme,
+  useMediaQuery,
   Card,
   CardContent,
   Pagination,
+  Select,
+  MenuItem,
 } from '@mui/material';
 import {
   AccountBalanceWallet,
@@ -58,6 +61,7 @@ import api from '../api/client';
 export default function WalletPage() {
   const theme = useTheme();
   const isLight = theme.palette.mode === 'light';
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -79,6 +83,7 @@ export default function WalletPage() {
   // Active filter tab
   const [activeTab, setActiveTab] = useState<'all' | 'topup' | 'order_payment' | 'commission'>('all');
   const [page, setPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
 
   // 1. Fetch Wallet Balance & Stats
   const {
@@ -100,11 +105,11 @@ export default function WalletPage() {
     isLoading: isLoadingTxns,
     refetch: refetchTxns,
   } = useQuery({
-    queryKey: ['wallet-transactions', activeTab, page],
+    queryKey: ['wallet-transactions', activeTab, page, rowsPerPage],
     queryFn: async () => {
       const params = new URLSearchParams({
         page: String(page),
-        limit: '10',
+        limit: String(rowsPerPage),
         ...(activeTab !== 'all' ? { category: activeTab } : {}),
       });
       const { data } = await api.get(`/wallet/transactions?${params.toString()}`);
@@ -988,19 +993,74 @@ export default function WalletPage() {
           </>
         )}
 
-        {/* Pagination */}
-        {pagination && pagination.totalPages > 1 && (
-          <Box sx={{ display: 'flex', justifyContent: 'center', p: 2.5, borderTop: '1px solid', borderColor: 'divider' }}>
-            <Pagination
-              count={pagination.totalPages}
-              page={page}
-              onChange={(_e, v) => setPage(v)}
-              color="primary"
-              shape="rounded"
-              sx={{
-                '& .Mui-selected': { bgcolor: '#FF7900 !important', color: 'white' },
-              }}
-            />
+        {/* Proper Table Pagination Toolbar */}
+        {((pagination?.total ?? 0) > 0 || transactions.length > 0) && (
+          <Box
+            sx={{
+              display: 'flex',
+              flexDirection: { xs: 'column', sm: 'row' },
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              p: { xs: 2, sm: 2.5 },
+              gap: 2,
+              borderTop: '1px solid',
+              borderColor: 'divider',
+              bgcolor: isLight ? '#FAFAFA' : 'rgba(255, 255, 255, 0.02)',
+            }}
+          >
+            {/* Left: Record Range & Rows per page */}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap', justifyContent: { xs: 'center', sm: 'flex-start' } }}>
+              <Typography variant="body2" color="text.secondary" fontWeight={500} fontSize="0.85rem">
+                {pagination?.total
+                  ? `Showing ${Math.min((page - 1) * rowsPerPage + 1, pagination.total)}–${Math.min(page * rowsPerPage, pagination.total)} of ${pagination.total} records`
+                  : `Showing ${transactions.length} records`}
+              </Typography>
+
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Typography variant="caption" color="text.secondary" fontWeight={600}>
+                  Rows per page:
+                </Typography>
+                <Select
+                  size="small"
+                  value={rowsPerPage}
+                  onChange={(e) => {
+                    setRowsPerPage(Number(e.target.value));
+                    setPage(1);
+                  }}
+                  sx={{
+                    fontSize: '0.8125rem',
+                    height: 32,
+                    bgcolor: 'background.paper',
+                    '& .MuiSelect-select': { py: 0.5, px: 1.25 },
+                  }}
+                >
+                  <MenuItem value={5}>5</MenuItem>
+                  <MenuItem value={10}>10</MenuItem>
+                  <MenuItem value={20}>20</MenuItem>
+                  <MenuItem value={50}>50</MenuItem>
+                </Select>
+              </Box>
+            </Box>
+
+            {/* Right: Page Navigation with Numbers, First/Prev/Next/Last */}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Pagination
+                count={Math.max(1, pagination?.totalPages || 1)}
+                page={page}
+                onChange={(_e, v) => setPage(v)}
+                color="primary"
+                shape="rounded"
+                size={isMobile ? 'small' : 'medium'}
+                showFirstButton
+                showLastButton
+                sx={{
+                  '& .Mui-selected': { bgcolor: '#FF7900 !important', color: 'white', fontWeight: 800 },
+                  '& .MuiPaginationItem-root:hover': {
+                    bgcolor: isLight ? 'rgba(255, 121, 0, 0.1)' : 'rgba(255, 121, 0, 0.2)',
+                  },
+                }}
+              />
+            </Box>
           </Box>
         )}
       </Paper>
