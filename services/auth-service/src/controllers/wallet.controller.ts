@@ -166,17 +166,13 @@ export async function reconcileAndGetCustomerBalance(customer: any): Promise<{
       ? (await Customer.findById(customer._id)) ?? customer
       : customer;
 
-  const userIds = [String(freshCustomer._id), freshCustomer.userId, freshCustomer.customerId].filter(Boolean);
-  const customerIds = [freshCustomer.customerId, freshCustomer.customer_id].filter(Boolean);
+  const userIds = [String(freshCustomer._id), freshCustomer.userId].filter(Boolean);
 
-  // 2. Aggregate actual transaction totals
+  // 2. Aggregate actual transaction totals strictly scoped to this user account
   const [stats] = await WalletTransaction.aggregate([
     {
       $match: {
-        $or: [
-          { userId: { $in: userIds } },
-          { customerId: { $in: customerIds } },
-        ],
+        userId: { $in: userIds },
         status: 'success',
       },
     },
@@ -226,21 +222,12 @@ export async function reconcileAndGetCustomerBalance(customer: any): Promise<{
   if (resolvedBalancePaise > 0) {
     await WalletTransaction.updateMany(
       {
-        $and: [
-          {
-            $or: [
-              { userId: { $in: userIds } },
-              { customerId: { $in: customerIds } },
-            ],
-          },
-          {
-            $or: [
-              { balanceAfter: 0 },
-              { balanceAfter: null },
-              { balanceAfterRupees: 0 },
-              { balanceAfterRupees: null },
-            ],
-          },
+        userId: { $in: userIds },
+        $or: [
+          { balanceAfter: 0 },
+          { balanceAfter: null },
+          { balanceAfterRupees: 0 },
+          { balanceAfterRupees: null },
         ],
         type: 'credit',
         status: 'success',
@@ -319,11 +306,9 @@ export async function getWalletTransactions(req: Request, res: Response, next: N
     const category = req.query.category as string | undefined;
     const type = req.query.type as string | undefined;
 
+    const userIds = [String(freshCustomer._id), freshCustomer.userId].filter(Boolean);
     const query: any = {
-      $or: [
-        { userId: { $in: [String(freshCustomer._id), freshCustomer.userId, freshCustomer.customerId].filter(Boolean) } },
-        { customerId: { $in: [freshCustomer.customerId, freshCustomer.customer_id].filter(Boolean) } },
-      ],
+      userId: { $in: userIds },
     };
 
     if (category && category !== 'all') {

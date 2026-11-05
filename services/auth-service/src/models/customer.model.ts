@@ -169,17 +169,31 @@ export async function generateNextCustomerId(): Promise<string> {
     .sort({ customerId: -1 })
     .select('customerId');
 
-  if (!lastCustomer || !lastCustomer.customerId) {
-    return 'CUS00001';
+  let maxNum = 0;
+
+  if (lastCustomer?.customerId) {
+    const match = lastCustomer.customerId.match(/^CUS(\d+)$/);
+    if (match) {
+      maxNum = Math.max(maxNum, parseInt(match[1], 10));
+    }
   }
 
-  const match = lastCustomer.customerId.match(/^CUS(\d+)$/);
-  if (match) {
-    const nextNum = parseInt(match[1], 10) + 1;
-    return `CUS${String(nextNum).padStart(5, '0')}`;
+  // Also check wallettransactions collection to ensure a deleted test customer ID is never recycled
+  try {
+    const lastTxn = await mongoose.connection
+      .collection('wallettransactions')
+      .findOne({ customerId: /^CUS\d+$/ }, { sort: { customerId: -1 }, projection: { customerId: 1 } });
+    if (lastTxn?.customerId) {
+      const match = String(lastTxn.customerId).match(/^CUS(\d+)$/);
+      if (match) {
+        maxNum = Math.max(maxNum, parseInt(match[1], 10));
+      }
+    }
+  } catch {
+    // ignore
   }
 
-  const count = await Customer.countDocuments();
-  return `CUS${String(count + 1).padStart(5, '0')}`;
+  const nextNum = maxNum + 1;
+  return `CUS${String(nextNum).padStart(5, '0')}`;
 }
 

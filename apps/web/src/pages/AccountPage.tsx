@@ -48,6 +48,7 @@ import {
   LockOutlined as LockIcon,
   MarkEmailRead as MarkEmailReadIcon,
   Close as CloseIcon,
+  Info as InfoIcon,
 } from '@mui/icons-material';
 import { useAuthStore } from '../store/auth.store';
 import api from '../api/client';
@@ -143,6 +144,18 @@ export default function AccountPage() {
   const [otpError, setOtpError] = useState<string | null>(null);
   const [otpSuccess, setOtpSuccess] = useState<string | null>(null);
   const [resendCooldown, setResendCooldown] = useState(0);
+  const otpInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (isEmailOtpDialogOpen) {
+      setEmailOtp('');
+      setOtpError(null);
+      const t = setTimeout(() => {
+        otpInputRef.current?.focus();
+      }, 120);
+      return () => clearTimeout(t);
+    }
+  }, [isEmailOtpDialogOpen]);
 
   const isEmailVerified = Boolean(effectiveUser?.isEmailVerified || effectiveUser?.emailVerified);
 
@@ -1162,83 +1175,116 @@ export default function AccountPage() {
                   />
 
                   {/* Email Address (Editable if unverified, permanently locked once verified) */}
-                  <TextField
-                    label="Email Address"
-                    fullWidth
-                    size="small"
-                    disabled={isEmailVerified}
-                    value={isEmailVerified ? effectiveUser?.email || '' : email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="Enter email address"
-                    helperText={
-                      isEmailVerified
-                        ? 'Email is verified and permanently linked to your account'
-                        : 'Email is unverified. You can edit it or click "Verify Email" to verify.'
-                    }
-                    InputProps={{
-                      endAdornment: (
-                        <InputAdornment position="end" sx={{ mr: -0.5 }}>
-                          {isEmailVerified ? (
-                            <Chip
-                              label="Verified"
-                              size="small"
-                              sx={{
-                                height: 24,
-                                fontSize: '0.72rem',
-                                fontWeight: 800,
-                                bgcolor: 'rgba(22, 163, 74, 0.12)',
-                                color: '#16A34A',
-                                border: '1px solid rgba(22, 163, 74, 0.25)',
-                                borderRadius: '6px',
-                              }}
-                            />
-                          ) : (
-                            <Button
-                              size="small"
-                              variant="contained"
-                              disabled={isSendingOtp || !email.trim()}
-                              onClick={handleSendEmailOtp}
-                              sx={{
-                                bgcolor: '#FF7900',
-                                color: '#FFFFFF',
-                                fontWeight: 800,
-                                fontSize: '0.75rem',
-                                textTransform: 'none',
-                                borderRadius: '8px',
-                                py: 0.2,
-                                px: 1.5,
-                                height: 30,
-                                whiteSpace: 'nowrap',
-                                flexShrink: 0,
-                                boxShadow: 'none',
-                                '&:hover': { bgcolor: '#E06B00', boxShadow: 'none' },
-                              }}
-                            >
-                              {isSendingOtp ? (
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-                                  <CircularProgress size={12} color="inherit" />
-                                  <span>Sending…</span>
-                                </Box>
-                              ) : (
-                                'Verify Email'
-                              )}
-                            </Button>
-                          )}
-                        </InputAdornment>
-                      ),
-                    }}
-                    sx={
-                      isEmailVerified
-                        ? {
-                            '& .MuiInputBase-root.Mui-disabled': {
-                              bgcolor: '#F8FAFC',
+                  <Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                      <TextField
+                        label="Email Address"
+                        fullWidth
+                        size="small"
+                        disabled={isEmailVerified}
+                        value={isEmailVerified ? effectiveUser?.email || '' : email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="Enter email address"
+                        InputProps={{
+                          endAdornment: (
+                            <InputAdornment position="end" sx={{ mr: 0.5 }}>
+                              <Box
+                                sx={{
+                                  bgcolor: isEmailVerified ? 'rgba(22, 163, 74, 0.12)' : '#E6F9F0',
+                                  borderRadius: '8px',
+                                  width: 34,
+                                  height: 32,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  flexShrink: 0,
+                                }}
+                              >
+                                <MarkEmailReadIcon
+                                  sx={{
+                                    color: isEmailVerified ? '#16A34A' : '#00B67A',
+                                    fontSize: 20,
+                                  }}
+                                />
+                              </Box>
+                            </InputAdornment>
+                          ),
+                        }}
+                        sx={{
+                          flex: 1,
+                          '& .MuiOutlinedInput-root': {
+                            borderRadius: '10px',
+                            height: 44,
+                            bgcolor: isEmailVerified ? '#F8FAFC' : 'background.paper',
+                            '&.Mui-disabled': {
                               color: '#0F172A',
                               WebkitTextFillColor: '#0F172A',
                             },
-                          }
-                        : undefined
-                    }
-                  />
+                          },
+                          '& .MuiInputBase-input': {
+                            fontSize: '0.925rem',
+                            fontWeight: 500,
+                          },
+                        }}
+                      />
+
+                      {!isEmailVerified && (
+                        <Button
+                          variant="contained"
+                          disabled={isSendingOtp || !email.trim()}
+                          onClick={handleSendEmailOtp}
+                          sx={{
+                            bgcolor: '#FF7900',
+                            color: '#FFFFFF',
+                            fontWeight: 700,
+                            fontSize: '0.925rem',
+                            textTransform: 'none',
+                            borderRadius: '10px',
+                            px: 3,
+                            height: 44,
+                            whiteSpace: 'nowrap',
+                            flexShrink: 0,
+                            boxShadow: 'none',
+                            '&:hover': {
+                              bgcolor: '#E06B00',
+                              boxShadow: 'none',
+                            },
+                            '&.Mui-disabled': {
+                              bgcolor: 'rgba(255, 121, 0, 0.4)',
+                              color: '#FFFFFF',
+                            },
+                          }}
+                        >
+                          {isSendingOtp ? (
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                              <CircularProgress size={14} color="inherit" />
+                              <span>Sending…</span>
+                            </Box>
+                          ) : (
+                            'Verify Email'
+                          )}
+                        </Button>
+                      )}
+                    </Box>
+
+                    {/* Helper text with Info icon matching the design */}
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mt: 0.75, px: 0.5 }}>
+                      <InfoIcon sx={{ fontSize: 16, color: '#64748B', flexShrink: 0 }} />
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          color: '#64748B',
+                          fontSize: '0.78rem',
+                          fontWeight: 500,
+                          lineHeight: 1.4,
+                        }}
+                      >
+                        {isEmailVerified
+                          ? 'Email is verified and permanently linked to your account'
+                          : 'Email is unverified. You can edit it or click "Verify Email" to verify.'}
+                      </Typography>
+                    </Box>
+                  </Box>
 
                   {/* Mobile Number (Permanently locked) */}
                   <TextField
@@ -1730,7 +1776,7 @@ export default function AccountPage() {
           </Grid>
         </Grid>
 
-        {/* ================= EMAIL VERIFICATION OTP MODAL ================= */}
+        {/* ================= EMAIL VERIFICATION OTP MODAL (MINIMALIST) ================= */}
         <Dialog
           open={isEmailOtpDialogOpen}
           onClose={() => !isVerifyingOtp && setIsEmailOtpDialogOpen(false)}
@@ -1738,140 +1784,225 @@ export default function AccountPage() {
           fullWidth
           PaperProps={{
             sx: {
-              borderRadius: '20px',
-              p: 1.5,
-              boxShadow: '0 20px 40px rgba(0,0,0,0.2)',
+              borderRadius: '24px',
+              p: { xs: 3, sm: 4 },
+              boxShadow: '0 25px 60px -15px rgba(15, 23, 42, 0.2)',
+              position: 'relative',
+              textAlign: 'center',
+              border: '1px solid',
+              borderColor: 'divider',
+              overflow: 'visible',
             },
           }}
         >
-          <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', pb: 1 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-              <Box
-                sx={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: '10px',
-                  bgcolor: 'rgba(255, 121, 0, 0.12)',
-                  color: '#FF7900',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <MarkEmailReadIcon />
-              </Box>
-              <Box>
-                <Typography variant="h6" fontWeight={800} sx={{ color: '#0F172A', lineHeight: 1.2 }}>
-                  Verify Email Address
-                </Typography>
-                <Typography variant="caption" sx={{ color: '#64748B' }}>
-                  Enter the 6-digit code sent to your inbox
-                </Typography>
-              </Box>
-            </Box>
-            <IconButton
-              size="small"
-              disabled={isVerifyingOtp}
-              onClick={() => setIsEmailOtpDialogOpen(false)}
+          {/* Subtle Dismiss '×' Button */}
+          <IconButton
+            size="small"
+            disabled={isVerifyingOtp}
+            onClick={() => setIsEmailOtpDialogOpen(false)}
+            sx={{
+              position: 'absolute',
+              top: 16,
+              right: 16,
+              color: '#94A3B8',
+              '&:hover': { color: '#0F172A', bgcolor: '#F1F5F9' },
+            }}
+          >
+            <CloseIcon fontSize="small" />
+          </IconButton>
+
+          {/* Clean Rounded Icon */}
+          <Box
+            sx={{
+              width: 52,
+              height: 52,
+              borderRadius: '16px',
+              bgcolor: 'rgba(255, 121, 0, 0.08)',
+              color: '#FF7900',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              mx: 'auto',
+              mb: 2.5,
+              mt: 0.5,
+            }}
+          >
+            <EmailIcon sx={{ fontSize: 26 }} />
+          </Box>
+
+          {/* Clean Typography */}
+          <Typography
+            variant="h6"
+            fontWeight={800}
+            sx={{ color: '#0F172A', mb: 0.75, letterSpacing: '-0.02em', fontSize: '1.25rem' }}
+          >
+            Check your inbox
+          </Typography>
+          <Typography variant="body2" sx={{ color: '#64748B', lineHeight: 1.5, mb: 0.25, fontSize: '0.875rem' }}>
+            We've sent a 6-digit verification code to
+          </Typography>
+          <Typography
+            variant="body2"
+            fontWeight={700}
+            sx={{ color: '#0F172A', mb: 2, wordBreak: 'break-all', fontSize: '0.9rem' }}
+          >
+            {(email || effectiveUser?.email || '').trim()}
+          </Typography>
+
+          {/* Inline Error Notice if any */}
+          {otpError && (
+            <Typography
+              variant="caption"
+              sx={{
+                color: '#EF4444',
+                fontWeight: 600,
+                display: 'block',
+                mb: 1.5,
+                bgcolor: 'rgba(239, 68, 68, 0.08)',
+                py: 0.6,
+                px: 1.5,
+                borderRadius: '8px',
+                fontSize: '0.78rem',
+              }}
             >
-              <CloseIcon fontSize="small" />
-            </IconButton>
-          </DialogTitle>
-
-          <DialogContent sx={{ pt: 2 }}>
-            {otpSuccess && (
-              <Alert severity="info" sx={{ mb: 2, borderRadius: '10px', fontSize: '0.82rem' }}>
-                {otpSuccess}
-              </Alert>
-            )}
-
-            {otpError && (
-              <Alert severity="error" sx={{ mb: 2, borderRadius: '10px', fontSize: '0.82rem' }}>
-                {otpError}
-              </Alert>
-            )}
-
-            <Typography variant="body2" sx={{ color: '#475569', mb: 2, lineHeight: 1.5 }}>
-              We've sent a 6-digit verification code from <strong>ornateinteriord@gmail.com</strong> to{' '}
-              <strong style={{ color: '#FF7900' }}>{effectiveUser?.email}</strong>. This code is valid for 10 minutes.
+              {otpError}
             </Typography>
+          )}
 
-            <TextField
-              autoFocus
-              fullWidth
-              label="6-Digit Verification Code"
-              placeholder="000000"
+          {/* Modern 6-Slot OTP Display */}
+          <Box
+            onClick={() => otpInputRef.current?.focus()}
+            sx={{
+              position: 'relative',
+              display: 'flex',
+              justifyContent: 'center',
+              gap: { xs: 0.85, sm: 1.25 },
+              cursor: 'text',
+              my: 2,
+            }}
+          >
+            <input
+              ref={otpInputRef}
+              type="text"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              pattern="\d*"
+              maxLength={6}
               value={emailOtp}
               onChange={(e) => {
                 const val = e.target.value.replace(/\D/g, '').slice(0, 6);
                 setEmailOtp(val);
                 setOtpError(null);
               }}
-              inputProps={{
-                maxLength: 6,
-                style: {
-                  textAlign: 'center',
-                  letterSpacing: '8px',
-                  fontSize: '1.6rem',
-                  fontWeight: 800,
-                  fontFamily: 'monospace',
-                },
+              style={{
+                position: 'absolute',
+                opacity: 0,
+                width: '100%',
+                height: '100%',
+                top: 0,
+                left: 0,
+                cursor: 'text',
+                zIndex: 2,
               }}
-              sx={{ mb: 1.5 }}
             />
 
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mt: 1 }}>
-              <Typography variant="caption" sx={{ color: '#64748B' }}>
-                Didn't receive the email?
-              </Typography>
-              <Button
-                size="small"
-                disabled={resendCooldown > 0 || isSendingOtp || isVerifyingOtp}
-                onClick={handleSendEmailOtp}
-                sx={{
-                  textTransform: 'none',
-                  fontWeight: 700,
-                  fontSize: '0.78rem',
-                  color: resendCooldown > 0 ? '#94A3B8' : '#FF7900',
-                }}
-              >
-                {resendCooldown > 0 ? `Resend code in ${resendCooldown}s` : 'Resend Code'}
-              </Button>
-            </Box>
-          </DialogContent>
+            {[0, 1, 2, 3, 4, 5].map((index) => {
+              const digit = emailOtp[index] || '';
+              const isFocused = emailOtp.length === index;
+              const isCompleted = emailOtp.length === 6 && index === 5;
+              return (
+                <Box
+                  key={index}
+                  sx={{
+                    width: { xs: 42, sm: 48 },
+                    height: { xs: 50, sm: 56 },
+                    borderRadius: '12px',
+                    border: '1.5px solid',
+                    borderColor: otpError
+                      ? '#EF4444'
+                      : isFocused || isCompleted
+                      ? '#FF7900'
+                      : digit
+                      ? '#CBD5E1'
+                      : '#E2E8F0',
+                    bgcolor: otpError
+                      ? 'rgba(239, 68, 68, 0.04)'
+                      : isFocused
+                      ? '#FFFFFF'
+                      : '#F8FAFC',
+                    boxShadow: isFocused ? '0 0 0 3px rgba(255, 121, 0, 0.14)' : 'none',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '1.4rem',
+                    fontWeight: 700,
+                    color: '#0F172A',
+                    transition: 'all 0.15s ease-in-out',
+                    userSelect: 'none',
+                  }}
+                >
+                  {digit}
+                </Box>
+              );
+            })}
+          </Box>
 
-          <DialogActions sx={{ px: 3, pb: 2.5 }}>
+          {/* Full-width Confirm Button */}
+          <Button
+            fullWidth
+            variant="contained"
+            disabled={isVerifyingOtp || emailOtp.length !== 6}
+            onClick={handleVerifyEmailOtp}
+            sx={{
+              bgcolor: '#FF7900',
+              color: '#FFFFFF',
+              fontWeight: 700,
+              fontSize: '0.925rem',
+              textTransform: 'none',
+              borderRadius: '12px',
+              py: 1.25,
+              mt: 1.5,
+              boxShadow: 'none',
+              '&:hover': { bgcolor: '#E06B00', boxShadow: 'none' },
+              '&.Mui-disabled': {
+                bgcolor: '#F1F5F9',
+                color: '#94A3B8',
+              },
+            }}
+          >
+            {isVerifyingOtp ? (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <CircularProgress size={18} color="inherit" />
+                <span>Verifying…</span>
+              </Box>
+            ) : (
+              'Verify & Confirm'
+            )}
+          </Button>
+
+          {/* Resend Link */}
+          <Box sx={{ mt: 2.5, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5 }}>
+            <Typography variant="caption" sx={{ color: '#64748B', fontSize: '0.82rem' }}>
+              Didn't receive the email?
+            </Typography>
             <Button
-              variant="outlined"
-              onClick={() => setIsEmailOtpDialogOpen(false)}
-              disabled={isVerifyingOtp}
+              variant="text"
+              size="small"
+              disabled={resendCooldown > 0 || isSendingOtp || isVerifyingOtp}
+              onClick={handleSendEmailOtp}
               sx={{
                 textTransform: 'none',
                 fontWeight: 700,
-                borderRadius: '8px',
-                borderColor: '#CBD5E1',
-                color: '#475569',
+                fontSize: '0.82rem',
+                p: 0,
+                minWidth: 'auto',
+                color: resendCooldown > 0 ? '#94A3B8' : '#FF7900',
+                '&:hover': { bgcolor: 'transparent', textDecoration: 'underline' },
               }}
             >
-              Cancel
+              {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend Code'}
             </Button>
-            <Button
-              variant="contained"
-              onClick={handleVerifyEmailOtp}
-              disabled={isVerifyingOtp || emailOtp.length !== 6}
-              sx={{
-                textTransform: 'none',
-                fontWeight: 800,
-                borderRadius: '8px',
-                bgcolor: '#FF7900',
-                color: '#FFFFFF',
-                px: 3,
-                '&:hover': { bgcolor: '#E06B00' },
-              }}
-            >
-              {isVerifyingOtp ? <CircularProgress size={20} color="inherit" /> : 'Confirm & Verify'}
-            </Button>
-          </DialogActions>
+          </Box>
         </Dialog>
       </Container>
     </Box>
