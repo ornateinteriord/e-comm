@@ -27,6 +27,7 @@ export interface UplineMember {
   name?: string;
   type: 'customer' | 'vendor';
   level: number;
+  userLevel: number;
   rate: number;
 }
 
@@ -319,12 +320,14 @@ export async function traceReferralChain(
         const canonicalId = String(custDoc.customerId || custDoc.customer_id || custDoc.mobileNumber || custId);
         visited.add(canonicalId.toLowerCase());
         visited.add(custId.toLowerCase());
+        const userLevel = Number(custDoc.level ?? 0);
 
         upline.push({
           id: canonicalId,
           name: custDoc.fullName || custDoc.name || 'Customer',
           type: 'customer',
           level: currentLevel,
+          userLevel,
           rate: currentLevel === 2 ? 5 : 0.5,
         });
         currentLevel++;
@@ -368,12 +371,14 @@ export async function traceReferralChain(
         if (!visited.has(canonicalVendorId.toLowerCase()) && !visited.has(reachedVendorId.toLowerCase())) {
           visited.add(canonicalVendorId.toLowerCase());
           visited.add(reachedVendorId.toLowerCase());
+          const userLevel = Number(vendorDoc.level ?? 0);
 
           upline.push({
             id: canonicalVendorId,
             name: vendorDoc.Name || vendorDoc.name || vendorDoc.firm_name || 'Vendor',
             type: 'vendor',
             level: currentLevel,
+            userLevel,
             rate: currentLevel === 2 ? 5 : 0.5,
           });
           currentLevel++;
@@ -388,10 +393,12 @@ export async function traceReferralChain(
             if (cleanId && !visited.has(cleanId.toLowerCase())) {
               visited.add(cleanId.toLowerCase());
               let vName = 'Vendor';
+              let vLevel = 0;
               try {
                 const uDoc = await ecashDb.collection('vendor_tbl').findOne(buildVendorQuery(cleanId));
                 if (uDoc) {
                   vName = uDoc.Name || uDoc.name || uDoc.firm_name || 'Vendor';
+                  vLevel = Number(uDoc.level ?? 0);
                 }
               } catch {}
               upline.push({
@@ -399,6 +406,7 @@ export async function traceReferralChain(
                 name: vName,
                 type: 'vendor',
                 level: currentLevel,
+                userLevel: vLevel,
                 rate: currentLevel === 2 ? 5 : 0.5,
               });
               currentLevel++;
@@ -421,11 +429,13 @@ export async function traceReferralChain(
           if (!visited.has(nextVId.toLowerCase())) {
             visited.add(nextVId.toLowerCase());
             const vName = nextDoc?.Name || nextDoc?.name || nextDoc?.firm_name || currentVendor.Sponsor_name || currentVendor.introducer_name || 'Vendor';
+            const vLevel = Number(nextDoc?.level ?? 0);
             upline.push({
               id: nextVId,
               name: vName,
               type: 'vendor',
               level: currentLevel,
+              userLevel: vLevel,
               rate: currentLevel === 2 ? 5 : 0.5,
             });
             currentLevel++;
@@ -625,6 +635,22 @@ async function executeCommissionDistribution(orderOrDoc: any): Promise<Commissio
 
   for (const member of uplineChain) {
     const levelNumber = member.level;
+    const userLevel = member.userLevel;
+
+    // Verify user's level matches the upline level number (e.g., Level 7 commission requires user level === 7)
+    if (userLevel !== levelNumber) {
+      log.info(
+        {
+          orderNumber,
+          levelNumber,
+          userLevel,
+          beneficiaryId: member.id,
+        },
+        `[COMMISSION] Skipping Level ${levelNumber} and member ${member.id}: user level (${userLevel}) does not match required level (${levelNumber})`
+      );
+      continue;
+    }
+
     const rate = member.rate;
     const levelAmount = Number(((marginRupees * rate) / 100).toFixed(2));
 

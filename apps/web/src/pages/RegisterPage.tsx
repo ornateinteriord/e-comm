@@ -49,6 +49,7 @@ export interface RegistrationSummary {
   sponsorName: string;
   sponsorCode: string;
   sponsorType: string;
+  vendorId?: string;
   vendorName?: string;
 }
 
@@ -110,11 +111,13 @@ export default function RegisterPage() {
       `  Email: ${successDetails.email}`,
       `  Mobile: +91 ${successDetails.mobileNumber}`,
       '',
-      'SPONSOR DETAILS:',
+      'SPONSOR & VENDOR DETAILS:',
       `  Sponsor Name: ${successDetails.sponsorName}`,
       `  Sponsor Code: ${successDetails.sponsorCode}`,
       `  Sponsor Type: ${successDetails.sponsorType === 'vendor' ? 'Vendor Sponsor' : 'Customer Referral'}`,
-      successDetails.vendorName ? `  Assigned Vendor: ${successDetails.vendorName}` : null,
+      successDetails.vendorId || successDetails.vendorName
+        ? `  Vendor (ID / Name): ${[successDetails.vendorId, successDetails.vendorName].filter(Boolean).join(' / ')}`
+        : null,
       '',
       'Please save these credentials securely.',
       'Sign in at: https://eshopy.biz/login',
@@ -145,6 +148,8 @@ export default function RegisterPage() {
   const [resolvedReferralCode, setResolvedReferralCode] = useState('');
   const [referralName, setReferralName] = useState('');
   const [referralType, setReferralType] = useState<'vendor' | 'customer' | ''>('');
+  const [referralVendorId, setReferralVendorId] = useState('');
+  const [referralVendorName, setReferralVendorName] = useState('');
   const [isReferralVerified, setIsReferralVerified] = useState(false);
   const [isVerifyingReferral, setIsVerifyingReferral] = useState(false);
   const [referralError, setReferralError] = useState<string | null>(null);
@@ -171,6 +176,8 @@ export default function RegisterPage() {
       setReferralError('Please enter a referral or sponsor code.');
       setIsReferralVerified(false);
       setReferralName('');
+      setReferralVendorId('');
+      setReferralVendorName('');
       return;
     }
 
@@ -184,16 +191,22 @@ export default function RegisterPage() {
         setResolvedReferralCode(data.data.referralCode || code);
         setReferralName(data.data.referralName || '');
         setReferralType(data.data.referralType || 'vendor');
+        setReferralVendorId(data.data.vendor_id || '');
+        setReferralVendorName(data.data.vendor_name || '');
       } else {
         setIsReferralVerified(false);
         setResolvedReferralCode('');
         setReferralName('');
+        setReferralVendorId('');
+        setReferralVendorName('');
         setReferralError(data.error?.message || 'Invalid referral code. A valid sponsor is required.');
       }
     } catch (err: any) {
       setIsReferralVerified(false);
       setResolvedReferralCode('');
       setReferralName('');
+      setReferralVendorId('');
+      setReferralVendorName('');
       setReferralError(
         err.response?.data?.error?.message ||
         'Invalid referral code. Please check with your sponsor or vendor.'
@@ -267,6 +280,9 @@ export default function RegisterPage() {
 
       const { data } = await api.post('/auth/register', payload);
       const registeredUser = data?.data?.user;
+      const vId = registeredUser?.vendor_id || referralVendorId || (referralType === 'vendor' ? (registeredUser?.referralCode || resolvedReferralCode || referralCode) : undefined);
+      const vName = registeredUser?.vendor_name || referralVendorName || (referralType === 'vendor' ? (registeredUser?.referralName || referralName) : undefined);
+
       setSuccessDetails({
         accessToken: data?.data?.accessToken,
         user: registeredUser,
@@ -279,7 +295,8 @@ export default function RegisterPage() {
         sponsorName: registeredUser?.referralName || referralName || 'Sponsor',
         sponsorCode: registeredUser?.referralCode || resolvedReferralCode || referralCode,
         sponsorType: registeredUser?.referralType || referralType || 'vendor',
-        vendorName: registeredUser?.vendor_name,
+        vendorId: vId,
+        vendorName: vName,
       });
       setShowSuccessDialog(true);
     } catch (err: any) {
@@ -371,6 +388,8 @@ export default function RegisterPage() {
                       setResolvedReferralCode('');
                       setIsReferralVerified(false);
                       setReferralName('');
+                      setReferralVendorId('');
+                      setReferralVendorName('');
                       setReferralError(null);
                     }}
                     placeholder="Enter referral / sponsor code"
@@ -426,10 +445,25 @@ export default function RegisterPage() {
                 {isReferralVerified && (
                   <Grid item xs={12}>
                     <TextField
-                      label="Verified Sponsor / Referral"
+                      label={referralType === 'vendor' ? 'Verified Sponsor (Vendor ID / Name)' : 'Verified Sponsor (Customer)'}
                       fullWidth
                       size="small"
-                      value={resolvedReferralCode && resolvedReferralCode !== referralName ? `${referralName} (${resolvedReferralCode})` : referralName}
+                      value={
+                        referralType === 'vendor'
+                          ? (referralVendorId && referralVendorName
+                              ? `${referralVendorId} / ${referralVendorName}`
+                              : (resolvedReferralCode && resolvedReferralCode !== referralName
+                                  ? `${resolvedReferralCode} / ${referralName}`
+                                  : referralName))
+                          : (resolvedReferralCode && resolvedReferralCode !== referralName
+                              ? `${referralName} (${resolvedReferralCode})`
+                              : referralName)
+                      }
+                      helperText={
+                        referralType === 'customer' && (referralVendorId || referralVendorName)
+                          ? `Assigned Vendor: ${[referralVendorId, referralVendorName].filter(Boolean).join(' / ')}`
+                          : undefined
+                      }
                       InputProps={{
                         readOnly: true,
                         endAdornment: (
@@ -1177,9 +1211,12 @@ export default function RegisterPage() {
                     </Tooltip>
                   </Box>
 
-                  {/* Assigned Vendor */}
+                  {/* Vendor ID / Vendor Name */}
                   <Box
                     sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
                       py: 0.85,
                       px: 1.25,
                       bgcolor: '#ffffff',
@@ -1188,32 +1225,56 @@ export default function RegisterPage() {
                       minHeight: 46,
                     }}
                   >
-                    <Typography
-                      variant="caption"
-                      sx={{
-                        color: '#64748b',
-                        fontWeight: 700,
-                        fontSize: '0.68rem',
-                        textTransform: 'uppercase',
-                        display: 'block',
-                        lineHeight: 1.2,
-                      }}
-                    >
-                      Assigned Vendor
-                    </Typography>
-                    <Typography
-                      variant="body2"
-                      sx={{
-                        fontWeight: 700,
-                        color: '#0f172a',
-                        fontSize: '0.92rem',
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                      }}
-                    >
-                      {successDetails?.vendorName || successDetails?.sponsorName || 'Direct Network'}
-                    </Typography>
+                    <Box sx={{ minWidth: 0, pr: 1 }}>
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          color: '#64748b',
+                          fontWeight: 700,
+                          fontSize: '0.68rem',
+                          textTransform: 'uppercase',
+                          display: 'block',
+                          lineHeight: 1.2,
+                        }}
+                      >
+                        Vendor ID / Vendor Name
+                      </Typography>
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          fontWeight: 700,
+                          color: '#0f172a',
+                          fontSize: '0.92rem',
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                        }}
+                      >
+                        {successDetails?.vendorId && successDetails?.vendorName
+                          ? `${successDetails.vendorId} / ${successDetails.vendorName}`
+                          : successDetails?.vendorName || successDetails?.vendorId || successDetails?.sponsorName || 'Direct Network'}
+                      </Typography>
+                    </Box>
+                    {successDetails?.vendorId && (
+                      <Tooltip title={copiedField === 'vendorId' ? 'Copied!' : 'Copy Vendor ID'} arrow>
+                        <IconButton
+                          size="small"
+                          onClick={() => successDetails && copyToClipboard(successDetails.vendorId!, 'vendorId')}
+                          sx={{
+                            p: 0.5,
+                            color: copiedField === 'vendorId' ? '#16a34a' : '#64748b',
+                            bgcolor: copiedField === 'vendorId' ? '#ecfdf5' : 'transparent',
+                            '&:hover': { bgcolor: '#f1f5f9', color: '#0f172a' },
+                          }}
+                        >
+                          {copiedField === 'vendorId' ? (
+                            <CheckIcon sx={{ fontSize: 16 }} />
+                          ) : (
+                            <ContentCopyIcon sx={{ fontSize: 16 }} />
+                          )}
+                        </IconButton>
+                      </Tooltip>
+                    )}
                   </Box>
 
                   {/* Referral Program Info */}
