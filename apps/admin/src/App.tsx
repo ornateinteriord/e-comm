@@ -8,6 +8,7 @@ const LoginPage = React.lazy(() => import('./pages/LoginPage.tsx'));
 const DashboardPage = React.lazy(() => import('./pages/DashboardPage.tsx'));
 const ProductsPage = React.lazy(() => import('./pages/ProductsPage.tsx'));
 const CategoriesPage = React.lazy(() => import('./pages/CategoriesPage.tsx'));
+const StoresPage = React.lazy(() => import('./pages/StoresPage.tsx'));
 const OrdersPage = React.lazy(() => import('./pages/OrdersPage.tsx'));
 const InventoryPage = React.lazy(() => import('./pages/InventoryPage.tsx'));
 const InvoicesPage = React.lazy(() => import('./pages/InvoicesPage.tsx'));
@@ -57,6 +58,7 @@ export default function App() {
             <Route index element={<DashboardPage />} />
             <Route path="products" element={<ProductsPage />} />
             <Route path="categories" element={<CategoriesPage />} />
+            <Route path="stores" element={<StoresPage />} />
             <Route path="orders" element={<OrdersPage />} />
             <Route path="inventory" element={<InventoryPage />} />
             <Route path="invoices" element={<InvoicesPage />} />

@@ -30,6 +30,7 @@ const NAV_ITEMS = [
   { text: 'Dashboard', path: '/', icon: <DashboardIcon /> },
   { text: 'Products & Pricing', path: '/products', icon: <ProductsIcon /> },
   { text: 'Categories', path: '/categories', icon: <CategoriesIcon /> },
+  { text: 'Partner Stores', path: '/stores', icon: <StorefrontIcon /> },
   { text: 'Orders & Fulfillment', path: '/orders', icon: <OrdersIcon /> },
   { text: 'Live Inventory', path: '/inventory', icon: <InventoryIcon /> },
   { text: 'Tax Invoices', path: '/invoices', icon: <InvoicesIcon /> },

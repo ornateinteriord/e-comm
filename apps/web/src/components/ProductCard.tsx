@@ -33,6 +33,10 @@ export default function ProductCard({ product }: ProductCardProps) {
   const isOutOfStock = (product.stock ?? 0) <= 0;
   const isLowStock = !isOutOfStock && product.stock > 0 && product.stock <= 5;
 
+  const primaryImage = (product.images && product.images.length > 0)
+    ? ([...product.images].sort((a, b) => (a.order ?? 0) - (b.order ?? 0))[0]?.url || product.images[0]?.url)
+    : 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=600&q=80';
+
   const handleAddToCart = (e: MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -42,7 +46,7 @@ export default function ProductCard({ product }: ProductCardProps) {
       variantId: null,
       productName: product.name,
       productSlug: product.slug,
-      productImage: product.images?.[0]?.url,
+      productImage: primaryImage,
       sku: product.sku,
       quantity: 1,
       unitApplicablePrice: applicablePrice,
@@ -66,8 +70,6 @@ export default function ProductCard({ product }: ProductCardProps) {
       // optimistic
     }
   };
-
-  const primaryImage = product.images?.[0]?.url || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=600&q=80';
 
   return (
     <Card

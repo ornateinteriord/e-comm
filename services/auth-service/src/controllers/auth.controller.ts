@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import bcrypt from 'bcryptjs';
 import crypto from 'node:crypto';
 import { Customer, generateNextCustomerId } from '../models/customer.model.js';
+import { Admin } from '../models/admin.model.js';
 import { AuditLog } from '../models/audit-log.model.js';
 import { lookupReferralCode, applyReferralRewards } from '../utils/referral.js';
 import {
@@ -307,7 +308,115 @@ export async function login(req: Request, res: Response, next: NextFunction): Pr
       return;
     }
 
-    // Lookup in unified customers collection by email, username, mobileNumber, or phone
+    // 1. ADMIN PORTAL LOGIN: authenticate against dedicated admins collection
+    if (clientType === 'admin') {
+      const admin = await Admin.findOne({
+        $or: [
+          { email: identifier.toLowerCase() },
+          { username: identifier.toLowerCase() },
+          { mobileNumber: identifier },
+          { phone: identifier },
+        ],
+      }).select('+passwordHash');
+
+      if (!admin || !admin.isActive) {
+        // Check if a customer tried to log into admin portal
+        const isCust = await Customer.findOne({
+          $or: [
+            { email: identifier.toLowerCase() },
+            { username: identifier },
+            { mobileNumber: identifier },
+            { phone: identifier },
+          ],
+        });
+        if (isCust) {
+          clearRefreshCookie(res);
+          res.status(403).json({
+            success: false,
+            error: {
+              code: 'CUSTOMER_ACCESS_RESTRICTED',
+              message: 'Customer accounts cannot access the Admin Portal.',
+            },
+          });
+          return;
+        }
+
+        res.status(401).json({
+          success: false,
+          error: { code: 'INVALID_CREDENTIALS', message: 'Invalid admin credentials or account inactive.' },
+        });
+        return;
+      }
+
+      const valid = await bcrypt.compare(password, admin.passwordHash);
+      if (!valid) {
+        res.status(401).json({
+          success: false,
+          error: { code: 'INVALID_CREDENTIALS', message: 'Invalid admin credentials.' },
+        });
+        return;
+      }
+
+      clearRefreshCookie(res, 'customerRefreshToken');
+      clearRefreshCookie(res, 'refreshToken');
+
+      const accessToken = signAccessToken({ userId: admin.id, email: admin.email, role: admin.role });
+      const refreshToken = signRefreshToken({ userId: admin.id });
+      setRefreshCookie(res, refreshToken, 'adminRefreshToken');
+
+      await AuditLog.create({
+        action: 'auth.login',
+        actorId: admin.id,
+        actorRole: admin.role,
+        targetModel: 'Admin',
+        targetId: admin.id,
+        ip: req.ip,
+        userAgent: req.headers['user-agent'],
+      });
+
+      res.json({
+        success: true,
+        data: {
+          accessToken,
+          user: {
+            id: admin.id,
+            email: admin.email,
+            name: admin.name,
+            fullName: admin.fullName || admin.name,
+            username: admin.username,
+            role: admin.role,
+            avatar: admin.avatar || admin.profilePicture,
+            profilePicture: admin.profilePicture || admin.avatar,
+            emailVerified: admin.emailVerified ?? true,
+            isEmailVerified: admin.emailVerified ?? true,
+          },
+        },
+      });
+      return;
+    }
+
+    // 2. STOREFRONT LOGIN: verify admin accounts cannot log in via storefront
+    const adminCheck = await Admin.findOne({
+      $or: [
+        { email: identifier.toLowerCase() },
+        { username: identifier.toLowerCase() },
+        { mobileNumber: identifier },
+        { phone: identifier },
+      ],
+    });
+    if (adminCheck) {
+      clearRefreshCookie(res);
+      res.status(403).json({
+        success: false,
+        error: {
+          code: 'ADMIN_ACCESS_RESTRICTED',
+          message: 'Admin and staff accounts must log in via the Admin Portal, not the web storefront.',
+        },
+      });
+      return;
+    }
+
+    // 3. Customer lookup in customers collection
     const customer = await Customer.findOne({
       $or: [
         { email: identifier.toLowerCase() },
@@ -334,42 +443,12 @@ export async function login(req: Request, res: Response, next: NextFunction): Pr
       return;
     }
 
-    const isAdminRole = ADMIN_ROLES.includes(customer.role);
-
-    // RESTRICTION 1: Admin and staff accounts CANNOT log in via web storefront!
-    if (clientType === 'storefront' && isAdminRole) {
-      clearRefreshCookie(res);
-      res.status(403).json({
-        success: false,
-        error: {
-          code: 'ADMIN_ACCESS_RESTRICTED',
-          message: 'Admin and staff accounts must log in via the Admin Portal, not the web storefront.',
-        },
-      });
-      return;
-    }
-
-    // RESTRICTION 2: Customers CANNOT log in via Admin Portal!
-    if (clientType === 'admin' && !isAdminRole) {
-      clearRefreshCookie(res);
-      res.status(403).json({
-        success: false,
-        error: {
-          code: 'CUSTOMER_ACCESS_RESTRICTED',
-          message: 'Customer accounts cannot access the Admin Portal.',
-        },
-      });
-      return;
-    }
-
-    const cookieName = isAdminRole ? 'adminRefreshToken' : 'customerRefreshToken';
-    // Clear opposite cookie to prevent cross-portal pollution
-    clearRefreshCookie(res, isAdminRole ? 'customerRefreshToken' : 'adminRefreshToken');
+    clearRefreshCookie(res, 'adminRefreshToken');
     clearRefreshCookie(res, 'refreshToken');
 
     const accessToken = signAccessToken({ userId: customer.id, email: customer.email, role: customer.role });
     const refreshToken = signRefreshToken({ userId: customer.id });
-    setRefreshCookie(res, refreshToken, cookieName);
+    setRefreshCookie(res, refreshToken, 'customerRefreshToken');
 
     await AuditLog.create({
       action: 'auth.login',
@@ -464,50 +543,42 @@ export async function refresh(req: Request, res: Response, next: NextFunction): 
       return;
     }
 
+    // Admin refresh session
+    if (clientType === 'admin') {
+      const admin = await Admin.findById(payload.userId);
+      if (!admin || !admin.isActive) {
+        clearRefreshCookie(res, 'adminRefreshToken');
+        clearRefreshCookie(res, 'refreshToken');
+        res.status(401).json({
+          success: false,
+          error: { code: 'USER_NOT_FOUND', message: 'Admin account not found or inactive.' },
+        });
+        return;
+      }
+
+      const accessToken = signAccessToken({ userId: admin.id, email: admin.email, role: admin.role });
+      const newRefreshToken = signRefreshToken({ userId: admin.id });
+      setRefreshCookie(res, newRefreshToken, 'adminRefreshToken');
+
+      res.json({ success: true, data: { accessToken } });
+      return;
+    }
+
+    // Customer refresh session
     const customer = await Customer.findById(payload.userId);
     if (!customer || !customer.isActive) {
-      clearRefreshCookie(res);
-      res.status(401).json({
-        success: false,
-        error: { code: 'USER_NOT_FOUND', message: 'Account not found.' },
-      });
-      return;
-    }
-
-    const isAdminRole = ADMIN_ROLES.includes(customer.role);
-
-    // RESTRICTION 1: Admin and staff accounts CANNOT refresh into a storefront session!
-    if (clientType === 'storefront' && isAdminRole) {
       clearRefreshCookie(res, 'customerRefreshToken');
       clearRefreshCookie(res, 'refreshToken');
-      res.status(403).json({
+      res.status(401).json({
         success: false,
-        error: {
-          code: 'ADMIN_ACCESS_RESTRICTED',
-          message: 'Admin accounts cannot access storefront sessions.',
-        },
+        error: { code: 'USER_NOT_FOUND', message: 'Customer account not found or inactive.' },
       });
       return;
     }
 
-    // RESTRICTION 2: Customers CANNOT refresh into an admin session!
-    if (clientType === 'admin' && !isAdminRole) {
-      clearRefreshCookie(res, 'adminRefreshToken');
-      clearRefreshCookie(res, 'refreshToken');
-      res.status(403).json({
-        success: false,
-        error: {
-          code: 'CUSTOMER_ACCESS_RESTRICTED',
-          message: 'Customer accounts cannot access admin sessions.',
-        },
-      });
-      return;
-    }
-
-    const cookieName = isAdminRole ? 'adminRefreshToken' : 'customerRefreshToken';
     const accessToken = signAccessToken({ userId: customer.id, email: customer.email, role: customer.role });
     const newRefreshToken = signRefreshToken({ userId: customer.id });
-    setRefreshCookie(res, newRefreshToken, cookieName);
+    setRefreshCookie(res, newRefreshToken, 'customerRefreshToken');
 
     res.json({ success: true, data: { accessToken } });
   } catch (err) {
@@ -518,7 +589,39 @@ export async function refresh(req: Request, res: Response, next: NextFunction): 
 // GET /api/v1/auth/me
 export async function getMe(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const customer = await Customer.findById(req.user!.userId);
+    const userId = req.user!.userId;
+    const role = req.user!.role;
+
+    // Admin user profile from admins collection
+    if (ADMIN_ROLES.includes(role)) {
+      const admin = await Admin.findById(userId);
+      if (!admin) {
+        res.status(404).json({
+          success: false,
+          error: { code: 'NOT_FOUND', message: 'Admin account not found.' },
+        });
+        return;
+      }
+      res.json({
+        success: true,
+        data: {
+          id: admin.id,
+          email: admin.email,
+          name: admin.name,
+          fullName: admin.fullName || admin.name,
+          username: admin.username,
+          role: admin.role,
+          avatar: admin.avatar || admin.profilePicture,
+          profilePicture: admin.profilePicture || admin.avatar,
+          emailVerified: admin.emailVerified ?? true,
+          isEmailVerified: admin.emailVerified ?? true,
+        },
+      });
+      return;
+    }
+
+    // Customer user profile from customers collection
+    const customer = await Customer.findById(userId);
     if (!customer) {
       res.status(404).json({
         success: false,

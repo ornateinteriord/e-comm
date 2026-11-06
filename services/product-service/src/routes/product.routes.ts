@@ -2,12 +2,13 @@ import { Router } from 'express';
 import {
   listProducts, getProductBySlug, getFeaturedProduct,
   adminListProducts, createProduct, updateProduct, deleteProduct, getAdminProduct, setSponsorProduct,
+  storeListProducts, storeCreateProduct, storeUpdateProduct,
 } from '../controllers/product.controller.js';
 import { listCategories, getCategoryBySlug, createCategory, updateCategory, deleteCategory } from '../controllers/category.controller.js';
 import { attachUser, requireRole } from '../middleware/auth.middleware.js';
 import { validate } from '../middleware/validate.middleware.js';
 import { createProductSchema, updateProductSchema } from '../schemas/product.schema.js';
-import { uploadImages, deleteImage, uploadSingleImage } from '../controllers/image.controller.js';
+import { uploadImages, deleteImage, uploadSingleImage, uploadMultipleStandaloneImages } from '../controllers/image.controller.js';
 
 const router: Router = Router();
 
@@ -25,6 +26,18 @@ router.get('/categories', listCategories);
 router.get('/api/v1/categories/:slug', getCategoryBySlug);
 router.get('/categories/:slug', getCategoryBySlug);
 
+// ---- Store product routes ----
+router.get('/api/v1/store/products', attachUser, requireRole('store'), storeListProducts);
+router.get('/store/products', attachUser, requireRole('store'), storeListProducts);
+router.post('/api/v1/store/products', attachUser, requireRole('store'), storeCreateProduct);
+router.post('/store/products', attachUser, requireRole('store'), storeCreateProduct);
+router.post('/api/v1/store/products/upload-images', attachUser, requireRole('store'), uploadMultipleStandaloneImages);
+router.post('/store/products/upload-images', attachUser, requireRole('store'), uploadMultipleStandaloneImages);
+router.post('/api/v1/store/products/upload-image', attachUser, requireRole('store'), uploadSingleImage);
+router.post('/store/products/upload-image', attachUser, requireRole('store'), uploadSingleImage);
+router.patch('/api/v1/store/products/:id', attachUser, requireRole('store'), storeUpdateProduct);
+router.patch('/store/products/:id', attachUser, requireRole('store'), storeUpdateProduct);
+
 // ---- Admin product routes ----
 router.get('/api/v1/admin/products', attachUser, requireRole('catalog_manager'), adminListProducts);
 router.get('/admin/products', attachUser, requireRole('catalog_manager'), adminListProducts);
@@ -32,6 +45,8 @@ router.post('/api/v1/admin/products', attachUser, requireRole('catalog_manager')
 router.post('/admin/products', attachUser, requireRole('catalog_manager'), validate(createProductSchema), createProduct);
 
 // ---- Standalone product image upload to ImageKit ----
+router.post('/api/v1/admin/products/upload-images', attachUser, requireRole('catalog_manager'), uploadMultipleStandaloneImages);
+router.post('/admin/products/upload-images', attachUser, requireRole('catalog_manager'), uploadMultipleStandaloneImages);
 router.post('/api/v1/admin/products/upload-image', attachUser, requireRole('catalog_manager'), uploadSingleImage);
 router.post('/admin/products/upload-image', attachUser, requireRole('catalog_manager'), uploadSingleImage);
 router.post('/api/v1/admin/products/:id/sponsor', attachUser, requireRole('catalog_manager'), setSponsorProduct);

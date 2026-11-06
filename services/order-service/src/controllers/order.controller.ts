@@ -503,3 +503,188 @@ export async function adminTriggerOrderCommission(req: Request, res: Response, n
   }
 }
 
+// ==========================================
+// STORE PORTAL ORDER CONTROLLERS
+// ==========================================
+
+/**
+ * GET /api/v1/store/orders
+ * Returns orders containing products in the store's category, with items filtered to store scope.
+ */
+export async function storeListOrders(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const categoryId = req.user?.categoryId;
+    const storeId = req.user?.storeId;
+
+    if (!categoryId && !storeId) {
+      res.status(400).json({ success: false, error: { code: 'UNAUTHORIZED', message: 'No store or category assigned.' } });
+      return;
+    }
+
+    const page = Math.max(1, Number(req.query.page ?? 1));
+    const limit = Math.min(100, Math.max(1, Number(req.query.limit ?? 20)));
+    const skip = (page - 1) * limit;
+    const status = req.query.status as string | undefined;
+
+    const matchConditions: any[] = [];
+    if (storeId) matchConditions.push({ 'items.storeId': storeId });
+    if (categoryId) matchConditions.push({ 'items.categoryId': categoryId });
+
+    const query: any = { $or: matchConditions };
+
+    const [orders, total] = await Promise.all([
+      Order.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit),
+      Order.countDocuments(query),
+    ]);
+
+    // Filter each order's items so the store only receives their category items
+    let filteredOrders = orders.map((o) => {
+      const obj = o.toObject();
+      obj.items = (obj.items || []).filter((it: any) =>
+        (storeId && it.storeId === storeId) || (categoryId && it.categoryId === categoryId)
+      );
+      return obj;
+    });
+
+    if (status) {
+      filteredOrders = filteredOrders.filter((o: any) =>
+        o.items.some((it: any) => it.itemStatus === status)
+      );
+    }
+
+    res.json({
+      success: true,
+      data: {
+        items: filteredOrders,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+          hasNextPage: page * limit < total,
+          hasPrevPage: page > 1,
+        },
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * GET /api/v1/store/orders/:orderNumber
+ */
+export async function storeGetOrderDetails(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const categoryId = req.user?.categoryId;
+    const storeId = req.user?.storeId;
+    const orderId = String(req.params.id || '');
+
+    const order = await Order.findOne({
+      $or: [
+        { orderNumber: orderId },
+        ...(mongoose.Types.ObjectId.isValid(orderId) ? [{ _id: new mongoose.Types.ObjectId(orderId) }] : []),
+      ],
+    });
+
+    if (!order) {
+      res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Order not found.' } });
+      return;
+    }
+
+    const obj = order.toObject();
+    obj.items = (obj.items || []).filter((it: any) =>
+      (storeId && it.storeId === storeId) || (categoryId && it.categoryId === categoryId)
+    );
+
+    if (obj.items.length === 0) {
+      res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'This order has no items in your category.' } });
+      return;
+    }
+
+    res.json({ success: true, data: obj });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * PATCH /api/v1/store/orders/:id/status
+ * Updates delivery/dispatch status for items belonging to this store.
+ */
+export async function storeUpdateItemStatus(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const categoryId = req.user?.categoryId;
+    const storeId = req.user?.storeId;
+    const orderId = String(req.params.id || '');
+    const { status, courierName, trackingNumber, productId } = req.body;
+
+    const validStatuses = ['pending', 'confirmed', 'packed', 'dispatched', 'delivered', 'cancelled'];
+    if (!validStatuses.includes(status)) {
+      res.status(400).json({ success: false, error: { code: 'INVALID_STATUS', message: 'Invalid delivery status.' } });
+      return;
+    }
+
+    const order = await Order.findOne({
+      $or: [
+        { orderNumber: orderId },
+        ...(mongoose.Types.ObjectId.isValid(orderId) ? [{ _id: new mongoose.Types.ObjectId(orderId) }] : []),
+      ],
+    });
+
+    if (!order) {
+      res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Order not found.' } });
+      return;
+    }
+
+    let updatedCount = 0;
+    for (const it of order.items) {
+      const matchesStore = (storeId && it.storeId === storeId) || (categoryId && it.categoryId === categoryId);
+      const matchesProduct = !productId || it.productId === productId;
+      if (matchesStore && matchesProduct) {
+        it.itemStatus = status;
+        if (courierName) it.courierName = courierName;
+        if (trackingNumber) it.trackingNumber = trackingNumber;
+        if (status === 'dispatched') it.dispatchedAt = new Date().toISOString();
+        if (status === 'delivered') it.deliveredAt = new Date().toISOString();
+        updatedCount++;
+      }
+    }
+
+    if (updatedCount === 0) {
+      res.status(404).json({ success: false, error: { code: 'NO_ITEMS_FOUND', message: 'No items in this order match your store/category.' } });
+      return;
+    }
+
+    // Recalculate master order fulfilmentStatus
+    const allDispatched = order.items.every((it) => ['dispatched', 'delivered'].includes(it.itemStatus || ''));
+    const allDelivered = order.items.every((it) => it.itemStatus === 'delivered');
+    const someDispatched = order.items.some((it) => ['dispatched', 'delivered'].includes(it.itemStatus || ''));
+
+    if (allDelivered) {
+      order.fulfilmentStatus = 'delivered';
+    } else if (allDispatched) {
+      order.fulfilmentStatus = 'shipped';
+    } else if (someDispatched) {
+      order.fulfilmentStatus = 'processing';
+    }
+
+    order.statusHistory.push({
+      status: order.fulfilmentStatus,
+      changedBy: `Store (${storeId || req.user?.storeId || 'Store'})`,
+      changedAt: new Date().toISOString(),
+      note: `Items updated to "${status}"${courierName ? ` via ${courierName}` : ''}${trackingNumber ? ` (Tracking: ${trackingNumber})` : ''}`,
+    });
+
+    await order.save();
+
+    res.json({
+      success: true,
+      data: order,
+      message: `Status updated to "${status}" successfully.`,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+

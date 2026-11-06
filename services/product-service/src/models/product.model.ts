@@ -62,6 +62,9 @@ export interface IProduct extends Document {
   taxClass?: string;
   weight?: number;
   dimensions?: { l: number; w: number; h: number };
+  storeId?: string;
+  storeName?: string;
+  createdBy?: { type: 'admin' | 'store'; id?: string; name?: string };
   priceHistory: IPriceHistoryEntry[];
   createdAt: Date;
   updatedAt: Date;
@@ -135,6 +138,13 @@ const productSchema = new Schema<IProduct>(
       l: { type: Number },
       w: { type: Number },
       h: { type: Number },
+    },
+    storeId: { type: String, index: true },
+    storeName: { type: String },
+    createdBy: {
+      type: { type: String, enum: ['admin', 'store'], default: 'admin' },
+      id: { type: String },
+      name: { type: String },
     },
     priceHistory: [
       {

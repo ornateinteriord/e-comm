@@ -39,6 +39,7 @@ export default function CustomersPage() {
           <Table>
             <TableHead sx={{ bgcolor: '#f8fafc' }}>
               <TableRow>
+                <TableCell sx={{ fontWeight: 800 }}>Customer ID</TableCell>
                 <TableCell sx={{ fontWeight: 800 }}>Customer Name</TableCell>
                 <TableCell sx={{ fontWeight: 800 }}>Email Address</TableCell>
                 <TableCell sx={{ fontWeight: 800 }}>Phone Number</TableCell>
@@ -50,6 +51,13 @@ export default function CustomersPage() {
             <TableBody>
               {customersData.items.map((cust) => (
                 <TableRow key={cust._id || cust.id} hover>
+                  <TableCell sx={{ fontWeight: 800, fontFamily: 'monospace', color: '#0f172a' }}>
+                    <Chip
+                      label={cust.customerId || cust.customer_id || 'N/A'}
+                      size="small"
+                      sx={{ fontWeight: 800, fontFamily: 'monospace', bgcolor: '#f1f5f9', color: '#1e293b' }}
+                    />
+                  </TableCell>
                   <TableCell sx={{ fontWeight: 800 }}>{cust.name}</TableCell>
                   <TableCell>{cust.email}</TableCell>
                   <TableCell sx={{ color: 'text.secondary' }}>{cust.phone || 'N/A'}</TableCell>
