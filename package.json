@@ -7,6 +7,7 @@
     "dev:all": "turbo dev --concurrency=25",
     "dev:services": "turbo dev --filter=\"./services/*\" --concurrency=15",
     "dev:apps": "turbo dev --filter=\"./apps/*\" --concurrency=5",
+    "dev:store": "pnpm --filter store dev",
     "build": "turbo build",
     "vercel-build": "turbo build",
     "postinstall": "turbo build --filter=\"./packages/*\" --filter=\"./services/*\"",

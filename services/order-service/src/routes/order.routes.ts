@@ -9,6 +9,9 @@ import {
   adminGetDashboardMetrics,
   confirmOrderPayment,
   adminTriggerOrderCommission,
+  storeListOrders,
+  storeGetOrderDetails,
+  storeUpdateItemStatus,
 } from '../controllers/order.controller.js';
 import { attachUser, requireAuth, requireRole } from '../middleware/auth.middleware.js';
 
@@ -22,6 +25,14 @@ router.get('/orders', requireAuth, getMyOrders);
 router.get('/orders/:id', getOrderById);
 router.post('/orders/:id/cancel', requireAuth, cancelOrder);
 router.patch('/orders/:id/payment-confirmation', confirmOrderPayment);
+
+// Store orders & fulfillment
+router.get('/api/v1/store/orders', requireAuth, requireRole('store'), storeListOrders);
+router.get('/store/orders', requireAuth, requireRole('store'), storeListOrders);
+router.get('/api/v1/store/orders/:id', requireAuth, requireRole('store'), storeGetOrderDetails);
+router.get('/store/orders/:id', requireAuth, requireRole('store'), storeGetOrderDetails);
+router.patch('/api/v1/store/orders/:id/status', requireAuth, requireRole('store'), storeUpdateItemStatus);
+router.patch('/store/orders/:id/status', requireAuth, requireRole('store'), storeUpdateItemStatus);
 
 // Admin orders & dashboard
 router.get('/admin/orders', requireAuth, requireRole('order_manager', 'admin', 'super_admin'), adminListOrders);

@@ -80,7 +80,7 @@ export default function ProductDetailPage() {
   const isOutOfStock = (product.stock ?? 0) <= 0;
 
   const images = product.images?.length
-    ? product.images
+    ? [...product.images].sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
     : [{ id: 'default', url: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800&q=80', order: 0 }];
 
   const handleAddToCart = () => {

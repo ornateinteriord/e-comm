@@ -11,6 +11,7 @@ import authRoutes from './routes/auth.routes.js';
 import userRoutes from './routes/user.routes.js';
 import contactRoutes from './routes/contact.routes.js';
 import walletRoutes from './routes/wallet.routes.js';
+import storeRoutes from './routes/store.routes.js';
 import { requireAuth, requireRole } from './middleware/auth.middleware.js';
 import {
   getProfile,
@@ -36,6 +37,7 @@ const staticAllowed = [
   'http://localhost:4000',
   'http://localhost:5173',
   'http://localhost:5174',
+  'http://localhost:5175',
   'http://localhost:3000',
   'https://e-shophy-admin.vercel.app',
   'https://e-shophy-ui.vercel.app',
@@ -128,6 +130,9 @@ app.use(contactRoutes);
 
 // Customer Wallet routes
 app.use('/api/v1/wallet', walletRoutes);
+
+// Store routes (registration, login, profile, admin stores)
+app.use(storeRoutes);
 
 // Admin routes (forwarded by gateway preserving path)
 app.use('/api/v1/admin', authRoutes);

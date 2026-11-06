@@ -52,6 +52,7 @@ app.use(
 const staticAllowedOrigins = [
   'http://localhost:5173',
   'http://localhost:5174',
+  'http://localhost:5175',
   'http://localhost:3000',
   'http://localhost:4000',
   'https://e-shophy-admin.vercel.app',
@@ -245,6 +246,12 @@ const serviceRoutes: Array<{ path: string; target: string }> = [
   { path: '/api/v1/admin/customers', target: authTarget },
   { path: '/api/v1/admin/users', target: authTarget },
   { path: '/api/v1/admin/audit-logs', target: authTarget },
+  { path: '/api/v1/admin/stores', target: authTarget },
+
+  // Store Routes
+  { path: '/api/v1/store/products', target: productTarget },
+  { path: '/api/v1/store/orders', target: orderTarget },
+  { path: '/api/v1/store', target: authTarget },
 
   // 2. Product, Catalog, Search & Inventory Service
   { path: '/api/v1/products', target: productTarget },

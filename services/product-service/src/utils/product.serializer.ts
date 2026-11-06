@@ -61,6 +61,8 @@ export function serializePublicProduct(product: IProduct): PublicProduct {
     seoDescription: product.seoDescription,
     weight: product.weight,
     dimensions: product.dimensions,
+    storeId: (product as any).storeId,
+    storeName: (product as any).storeName,
     createdAt: safeIsoString(product.createdAt),
     updatedAt: safeIsoString(product.updatedAt),
   };

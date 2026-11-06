@@ -19,6 +19,7 @@ import {
 } from '@mui/icons-material';
 import api from '../api/client';
 import type { AdminProduct } from '@ornate/types';
+import { ProductImageUploader, type ProductImageItem } from '../components/ProductImageUploader';
 
 export const DEFAULT_CATEGORIES = [
   { id: '6ad1ef935be79206b89816e5', _id: '6ad1ef935be79206b89816e5', name: 'Electronics & Audio', slug: 'electronics' },
@@ -79,63 +80,8 @@ export default function ProductsPage() {
     status: 'active',
     isPublished: true,
     isFeatured: false,
-    imageUrl: '',
-    imageName: '',
+    images: [] as ProductImageItem[],
   });
-
-  const [uploadingImage, setUploadingImage] = useState(false);
-  const [uploadError, setUploadError] = useState<string | null>(null);
-  const fileInputRef = React.useRef<HTMLInputElement | null>(null);
-
-  const handleImageUpload = async (file: File) => {
-    if (!file) return;
-
-    if (!file.type.startsWith('image/')) {
-      showToast('Please select a valid image file (PNG, JPG, WebP, etc.).', 'error');
-      return;
-    }
-
-    if (file.size > 15 * 1024 * 1024) {
-      showToast('Image file size must be less than 15MB.', 'error');
-      return;
-    }
-
-    try {
-      setUploadingImage(true);
-      setUploadError(null);
-
-      const formData = new FormData();
-      formData.append('image', file);
-
-      const res = await api.post('/admin/products/upload-image', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
-
-      const { url, name, title } = res.data.data;
-      const cleanTitle = title || file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ').trim();
-
-      setForm((prev) => ({
-        ...prev,
-        imageUrl: url,
-        imageName: name || file.name,
-        // Auto-fill Product Title if empty or default
-        name: prev.name.trim() === '' ? cleanTitle : prev.name,
-      }));
-
-      showToast(`Image "${name || file.name}" uploaded to ImageKit successfully!`, 'success');
-    } catch (err: any) {
-      const msg = err.response?.data?.error?.message || err.message || 'Failed to upload image to ImageKit';
-      setUploadError(msg);
-      showToast(msg, 'error');
-    } finally {
-      setUploadingImage(false);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
-    }
-  };
 
   const { data: productsData, isLoading } = useQuery<{ items: AdminProduct[]; total: number }>({
     queryKey: ['admin-products'],
@@ -233,15 +179,13 @@ export default function ProductsPage() {
         status: form.status,
         isPublished: form.isPublished,
         isFeatured: form.isFeatured,
-        images: form.imageUrl
-          ? [{
-              id: 'img_' + Date.now(),
-              url: form.imageUrl,
-              name: form.imageName || form.name,
-              alt: form.name,
-              order: 0,
-            }]
-          : [],
+        images: form.images.map((img, idx) => ({
+          id: img.id || `img_${idx}`,
+          url: img.url,
+          name: img.name || form.name,
+          alt: img.alt || form.name,
+          order: idx,
+        })),
       };
 
       if (editingProduct) {
@@ -322,17 +266,23 @@ export default function ProductsPage() {
       status: 'active',
       isPublished: true,
       isFeatured: false,
-      imageUrl: '',
-      imageName: '',
+      images: [],
     });
     setFormError(null);
-    setUploadError(null);
     setDialogOpen(true);
   };
 
   const openEditDialog = (p: AdminProduct) => {
     setEditingProduct(p);
     const catId = (p as any).category?._id || (p as any).category?.id || p.categoryId || (p as any).category || '';
+    const initialImages: ProductImageItem[] = (p.images || []).map((img, idx) => ({
+      id: img.id || `img_${idx}`,
+      url: img.url,
+      name: (img as any).name || (img as any).alt || '',
+      alt: img.alt || (img as any).name || '',
+      order: img.order ?? idx,
+    })).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+
     setForm({
       name: p.name,
       sku: p.sku,
@@ -349,11 +299,9 @@ export default function ProductsPage() {
       status: p.status,
       isPublished: p.isPublished,
       isFeatured: Boolean(p.isFeatured),
-      imageUrl: p.images?.[0]?.url || '',
-      imageName: (p.images?.[0] as any)?.name || (p.images?.[0] as any)?.alt || '',
+      images: initialImages,
     });
     setFormError(null);
-    setUploadError(null);
     setDialogOpen(true);
   };
 
@@ -810,226 +758,23 @@ export default function ProductsPage() {
               />
             </Grid>
 
-            {/* ImageKit Product Image Upload Section */}
+            {/* ImageKit Product Images Section (Multi-Image Gallery & Cover Selection) */}
             <Grid item xs={12}>
-              <Box sx={{ mb: 0.75 }}>
+              <Box sx={{ mb: 1 }}>
                 <Typography variant="caption" fontWeight={800} color="#334155" sx={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  Product Image (ImageKit CDN)
+                  Product Images (ImageKit CDN)
                 </Typography>
               </Box>
 
-              {/* Hidden Native File Input */}
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                style={{ display: 'none' }}
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) handleImageUpload(file);
+              <ProductImageUploader
+                images={form.images}
+                onChange={(newImages) => setForm((prev) => ({ ...prev, images: newImages }))}
+                uploadEndpoint="/admin/products/upload-images"
+                singleUploadEndpoint="/admin/products/upload-image"
+                onTitleSuggest={(title) => {
+                  setForm((prev) => (prev.name.trim() === '' ? { ...prev, name: title } : prev));
                 }}
               />
-
-              {uploadError && (
-                <Alert severity="error" sx={{ mb: 2, borderRadius: '8px' }} onClose={() => setUploadError(null)}>
-                  {uploadError}
-                </Alert>
-              )}
-
-              {uploadingImage ? (
-                <Paper
-                  elevation={0}
-                  sx={{
-                    p: 3.5,
-                    borderRadius: '10px',
-                    border: '2px dashed #FF7900',
-                    bgcolor: 'rgba(255, 121, 0, 0.04)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: 1.5,
-                  }}
-                >
-                  <CircularProgress size={36} sx={{ color: '#FF7900' }} />
-                  <Typography variant="subtitle2" fontWeight={800} color="#0f172a">
-                    Uploading image to ImageKit CDN...
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    Optimizing resolution and generating global CDN asset
-                  </Typography>
-                </Paper>
-              ) : form.imageUrl ? (
-                /* Uploaded Image Preview & Details Card */
-                <Paper
-                  elevation={0}
-                  sx={{
-                    p: 2,
-                    borderRadius: '10px',
-                    border: '1px solid #e2e8f0',
-                    bgcolor: '#f8fafc',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    flexWrap: 'wrap',
-                    gap: 2,
-                  }}
-                >
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                    <Box
-                      component="img"
-                      src={form.imageUrl}
-                      alt={form.imageName || form.name || 'Product'}
-                      sx={{
-                        width: 76,
-                        height: 76,
-                        borderRadius: '8px',
-                        objectFit: 'cover',
-                        border: '1px solid #cbd5e1',
-                        bgcolor: '#FFFFFF',
-                      }}
-                    />
-                    <Box sx={{ maxWidth: { xs: 260, sm: 420 } }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5, flexWrap: 'wrap' }}>
-                        <Chip
-                          icon={<CheckCircleIcon sx={{ fontSize: 14, color: '#16a34a !important' }} />}
-                          label="ImageKit Hosted"
-                          size="small"
-                          sx={{
-                            fontWeight: 800,
-                            fontSize: 11,
-                            bgcolor: '#dcfce7',
-                            color: '#16a34a',
-                            height: 22,
-                          }}
-                        />
-                        {form.imageName && (
-                          <Typography variant="caption" fontWeight={700} color="#334155" noWrap sx={{ maxWidth: 280 }}>
-                            {form.imageName}
-                          </Typography>
-                        )}
-                      </Box>
-                      <Typography
-                        variant="caption"
-                        color="text.secondary"
-                        sx={{
-                          display: 'block',
-                          wordBreak: 'break-all',
-                          fontSize: '0.75rem',
-                          fontFamily: 'monospace',
-                          bgcolor: '#ffffff',
-                          py: 0.25,
-                          px: 1,
-                          borderRadius: '4px',
-                          border: '1px solid #e2e8f0',
-                        }}
-                      >
-                        {form.imageUrl}
-                      </Typography>
-                    </Box>
-                  </Box>
-
-                  <Stack direction="row" spacing={1}>
-                    <Button
-                      variant="outlined"
-                      size="small"
-                      startIcon={<CloudUploadIcon />}
-                      onClick={() => fileInputRef.current?.click()}
-                      sx={{
-                        borderRadius: '6px',
-                        textTransform: 'none',
-                        fontWeight: 700,
-                        borderColor: '#cbd5e1',
-                        color: '#334155',
-                        '&:hover': { borderColor: '#FF7900', color: '#FF7900' },
-                      }}
-                    >
-                      Replace Image
-                    </Button>
-                    <IconButton
-                      size="small"
-                      color="error"
-                      onClick={() => setForm({ ...form, imageUrl: '', imageName: '' })}
-                      title="Remove Image"
-                      sx={{ bgcolor: '#fee2e2', '&:hover': { bgcolor: '#fecaca' } }}
-                    >
-                      <DeleteIcon fontSize="small" />
-                    </IconButton>
-                  </Stack>
-                </Paper>
-              ) : (
-                /* Drag & Drop Upload Dropzone */
-                <Paper
-                  elevation={0}
-                  onClick={() => fileInputRef.current?.click()}
-                  onDragOver={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                  }}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    const file = e.dataTransfer.files?.[0];
-                    if (file) handleImageUpload(file);
-                  }}
-                  sx={{
-                    p: 3.5,
-                    borderRadius: '10px',
-                    border: '2px dashed #cbd5e1',
-                    bgcolor: '#f8fafc',
-                    textAlign: 'center',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease',
-                    '&:hover': {
-                      borderColor: '#FF7900',
-                      bgcolor: 'rgba(255, 121, 0, 0.03)',
-                    },
-                  }}
-                >
-                  <Box
-                    sx={{
-                      width: 48,
-                      height: 48,
-                      borderRadius: '50%',
-                      bgcolor: 'rgba(255, 121, 0, 0.1)',
-                      color: '#FF7900',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      mx: 'auto',
-                      mb: 1.25,
-                    }}
-                  >
-                    <CloudUploadIcon sx={{ fontSize: 26 }} />
-                  </Box>
-                  <Typography variant="subtitle2" fontWeight={800} color="#0f172a">
-                    Click to upload product image, or drag and drop here
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-                    Supports PNG, JPG, WEBP, or GIF up to 15MB. Automatically uploaded to ImageKit CDN.
-                  </Typography>
-                  <Button
-                    variant="contained"
-                    size="small"
-                    startIcon={<CloudUploadIcon />}
-                    sx={{
-                      mt: 1.75,
-                      bgcolor: '#FF7900',
-                      color: '#FFFFFF',
-                      fontWeight: 800,
-                      borderRadius: '6px',
-                      textTransform: 'none',
-                      '&:hover': { bgcolor: '#E85D04' },
-                    }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      fileInputRef.current?.click();
-                    }}
-                  >
-                    Select Image File
-                  </Button>
-                </Paper>
-              )}
             </Grid>
 
             <Grid item xs={12}>

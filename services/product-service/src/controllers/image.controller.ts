@@ -174,12 +174,82 @@ export async function uploadSingleImage(
       res.json({
         success: true,
         data: {
+          id: imageId,
           url: result.url,
           name: originalName,
           title: nameWithoutExt,
           fileId: result.fileId,
           thumbnailUrl: result.thumbnailUrl || result.url,
         },
+      });
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * Upload multiple standalone product images to ImageKit.
+ * Used when adding or editing products with multiple images.
+ * Accepts multipart form with multiple files under 'images' (or 'image').
+ */
+export async function uploadMultipleStandaloneImages(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    upload.array('images', 20)(req, res, async (err) => {
+      if (err) {
+        res.status(400).json({
+          success: false,
+          error: { code: 'UPLOAD_ERROR', message: err.message },
+        });
+        return;
+      }
+
+      const rawFiles = req.files as Express.Multer.File[];
+      const files = rawFiles && rawFiles.length > 0 ? rawFiles : (req.file ? [req.file] : []);
+      if (!files || files.length === 0) {
+        res.status(400).json({
+          success: false,
+          error: { code: 'NO_FILES', message: 'No image files provided.' },
+        });
+        return;
+      }
+
+      const uploaded = await Promise.all(
+        files.map(async (file, idx) => {
+          const imageId = uuidv4();
+          const originalName = file.originalname || `product_${Date.now()}_${idx}`;
+          const safeName = originalName.replace(/[^a-zA-Z0-9._-]/g, '_');
+          const fileName = `${imageId}_${safeName}`;
+
+          const result = await imagekit.upload({
+            file: file.buffer,
+            fileName,
+            folder: '/ornate/products',
+            tags: ['product-catalog'],
+          });
+
+          const nameWithoutExt = originalName.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ').trim();
+
+          return {
+            id: imageId,
+            url: result.url,
+            name: originalName,
+            title: nameWithoutExt,
+            fileId: result.fileId,
+            thumbnailUrl: result.thumbnailUrl || result.url,
+          };
+        }),
+      );
+
+      log.info({ count: uploaded.length }, 'Multiple product images uploaded to ImageKit successfully');
+
+      res.json({
+        success: true,
+        data: uploaded,
       });
     });
   } catch (err) {

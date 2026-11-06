@@ -11,6 +11,14 @@ export interface ReferralLookupResult {
   message?: string;
 }
 
+export interface StoreReferralLookupResult {
+  valid: boolean;
+  referralCode?: string;
+  referralName?: string;
+  referralType?: 'vendor' | 'store';
+  message?: string;
+}
+
 function escapeRegex(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
@@ -506,4 +514,67 @@ export async function applyReferralRewards(params: {
   }
 
   return result;
+}
+
+export async function lookupStoreReferralCode(rawCode: string): Promise<StoreReferralLookupResult> {
+  const code = String(rawCode || '').trim();
+  if (!code) {
+    return { valid: false, message: 'Referral code is required.' };
+  }
+
+  // 1. Search in e-cash vendor_tbl
+  try {
+    const client = typeof (mongoose.connection as any).getClient === 'function'
+      ? (mongoose.connection as any).getClient()
+      : (mongoose.connection as any).client;
+    const ecashDb = client ? client.db('e-cash') : mongoose.connection.useDb('e-cash').db;
+    const vendor = await ecashDb.collection('vendor_tbl').findOne(buildVendorQuery(code));
+    if (vendor) {
+      const rawStatus = vendor.status !== undefined && vendor.status !== null ? String(vendor.status).trim().toLowerCase() : '';
+      const inactiveStatuses = ['inactive', 'blocked', 'suspended', 'deleted', 'disabled', '0', 'false'];
+      if (inactiveStatuses.includes(rawStatus)) {
+        return { valid: false, message: 'Vendor referral account is inactive.' };
+      }
+      const canonicalCode = String(vendor.Member_id || vendor.member_id || vendor.member_code || vendor.mobileno || code).trim();
+      const vendorName = String(vendor.Name || vendor.name || vendor.firm_name || vendor.Firm_Name || 'Vendor').trim();
+      return {
+        valid: true,
+        referralCode: canonicalCode,
+        referralName: vendorName,
+        referralType: 'vendor',
+      };
+    }
+  } catch (err) {
+    console.error('Error looking up vendor sponsor for store:', err);
+  }
+
+  // 2. Search in ornate_auth.stores
+  try {
+    const { Store } = await import('../models/store.model.js');
+    const store = await Store.findOne({
+      $or: [
+        { storeId: new RegExp(`^${escapeRegex(code)}$`, 'i') },
+        { mobileNumber: code.replace(/\D/g, '') },
+        { email: code.toLowerCase() },
+      ],
+    });
+    if (store) {
+      if (store.status === 'suspended' || !store.isActive) {
+        return { valid: false, message: 'Referring store account is inactive or suspended.' };
+      }
+      return {
+        valid: true,
+        referralCode: store.storeId,
+        referralName: store.name,
+        referralType: 'store',
+      };
+    }
+  } catch (err) {
+    console.error('Error looking up store sponsor for store:', err);
+  }
+
+  return {
+    valid: false,
+    message: 'Invalid referral code. A store must be referred by an authorized vendor or existing store.',
+  };
 }

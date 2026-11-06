@@ -11,12 +11,15 @@ export type UserRole =
   | 'order_manager'
   | 'finance_manager'
   | 'admin'
-  | 'super_admin';
+  | 'super_admin'
+  | 'store';
 
 export interface JwtPayload {
   userId: string;
   email: string;
   role: UserRole;
+  storeId?: string;
+  categoryId?: string;
   iat: number;
   exp: number;
 }
@@ -150,6 +153,8 @@ export interface PublicProduct {
   seoDescription?: string;
   weight?: number;
   dimensions?: { l: number; w: number; h: number };
+  storeId?: string;
+  storeName?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -212,6 +217,15 @@ export interface OrderItem {
   name: string;
   sku: string;
   image?: string;
+  categoryId?: string;
+  categoryName?: string;
+  storeId?: string;
+  storeName?: string;
+  itemStatus?: 'pending' | 'confirmed' | 'packed' | 'dispatched' | 'delivered' | 'cancelled';
+  courierName?: string;
+  trackingNumber?: string;
+  dispatchedAt?: string;
+  deliveredAt?: string;
   quantity: number;
   unitMrp: number;
   unitSellingPrice: number;
@@ -514,6 +528,45 @@ export interface ContactMessage {
   message: string;
   status: ContactMessageStatus;
   adminNotes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ---- Store ----
+export interface StoreLocation {
+  lat: number;
+  lng: number;
+  formattedAddress?: string;
+}
+
+export interface StoreAddress {
+  line1: string;
+  line2?: string;
+  city: string;
+  state: string;
+  pincode: string;
+  country: string;
+}
+
+export type StoreStatus = 'active' | 'pending_approval' | 'suspended';
+
+export interface StoreProfile {
+  id: string;
+  storeId: string;
+  name: string;
+  ownerName: string;
+  email: string;
+  mobileNumber: string;
+  categoryId: string;
+  categoryName: string;
+  categorySlug?: string;
+  referralCode: string;
+  referralName: string;
+  referralType: 'vendor' | 'store';
+  address: StoreAddress;
+  location: StoreLocation;
+  status: StoreStatus;
+  isActive: boolean;
   createdAt: string;
   updatedAt: string;
 }

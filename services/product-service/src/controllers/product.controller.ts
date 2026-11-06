@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import mongoose from 'mongoose';
 import crypto from 'node:crypto';
 const uuidv4 = () => crypto.randomUUID();
 import slugify from 'slugify';
@@ -361,6 +362,218 @@ export async function getAdminProduct(req: Request, res: Response, next: NextFun
     }
     const isFinance = ['finance_manager', 'admin', 'super_admin'].includes(req.user?.role ?? '');
     res.json({ success: true, data: isFinance ? serializeAdminProduct(product) : serializePublicProduct(product) });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// ==========================================
+// STORE PORTAL PRODUCT CONTROLLERS
+// ==========================================
+
+/**
+ * GET /api/v1/store/products
+ * Returns all products within the store's assigned category.
+ */
+export async function storeListProducts(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const categoryId = req.user?.categoryId;
+    if (!categoryId) {
+      res.status(400).json({ success: false, error: { code: 'CATEGORY_REQUIRED', message: 'Store has no category assigned.' } });
+      return;
+    }
+
+    const page = Math.max(1, Number(req.query.page ?? 1));
+    const limit = Math.min(100, Math.max(1, Number(req.query.limit ?? 20)));
+    const skip = (page - 1) * limit;
+    const search = req.query.search as string | undefined;
+    const status = req.query.status as string | undefined;
+
+    const filter: Record<string, unknown> = {
+      category: mongoose.Types.ObjectId.isValid(categoryId) ? new mongoose.Types.ObjectId(categoryId) : categoryId,
+    };
+    if (status) filter.status = status;
+    if (search) {
+      const reg = new RegExp(search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+      filter.$or = [{ name: reg }, { sku: reg }];
+    }
+
+    const [products, total] = await Promise.all([
+      Product.find(filter).populate('category', 'name slug').skip(skip).limit(limit).sort({ createdAt: -1 }),
+      Product.countDocuments(filter),
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        items: products.map((p) => serializePublicProduct(p)),
+        pagination: {
+          page, limit, total,
+          totalPages: Math.ceil(total / limit),
+          hasNextPage: page * limit < total,
+          hasPrevPage: page > 1,
+        },
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * POST /api/v1/store/products
+ * Creates a product within the store's category.
+ */
+export async function storeCreateProduct(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const categoryId = req.user?.categoryId;
+    const storeId = req.user?.storeId;
+    if (!categoryId) {
+      res.status(400).json({ success: false, error: { code: 'CATEGORY_REQUIRED', message: 'Store has no category assigned.' } });
+      return;
+    }
+
+    const {
+      name, sku, brand, shortDescription, longDescription,
+      pricing, stock, lowStockThreshold,
+      status, isPublished, attributes, variants,
+      seoTitle, seoDescription, taxClass, weight, dimensions, images,
+    } = req.body;
+
+    const pricePayload = {
+      mrp: Number(pricing?.mrp ?? 0),
+      sellingPrice: Number(pricing?.sellingPrice ?? 0),
+      inwardPrice: Number(pricing?.inwardPrice ?? pricing?.sellingPrice ?? 0),
+      dealPrice: pricing?.dealPrice ? Number(pricing.dealPrice) : null,
+      deal: pricing?.deal ?? null,
+    };
+
+    const priceErrors = validatePrices(pricePayload);
+    if (priceErrors.length > 0) {
+      res.status(422).json({
+        success: false,
+        error: { code: 'PRICE_VALIDATION_ERROR', message: 'Invalid pricing.', details: priceErrors },
+      });
+      return;
+    }
+
+    const skuUpper = String(sku || '').toUpperCase().trim();
+    const skuExists = await Product.findOne({ sku: skuUpper });
+    if (skuExists) {
+      res.status(409).json({
+        success: false,
+        error: { code: 'SKU_IN_USE', message: `SKU ${skuUpper} is already in use.` },
+      });
+      return;
+    }
+
+    const slug = generateSlug(name, skuUpper);
+    const product = await Product.create({
+      name,
+      slug,
+      sku: skuUpper,
+      brand,
+      shortDescription,
+      longDescription,
+      category: mongoose.Types.ObjectId.isValid(categoryId) ? new mongoose.Types.ObjectId(categoryId) : categoryId,
+      pricing: pricePayload,
+      stock: stock ?? 0,
+      lowStockThreshold: lowStockThreshold ?? 5,
+      status: status ?? 'active',
+      isPublished: typeof isPublished === 'boolean' ? isPublished : true,
+      attributes: attributes ?? [],
+      variants: (variants ?? []).map((v: Record<string, unknown>) => ({ ...v, id: uuidv4() })),
+      seoTitle,
+      seoDescription,
+      taxClass,
+      weight,
+      dimensions,
+      storeId,
+      storeName: storeId,
+      createdBy: { type: 'store', id: req.user!.userId, name: storeId },
+      images: (images ?? []).map((img: any, idx: number) => ({
+        id: img.id || uuidv4(),
+        url: img.url,
+        alt: img.alt || img.name || name,
+        order: img.order ?? idx,
+      })),
+      priceHistory: [{ changedBy: req.user!.userId, changedAt: new Date(), snapshot: pricePayload }],
+    });
+
+    await emitSearchEvent(product.id as string, 'upsert');
+    log.info({ productId: product.id, sku: product.sku, storeId }, 'Product created by store');
+
+    res.status(201).json({
+      success: true,
+      data: serializePublicProduct(product),
+      message: 'Product created successfully.',
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * PATCH /api/v1/store/products/:id
+ */
+export async function storeUpdateProduct(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { id } = req.params;
+    const categoryId = req.user?.categoryId;
+
+    const catMatch = mongoose.Types.ObjectId.isValid(categoryId!)
+      ? { $in: [categoryId, new mongoose.Types.ObjectId(categoryId!)] }
+      : categoryId;
+
+    const product = await Product.findOne({
+      _id: id,
+      category: catMatch,
+    });
+    if (!product) {
+      res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Product not found in store category.' } });
+      return;
+    }
+
+    const { name, brand, shortDescription, longDescription, pricing, stock, lowStockThreshold, status, isPublished, images } = req.body;
+
+    if (name) product.name = name;
+    if (brand !== undefined) product.brand = brand;
+    if (shortDescription !== undefined) product.shortDescription = shortDescription;
+    if (longDescription !== undefined) product.longDescription = longDescription;
+    if (stock !== undefined) product.stock = Number(stock);
+    if (lowStockThreshold !== undefined) product.lowStockThreshold = Number(lowStockThreshold);
+    if (status) product.status = status;
+    if (typeof isPublished === 'boolean') product.isPublished = isPublished;
+
+    if (pricing) {
+      const pricePayload = {
+        mrp: Number(pricing.mrp ?? product.pricing.mrp),
+        sellingPrice: Number(pricing.sellingPrice ?? product.pricing.sellingPrice),
+        inwardPrice: Number(pricing.inwardPrice ?? product.pricing.inwardPrice ?? product.pricing.sellingPrice),
+        dealPrice: pricing.dealPrice !== undefined ? pricing.dealPrice : product.pricing.dealPrice,
+        deal: pricing.deal !== undefined ? pricing.deal : product.pricing.deal,
+      };
+      product.pricing = pricePayload as any;
+      product.priceHistory.push({ changedBy: req.user!.userId, changedAt: new Date(), snapshot: pricePayload });
+    }
+
+    if (Array.isArray(images)) {
+      product.images = images.map((img: any, idx: number) => ({
+        id: img.id || uuidv4(),
+        url: img.url,
+        alt: img.alt || img.name || product.name,
+        order: img.order ?? idx,
+      }));
+    }
+
+    await product.save();
+    await emitSearchEvent(product.id as string, 'upsert');
+
+    res.json({
+      success: true,
+      data: serializePublicProduct(product),
+      message: 'Product updated successfully.',
+    });
   } catch (err) {
     next(err);
   }

@@ -49,13 +49,14 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
  */
 const ROLE_HIERARCHY: Record<UserRole, number> = {
   customer: 0,
-  support: 1,
-  catalog_manager: 2,
-  inventory_manager: 3,
-  order_manager: 4,
-  finance_manager: 5,
-  admin: 6,
-  super_admin: 7,
+  store: 1,
+  support: 2,
+  catalog_manager: 3,
+  inventory_manager: 4,
+  order_manager: 5,
+  finance_manager: 6,
+  admin: 7,
+  super_admin: 8,
 };
 
 export function requireRole(...roles: UserRole[]) {
