@@ -165,28 +165,36 @@ customerSchema.pre('save', function (next) {
 export const Customer = mongoose.model<ICustomer>('Customer', customerSchema);
 
 export async function generateNextCustomerId(): Promise<string> {
-  const lastCustomer = await Customer.findOne({ customerId: /^CUS\d+$/ })
-    .sort({ customerId: -1 })
-    .select('customerId');
+  const BASE_ID = 652010;
 
-  let maxNum = 0;
+  // Find all customers with numeric customerId
+  const customers = await Customer.find({ customerId: /^\d+$/ })
+    .select('customerId')
+    .lean();
 
-  if (lastCustomer?.customerId) {
-    const match = lastCustomer.customerId.match(/^CUS(\d+)$/);
-    if (match) {
-      maxNum = Math.max(maxNum, parseInt(match[1], 10));
+  let maxNum = BASE_ID - 1; // if no customer exists yet, nextNum will be BASE_ID (652010)
+
+  for (const c of customers) {
+    if (c.customerId) {
+      const num = parseInt(c.customerId, 10);
+      if (!isNaN(num) && num > maxNum) {
+        maxNum = num;
+      }
     }
   }
 
   // Also check wallettransactions collection to ensure a deleted test customer ID is never recycled
   try {
-    const lastTxn = await mongoose.connection
+    const txns = await mongoose.connection
       .collection('wallettransactions')
-      .findOne({ customerId: /^CUS\d+$/ }, { sort: { customerId: -1 }, projection: { customerId: 1 } });
-    if (lastTxn?.customerId) {
-      const match = String(lastTxn.customerId).match(/^CUS(\d+)$/);
-      if (match) {
-        maxNum = Math.max(maxNum, parseInt(match[1], 10));
+      .find({ customerId: /^\d+$/ }, { projection: { customerId: 1 } })
+      .toArray();
+    for (const t of txns) {
+      if (t.customerId) {
+        const num = parseInt(String(t.customerId), 10);
+        if (!isNaN(num) && num > maxNum) {
+          maxNum = num;
+        }
       }
     }
   } catch {
@@ -194,6 +202,6 @@ export async function generateNextCustomerId(): Promise<string> {
   }
 
   const nextNum = maxNum + 1;
-  return `CUS${String(nextNum).padStart(5, '0')}`;
+  return String(nextNum);
 }
 

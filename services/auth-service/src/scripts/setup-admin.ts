@@ -7,6 +7,7 @@ dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 import bcrypt from 'bcryptjs';
 import { connectDB, disconnectDB } from '@ornate/db';
 import { createLogger } from '@ornate/logger';
+import { Admin } from '../models/admin.model.js';
 import { Customer } from '../models/customer.model.js';
 import { AuditLog } from '../models/audit-log.model.js';
 
@@ -27,9 +28,16 @@ async function main(): Promise<void> {
     process.env.AUTH_DB_NAME ?? 'ornate_auth',
   );
 
-  const existing = await Customer.findOne({ email });
+  // Clean up any old admin record from customers collection
+  const oldCustomerAdmin = await Customer.findOne({ email });
+  if (oldCustomerAdmin) {
+    log.info({ email }, 'Removing old admin record from customers collection.');
+    await Customer.deleteOne({ _id: oldCustomerAdmin._id });
+  }
+
+  const existing = await Admin.findOne({ email });
   if (existing) {
-    log.info({ email }, 'Admin customer already exists. Updating role to super_admin.');
+    log.info({ email }, 'Admin already exists in admins collection. Updating role to super_admin.');
     existing.role = 'super_admin';
     existing.username = 'admin';
     await existing.save();
@@ -38,7 +46,7 @@ async function main(): Promise<void> {
   }
 
   const passwordHash = await bcrypt.hash(password, 12);
-  const user = await Customer.create({
+  const user = await Admin.create({
     email,
     passwordHash,
     name,
@@ -47,19 +55,17 @@ async function main(): Promise<void> {
     role: 'super_admin',
     emailVerified: true,
     isActive: true,
-    referralCode: 'SYSTEM',
-    referralName: 'System Admin',
   });
 
   await AuditLog.create({
     action: 'admin.setup_admin',
-    targetModel: 'User',
+    targetModel: 'Admin',
     targetId: user.id,
     after: { email, role: 'super_admin' },
   });
 
   log.info({ email, password: process.env.NODE_ENV === 'production' ? '[hidden]' : password },
-    'Admin user created. Change the password immediately after first login.');
+    'Admin user created in admins collection. Change the password immediately after first login.');
 
   await disconnectDB();
 }
