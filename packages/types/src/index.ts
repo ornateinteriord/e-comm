@@ -550,10 +550,18 @@ export interface StoreAddress {
 
 export type StoreStatus = 'active' | 'pending_approval' | 'suspended';
 
+export type StoreType =
+  | 'Basic'
+  | 'Standard'
+  | 'Advanced'
+  | 'Flagship'
+  | 'Wholesale';
+
 export interface StoreProfile {
   id: string;
   storeId: string;
   name: string;
+  typeOfStore?: string;
   ownerName: string;
   email: string;
   mobileNumber: string;

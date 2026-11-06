@@ -12,6 +12,7 @@ import {
   Paper,
   Divider,
   Alert,
+  Grid,
 } from '@mui/material';
 import {
   CheckCircle as CheckCircleIcon,
@@ -23,11 +24,14 @@ import {
   Lock as LockIcon,
   Login as LoginIcon,
   ArrowForward as ArrowForwardIcon,
+  HourglassTop as HourglassIcon,
+  Place as PlaceIcon,
 } from '@mui/icons-material';
 
 export interface StoreRegistrationDetails {
   storeId: string;
   name: string;
+  typeOfStore?: string;
   ownerName: string;
   email: string;
   mobileNumber: string;
@@ -86,6 +90,7 @@ export default function RegisterSuccessDialog({
       '========================================',
       `Store ID: ${details.storeId}`,
       `Store Name: ${details.name}`,
+      `Store Type: ${details.typeOfStore || 'Standard (Fulfillment Hub)'}`,
       `Assigned Category: ${details.categoryName}`,
       `Owner Name: ${details.ownerName}`,
       `Username (Mobile): ${details.mobileNumber}`,
@@ -96,7 +101,14 @@ export default function RegisterSuccessDialog({
       `Sponsor Code: ${details.referralCode}`,
       `Sponsor Type: ${details.referralType === 'vendor' ? 'Authorized Vendor' : 'Partner Store'}`,
       '',
-      'Store Portal Login: https://store.eshopy.biz/login',
+      'LOCATION:',
+      `City / State: ${details.city || ''}, ${details.state || ''}`,
+      'Status: Pending Administrative Activation',
+      'LOCATION:',
+      `City / State: ${details.city || ''}, ${details.state || ''}`,
+      'Status: Pending Administrative Activation',
+      'Store Portal Login: http://localhost:5175/login',
+
       '========================================',
     ].join('\n');
 
@@ -106,197 +118,261 @@ export default function RegisterSuccessDialog({
   return (
     <Dialog
       open={open}
-      maxWidth="sm"
+      maxWidth="md"
       fullWidth
       PaperProps={{
         sx: {
           borderRadius: 3,
-          p: { xs: 2, sm: 3 },
-          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+          p: { xs: 2.5, sm: 3 },
+          maxWidth: 820,
+          boxShadow: '0 25px 50px -12px rgba(15, 23, 42, 0.25)',
         },
       }}
     >
       <DialogContent sx={{ p: 0 }}>
-        <Stack spacing={2.5} alignItems="center" textAlign="center">
-          {/* Header Icon */}
-          <Box
-            sx={{
-              width: 64,
-              height: 64,
-              borderRadius: '50%',
-              bgcolor: '#ECFDF5',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <CheckCircleIcon sx={{ fontSize: 40, color: '#10B981' }} />
-          </Box>
-
-          <Box>
-            <Typography variant="h5" sx={{ fontWeight: 800, color: '#172B30' }}>
-              Store Created Successfully!
-            </Typography>
-            <Typography variant="body2" sx={{ color: '#64748B', mt: 0.5 }}>
-              Welcome to the E-Shophy Partner Network. Please copy and record your store credentials below.
-            </Typography>
-          </Box>
-
-          <Alert severity="warning" sx={{ width: '100%', borderRadius: 2, textAlign: 'left', fontSize: '0.85rem' }}>
-            <strong>Important:</strong> Your contact mobile number is your store login username. Please copy your password securely now.
-          </Alert>
-
-          {/* Credentials Box */}
-          <Paper
-            elevation={0}
-            sx={{
-              width: '100%',
-              p: 2.5,
-              borderRadius: 2.5,
-              bgcolor: '#F8FAFC',
-              border: '1px solid #E2E8F0',
-              textAlign: 'left',
-            }}
-          >
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <LockIcon sx={{ fontSize: 18, color: '#FF7900' }} />
-                <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#172B30' }}>
-                  Store Credentials
-                </Typography>
-              </Box>
-              <Chip label="Confidential" size="small" color="error" sx={{ fontSize: '0.7rem', height: 22 }} />
+        {/* Header Ribbon */}
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <Box
+              sx={{
+                width: 44,
+                height: 44,
+                borderRadius: '50%',
+                bgcolor: '#ECFDF5',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#10B981',
+              }}
+            >
+              <CheckCircleIcon sx={{ fontSize: 26 }} />
             </Box>
+            <Box>
+              <Typography variant="h6" sx={{ fontWeight: 800, color: '#172B30', lineHeight: 1.2 }}>
+                Store Account Registered!
+              </Typography>
+              <Typography variant="caption" sx={{ color: '#64748B' }}>
+                Save your login credentials securely. Your store is submitted for administrator review.
+              </Typography>
+            </Box>
+          </Box>
 
-            <Stack spacing={1.75}>
-              {/* Store ID */}
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Box>
-                  <Typography variant="caption" sx={{ color: '#64748B' }}>Store ID</Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 800, color: '#FF7900' }}>
-                    {details.storeId}
-                  </Typography>
+          <Chip
+            icon={<HourglassIcon sx={{ fontSize: '14px !important', color: '#B45309' }} />}
+            label="Pending Admin Activation"
+            size="small"
+            sx={{
+              bgcolor: '#FEF3C7',
+              color: '#92400E',
+              fontWeight: 700,
+              fontSize: '0.72rem',
+              border: '1px solid #FDE68A',
+            }}
+          />
+        </Box>
+
+        <Alert severity="warning" sx={{ mb: 2.5, py: 0.5, borderRadius: 2, fontSize: '0.8rem' }}>
+          <strong>Notice:</strong> Your mobile number is your store login username. Keep your password confidential.
+        </Alert>
+
+        {/* 2-Column Wide Grid Layout */}
+        <Grid container spacing={2.5}>
+          {/* Column 1: Login Credentials */}
+          <Grid item xs={12} sm={6}>
+            <Paper
+              elevation={0}
+              sx={{
+                height: '100%',
+                p: 2,
+                borderRadius: 2.5,
+                bgcolor: '#F8FAFC',
+                border: '1px solid #E2E8F0',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+              }}
+            >
+              <Box>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                    <LockIcon sx={{ fontSize: 16, color: '#FF7900' }} />
+                    <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#172B30' }}>
+                      Login Credentials
+                    </Typography>
+                  </Box>
+                  <Chip label="Confidential" size="small" color="error" sx={{ fontSize: '0.65rem', height: 18 }} />
                 </Box>
-                <Button
-                  size="small"
-                  variant="outlined"
-                  onClick={() => copyToClipboard(details.storeId, 'storeId')}
-                  startIcon={copiedField === 'storeId' ? <CheckIcon fontSize="small" /> : <ContentCopyIcon fontSize="small" />}
-                  sx={{ py: 0.25, px: 1, minWidth: 70, fontSize: '0.75rem' }}
-                >
-                  {copiedField === 'storeId' ? 'Copied' : 'Copy'}
-                </Button>
-              </Box>
 
-              <Divider sx={{ borderColor: '#E2E8F0' }} />
+                <Stack spacing={1.25}>
+                  {/* Store ID */}
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Box>
+                      <Typography variant="caption" sx={{ color: '#64748B', display: 'block', lineHeight: 1 }}>
+                        Store ID
+                      </Typography>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 800, color: '#FF7900' }}>
+                        {details.storeId}
+                      </Typography>
+                    </Box>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      onClick={() => copyToClipboard(details.storeId, 'storeId')}
+                      startIcon={copiedField === 'storeId' ? <CheckIcon fontSize="small" /> : <ContentCopyIcon fontSize="small" />}
+                      sx={{ py: 0.2, px: 1, minWidth: 64, fontSize: '0.7rem' }}
+                    >
+                      {copiedField === 'storeId' ? 'Copied' : 'Copy'}
+                    </Button>
+                  </Box>
 
-              {/* Username (Mobile) */}
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Box>
-                  <Typography variant="caption" sx={{ color: '#64748B' }}>Username (Mobile Number)</Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 700, color: '#172B30' }}>
-                    {details.mobileNumber}
-                  </Typography>
-                </Box>
-                <Button
-                  size="small"
-                  variant="outlined"
-                  onClick={() => copyToClipboard(details.mobileNumber, 'mobile')}
-                  startIcon={copiedField === 'mobile' ? <CheckIcon fontSize="small" /> : <ContentCopyIcon fontSize="small" />}
-                  sx={{ py: 0.25, px: 1, minWidth: 70, fontSize: '0.75rem' }}
-                >
-                  {copiedField === 'mobile' ? 'Copied' : 'Copy'}
-                </Button>
-              </Box>
+                  <Divider sx={{ borderColor: '#E2E8F0' }} />
 
-              <Divider sx={{ borderColor: '#E2E8F0' }} />
+                  {/* Username (Mobile) */}
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Box>
+                      <Typography variant="caption" sx={{ color: '#64748B', display: 'block', lineHeight: 1 }}>
+                        Username (Mobile)
+                      </Typography>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#172B30' }}>
+                        {details.mobileNumber}
+                      </Typography>
+                    </Box>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      onClick={() => copyToClipboard(details.mobileNumber, 'mobile')}
+                      startIcon={copiedField === 'mobile' ? <CheckIcon fontSize="small" /> : <ContentCopyIcon fontSize="small" />}
+                      sx={{ py: 0.2, px: 1, minWidth: 64, fontSize: '0.7rem' }}
+                    >
+                      {copiedField === 'mobile' ? 'Copied' : 'Copy'}
+                    </Button>
+                  </Box>
 
-              {/* Password */}
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Box>
-                  <Typography variant="caption" sx={{ color: '#64748B' }}>Password</Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 700, color: '#172B30' }}>
-                    {showPassword ? details.password : '••••••••••••'}
-                  </Typography>
-                </Box>
-                <Stack direction="row" spacing={0.5}>
-                  <IconButton size="small" onClick={() => setShowPassword(!showPassword)}>
-                    {showPassword ? <VisibilityOff fontSize="small" /> : <Visibility fontSize="small" />}
-                  </IconButton>
-                  <Button
-                    size="small"
-                    variant="outlined"
-                    onClick={() => copyToClipboard(details.password, 'password')}
-                    startIcon={copiedField === 'password' ? <CheckIcon fontSize="small" /> : <ContentCopyIcon fontSize="small" />}
-                    sx={{ py: 0.25, px: 1, minWidth: 70, fontSize: '0.75rem' }}
-                  >
-                    {copiedField === 'password' ? 'Copied' : 'Copy'}
-                  </Button>
+                  <Divider sx={{ borderColor: '#E2E8F0' }} />
+
+                  {/* Password */}
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Box>
+                      <Typography variant="caption" sx={{ color: '#64748B', display: 'block', lineHeight: 1 }}>
+                        Password
+                      </Typography>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#172B30' }}>
+                        {showPassword ? details.password : '••••••••••••'}
+                      </Typography>
+                    </Box>
+                    <Stack direction="row" spacing={0.5}>
+                      <IconButton size="small" onClick={() => setShowPassword(!showPassword)}>
+                        {showPassword ? <VisibilityOff sx={{ fontSize: 16 }} /> : <Visibility sx={{ fontSize: 16 }} />}
+                      </IconButton>
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        onClick={() => copyToClipboard(details.password, 'password')}
+                        startIcon={copiedField === 'password' ? <CheckIcon fontSize="small" /> : <ContentCopyIcon fontSize="small" />}
+                        sx={{ py: 0.2, px: 1, minWidth: 64, fontSize: '0.7rem' }}
+                      >
+                        {copiedField === 'password' ? 'Copied' : 'Copy'}
+                      </Button>
+                    </Stack>
+                  </Box>
                 </Stack>
               </Box>
+            </Paper>
+          </Grid>
 
-              <Divider sx={{ borderColor: '#E2E8F0' }} />
-
-              {/* Category & Store Name */}
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          {/* Column 2: Store & Sponsor Profile */}
+          <Grid item xs={12} sm={6}>
+            <Paper
+              elevation={0}
+              sx={{
+                height: '100%',
+                p: 2,
+                borderRadius: 2.5,
+                bgcolor: '#FFFFFF',
+                border: '1px solid #E2E8F0',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+              }}
+            >
+              <Stack spacing={1.5}>
+                {/* Store Profile Info */}
                 <Box>
-                  <Typography variant="caption" sx={{ color: '#64748B' }}>Store Name & Assigned Category</Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 700, color: '#172B30' }}>
-                    {details.name} • <Chip label={details.categoryName} size="small" sx={{ bgcolor: '#FFF7ED', color: '#FF7900', fontWeight: 700, height: 20 }} />
+                  <Typography variant="caption" sx={{ color: '#64748B', fontWeight: 600, textTransform: 'uppercase' }}>
+                    Store Profile
                   </Typography>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 800, color: '#172B30', mt: 0.25 }}>
+                    {details.name}
+                  </Typography>
+                  <Box sx={{ display: 'flex', gap: 1, mt: 0.5, flexWrap: 'wrap' }}>
+                    <Chip
+                      label={details.categoryName}
+                      size="small"
+                      sx={{ bgcolor: '#FFF7ED', color: '#FF7900', fontWeight: 700, fontSize: '0.68rem', height: 20 }}
+                    />
+                    {details.typeOfStore && (
+                      <Chip
+                        label={details.typeOfStore}
+                        size="small"
+                        sx={{ bgcolor: '#F1F5F9', color: '#475569', fontWeight: 600, fontSize: '0.68rem', height: 20 }}
+                      />
+                    )}
+                  </Box>
+                  {details.city && (
+                    <Typography variant="caption" sx={{ color: '#64748B', display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.75 }}>
+                      <PlaceIcon sx={{ fontSize: 13, color: '#94A3B8' }} /> {details.city}, {details.state}
+                    </Typography>
+                  )}
                 </Box>
-              </Box>
-            </Stack>
-          </Paper>
 
-          {/* Sponsor Summary */}
-          <Paper
-            elevation={0}
-            sx={{
-              width: '100%',
-              p: 2,
-              borderRadius: 2,
-              bgcolor: '#FFFFFF',
-              border: '1px solid #E2E8F0',
-              textAlign: 'left',
-            }}
-          >
-            <Typography variant="caption" sx={{ color: '#64748B', fontWeight: 600 }}>
-              VERIFIED REFERRING SPONSOR
-            </Typography>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 0.5 }}>
-              <Typography variant="body2" sx={{ fontWeight: 700, color: '#172B30' }}>
-                {details.referralName} ({details.referralCode})
-              </Typography>
-              <Chip
-                label={details.referralType === 'vendor' ? 'Vendor Sponsor' : 'Store Referral'}
+                <Divider sx={{ borderColor: '#E2E8F0' }} />
+
+                {/* Verified Sponsor */}
+                <Box>
+                  <Typography variant="caption" sx={{ color: '#64748B', fontWeight: 600, textTransform: 'uppercase' }}>
+                    Verified Sponsor
+                  </Typography>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 0.25 }}>
+                    <Box>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#172B30' }}>
+                        {details.referralName}
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: '#64748B' }}>
+                        Code: {details.referralCode}
+                      </Typography>
+                    </Box>
+                    <Chip
+                      label={details.referralType === 'vendor' ? 'Vendor' : 'Store'}
+                      size="small"
+                      sx={{ bgcolor: '#EFF6FF', color: '#2563EB', fontWeight: 700, fontSize: '0.68rem', height: 20 }}
+                    />
+                  </Box>
+                </Box>
+              </Stack>
+
+              <Button
+                fullWidth
+                variant="outlined"
+                color="secondary"
                 size="small"
-                sx={{ bgcolor: '#EFF6FF', color: '#2563EB', fontWeight: 700, fontSize: '0.7rem' }}
-              />
-            </Box>
-          </Paper>
-
-          {/* Copy All Button */}
-          <Button
-            fullWidth
-            variant="outlined"
-            color="secondary"
-            onClick={handleCopyAll}
-            startIcon={copiedField === 'all' ? <CheckIcon /> : <ContentCopyIcon />}
-            sx={{ py: 1.25, fontWeight: 700 }}
-          >
-            {copiedField === 'all' ? 'All Credentials Copied!' : 'Copy All Details to Clipboard'}
-          </Button>
-        </Stack>
+                onClick={handleCopyAll}
+                startIcon={copiedField === 'all' ? <CheckIcon /> : <ContentCopyIcon />}
+                sx={{ mt: 1.5, py: 0.75, fontWeight: 700, fontSize: '0.75rem' }}
+              >
+                {copiedField === 'all' ? 'Copied Everything!' : 'Copy All Details'}
+              </Button>
+            </Paper>
+          </Grid>
+        </Grid>
       </DialogContent>
 
-      <DialogActions sx={{ p: 0, mt: 3, display: 'flex', gap: 1.5 }}>
+      <DialogActions sx={{ p: 0, mt: 2.5, display: 'flex', gap: 1.5 }}>
         <Button
           fullWidth
           variant="outlined"
           onClick={onGoToLogin}
           startIcon={<LoginIcon />}
-          sx={{ py: 1.25 }}
+          sx={{ py: 1 }}
         >
           Go to Sign In
         </Button>
@@ -305,12 +381,11 @@ export default function RegisterSuccessDialog({
           variant="contained"
           onClick={onProceedToDashboard}
           endIcon={<ArrowForwardIcon />}
-          sx={{ py: 1.25 }}
+          sx={{ py: 1 }}
         >
-          Proceed to Dashboard
+          Proceed to Store Portal
         </Button>
       </DialogActions>
     </Dialog>
   );
 }
-

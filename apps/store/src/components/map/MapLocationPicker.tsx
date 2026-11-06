@@ -24,6 +24,10 @@ export interface LocationData {
   lat: number;
   lng: number;
   formattedAddress?: string;
+  city?: string;
+  state?: string;
+  pincode?: string;
+  line1?: string;
 }
 
 interface MapLocationPickerProps {
@@ -63,8 +67,22 @@ export default function MapLocationPicker({
       if (resp.ok) {
         const data = await resp.json();
         const display = data.display_name || '';
+        const addr = data.address || {};
+        const pincode = addr.postcode || '';
+        const state = addr.state || '';
+        const city = addr.city || addr.town || addr.village || addr.suburb || addr.county || addr.state_district || '';
+        const street = [addr.house_number, addr.road || addr.suburb || addr.neighbourhood].filter(Boolean).join(', ');
+
         setAddressLabel(display);
-        onChange({ lat: latitude, lng: longitude, formattedAddress: display });
+        onChange({
+          lat: latitude,
+          lng: longitude,
+          formattedAddress: display,
+          city,
+          state,
+          pincode,
+          line1: street,
+        });
         return display;
       }
     } catch {
