@@ -19,6 +19,7 @@ export interface IStoreLocation {
 export interface IStore extends Document {
   storeId: string;
   name: string;
+  typeOfStore?: string;
   ownerName: string;
   email: string;
   mobileNumber: string;
@@ -63,6 +64,7 @@ const storeSchema = new Schema<IStore>(
   {
     storeId: { type: String, required: true, unique: true, index: true },
     name: { type: String, required: true, trim: true },
+    typeOfStore: { type: String, default: 'Standard', trim: true },
     ownerName: { type: String, required: true, trim: true },
     email: { type: String, required: true, lowercase: true, trim: true },
     mobileNumber: { type: String, required: true, unique: true, trim: true, index: true },

@@ -32,6 +32,7 @@ import {
   Place as PlaceIcon,
 } from '@mui/icons-material';
 import { useStoreAuthStore } from '../store/auth.store';
+import StorePendingActivationView from '../components/auth/StorePendingActivationView';
 
 const DRAWER_WIDTH = 260;
 
@@ -55,6 +56,11 @@ export default function StoreLayout() {
     navigate('/login');
   };
 
+  // If store is not yet activated by admin, display the pending review view
+  if (store && (store.status !== 'active' || !store.isActive)) {
+    return <StorePendingActivationView />;
+  }
+
   const drawerContent = (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', bgcolor: '#0F172A', color: '#F8FAFC' }}>
       {/* Brand Header */}
@@ -66,7 +72,7 @@ export default function StoreLayout() {
           sx={{ height: 34, width: 160, objectFit: 'contain' }}
         />
         {isMobile && (
-          <IconButton onClick={() => setMobileDrawerOpen(false)} sx={{ color: '#94A3B8' }}>
+          <IconButton onClick={() => setMobileDrawerOpen(false)} sx={{ color: '#CBD5E1' }}>
             <CloseIcon fontSize="small" />
           </IconButton>
         )}
@@ -74,19 +80,19 @@ export default function StoreLayout() {
 
       {/* Store Identity Card in Sidebar */}
       <Box sx={{ px: 2, py: 1.5, mx: 1.5, my: 1, borderRadius: 2, bgcolor: '#1E293B', border: '1px solid #334155' }}>
-        <Typography variant="caption" sx={{ color: '#94A3B8', fontWeight: 600, display: 'block' }}>
+        <Typography variant="caption" sx={{ color: '#CBD5E1', fontWeight: 700, fontSize: '0.68rem', letterSpacing: '0.05em', display: 'block' }}>
           PARTNER STORE
         </Typography>
-        <Typography noWrap variant="subtitle2" sx={{ fontWeight: 800, color: '#F8FAFC' }}>
+        <Typography noWrap variant="subtitle2" sx={{ fontWeight: 800, color: '#FFFFFF', fontSize: '0.92rem' }}>
           {store?.name || 'My Store'}
         </Typography>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.75 }}>
           <Chip
             label={store?.categoryName || 'General'}
             size="small"
-            sx={{ bgcolor: '#FF7900', color: '#FFFFFF', fontWeight: 700, fontSize: '0.65rem', height: 20 }}
+            sx={{ bgcolor: '#FF7900', color: '#FFFFFF', fontWeight: 700, fontSize: '0.68rem', height: 20 }}
           />
-          <Typography variant="caption" sx={{ color: '#94A3B8', fontSize: '0.7rem' }}>
+          <Typography variant="caption" sx={{ color: '#CBD5E1', fontWeight: 600, fontSize: '0.72rem' }}>
             {store?.storeId}
           </Typography>
         </Box>
@@ -94,7 +100,7 @@ export default function StoreLayout() {
 
       <Divider sx={{ borderColor: '#1E293B' }} />
 
-      {/* Navigation Links */}
+      {/* Navigation Links with High-Visibility Crisp Colors */}
       <List sx={{ px: 1.5, py: 2, flex: 1 }}>
         {NAV_ITEMS.map((item) => {
           const isSelected = item.path === '/'
@@ -102,30 +108,38 @@ export default function StoreLayout() {
             : location.pathname.startsWith(item.path);
 
           return (
-            <ListItem key={item.text} disablePadding sx={{ mb: 0.5 }}>
+            <ListItem key={item.text} disablePadding sx={{ mb: 0.75 }}>
               <ListItemButton
                 component={RouterLink}
                 to={item.path}
                 onClick={() => isMobile && setMobileDrawerOpen(false)}
                 sx={{
-                  borderRadius: '6px',
+                  borderRadius: '8px',
                   py: 1.25,
                   px: 2,
                   bgcolor: isSelected ? '#FF7900' : 'transparent',
-                  color: isSelected ? '#FFFFFF' : '#94A3B8',
-                  boxShadow: isSelected ? '0 4px 12px rgba(255, 121, 0, 0.35)' : 'none',
+                  background: isSelected ? 'linear-gradient(135deg, #FF7900 0%, #FF9E00 100%)' : 'transparent',
+                  color: isSelected ? '#FFFFFF' : '#CBD5E1',
+                  boxShadow: isSelected ? '0 4px 14px rgba(255, 121, 0, 0.45)' : 'none',
+                  transition: 'all 0.15s ease-in-out',
                   '&:hover': {
-                    bgcolor: isSelected ? '#E85D04' : 'rgba(255, 255, 255, 0.05)',
-                    color: '#F8FAFC',
+                    bgcolor: isSelected ? '#E85D04' : 'rgba(255, 255, 255, 0.08)',
+                    color: '#FFFFFF',
+                    '& .MuiListItemIcon-root': { color: '#FFFFFF' },
                   },
                 }}
               >
-                <ListItemIcon sx={{ color: isSelected ? '#FFFFFF' : '#94A3B8', minWidth: 38 }}>
+                <ListItemIcon sx={{ color: isSelected ? '#FFFFFF' : '#CBD5E1', minWidth: 38 }}>
                   {item.icon}
                 </ListItemIcon>
                 <ListItemText
                   primary={item.text}
-                  primaryTypographyProps={{ fontSize: '0.875rem', fontWeight: isSelected ? 700 : 500 }}
+                  primaryTypographyProps={{
+                    fontSize: '0.875rem',
+                    fontWeight: isSelected ? 700 : 600,
+                    letterSpacing: '0.01em',
+                    color: isSelected ? '#FFFFFF' : '#CBD5E1',
+                  }}
                 />
               </ListItemButton>
             </ListItem>
@@ -144,9 +158,11 @@ export default function StoreLayout() {
           onClick={handleLogout}
           startIcon={<LogoutIcon />}
           sx={{
-            borderColor: '#334155',
-            color: '#94A3B8',
-            '&:hover': { bgcolor: '#1E293B', color: '#EF4444', borderColor: '#EF4444' },
+            borderColor: '#475569',
+            color: '#E2E8F0',
+            fontWeight: 600,
+            py: 1,
+            '&:hover': { bgcolor: 'rgba(239, 68, 68, 0.15)', color: '#FCA5A5', borderColor: '#EF4444' },
           }}
         >
           Sign Out

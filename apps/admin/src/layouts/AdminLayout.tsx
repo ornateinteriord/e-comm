@@ -59,7 +59,7 @@ export default function AdminLayout() {
   };
 
   const drawerContent = (
-    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', bgcolor: '#0f172a', color: '#f8fafc' }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: '100vh', bgcolor: '#0f172a', color: '#f8fafc' }}>
       {/* Brand Header */}
       <Toolbar sx={{ px: 3, py: 2.5, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
@@ -79,8 +79,8 @@ export default function AdminLayout() {
 
       <Divider sx={{ borderColor: '#1e293b' }} />
 
-      {/* Nav List */}
-      <List sx={{ px: 1.5, py: 2, flex: 1 }}>
+      {/* Nav List - Scrollable if window is short, leaving footer pinned */}
+      <List sx={{ px: 1.5, py: 1.5, flex: 1, overflowY: 'auto' }}>
         {NAV_ITEMS.map((item) => {
           const isSelected = item.path === '/'
             ? location.pathname === '/'
@@ -179,7 +179,12 @@ export default function AdminLayout() {
             '& .MuiDrawer-paper': {
               width: DRAWER_WIDTH,
               boxSizing: 'border-box',
-              borderRight: 'none',
+              borderRight: '1px solid #1e293b',
+              bgcolor: '#0f172a',
+              color: '#f8fafc',
+              height: '100%',
+              minHeight: '100vh',
+              overflowX: 'hidden',
             },
           }}
         >
@@ -198,7 +203,10 @@ export default function AdminLayout() {
             '& .MuiDrawer-paper': {
               width: DRAWER_WIDTH,
               boxSizing: 'border-box',
-              borderRight: 'none',
+              borderRight: '1px solid #1e293b',
+              bgcolor: '#0f172a',
+              color: '#f8fafc',
+              overflowX: 'hidden',
             },
           }}
         >

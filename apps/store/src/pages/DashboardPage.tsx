@@ -27,6 +27,7 @@ import {
 } from '@mui/icons-material';
 import api from '../api/client';
 import { useStoreAuthStore } from '../store/auth.store';
+import StoreReferralCard from '../components/referral/StoreReferralCard';
 
 export default function DashboardPage() {
   const { store } = useStoreAuthStore();
@@ -124,7 +125,7 @@ export default function DashboardPage() {
           </Typography>
         </Box>
 
-        <Stack direction="row" spacing={1.5}>
+        <Stack direction="row" spacing={1.5} flexWrap="wrap" sx={{ gap: 1 }}>
           <Button
             component={RouterLink}
             to="/products"
@@ -145,6 +146,13 @@ export default function DashboardPage() {
           </Button>
         </Stack>
       </Paper>
+
+      {/* Referral Link & Code Quick Card */}
+      {store?.storeId && (
+        <Box sx={{ mb: 3 }}>
+          <StoreReferralCard storeId={store.storeId} storeName={store.name} />
+        </Box>
+      )}
 
       {/* 4 Metric Cards */}
       <Grid container spacing={2.5} sx={{ mb: 3 }}>

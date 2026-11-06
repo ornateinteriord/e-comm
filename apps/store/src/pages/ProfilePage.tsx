@@ -21,6 +21,7 @@ import {
 import api from '../api/client';
 import { useStoreAuthStore } from '../store/auth.store';
 import MapLocationPicker, { type LocationData } from '../components/map/MapLocationPicker';
+import StoreReferralCard from '../components/referral/StoreReferralCard';
 
 export default function ProfilePage() {
   const { store, updateStoreProfile } = useStoreAuthStore();
@@ -95,6 +96,13 @@ export default function ProfilePage() {
 
       {successMsg && <Alert severity="success" sx={{ mb: 3, borderRadius: 2 }}>{successMsg}</Alert>}
       {errorMsg && <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }}>{errorMsg}</Alert>}
+
+      {/* Referral Link & Code Card */}
+      {store?.storeId && (
+        <Box sx={{ mb: 3 }}>
+          <StoreReferralCard storeId={store.storeId} storeName={store.name} />
+        </Box>
+      )}
 
       <Paper elevation={0} sx={{ p: { xs: 2.5, sm: 4 }, borderRadius: 3, border: '1px solid #E2E8F0', bgcolor: '#FFFFFF' }}>
         <Box component="form" onSubmit={handleSave}>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link as RouterLink } from 'react-router';
+import { useNavigate, useSearchParams, Link as RouterLink } from 'react-router';
 import {
   Box,
   Container,
@@ -29,10 +29,20 @@ import {
   Lock as LockIcon,
   Login as LoginIcon,
 } from '@mui/icons-material';
+import { MenuItem } from '@mui/material';
 import api from '../api/client';
 import { useStoreAuthStore } from '../store/auth.store';
 import MapLocationPicker, { type LocationData } from '../components/map/MapLocationPicker';
 import RegisterSuccessDialog, { type StoreRegistrationDetails } from '../components/auth/RegisterSuccessDialog';
+
+const STORE_TYPES = [
+  { value: 'Basic', label: 'Basic — Neighborhood Express Store' },
+  { value: 'Standard', label: 'Standard — Fulfillment & Dispatch Hub' },
+  { value: 'Advanced', label: 'Advanced — Regional Superstore' },
+  { value: 'Flagship', label: 'Flagship — Experience & Service Center' },
+  { value: 'Wholesale', label: 'Wholesale — Mega Distribution Hub' },
+];
+
 
 interface CategoryItem {
   id: string;
@@ -46,6 +56,7 @@ interface CategoryItem {
 
 export default function RegisterStorePage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { setAuth, isAuthenticated } = useStoreAuthStore();
 
   // Dialog State
@@ -70,6 +81,7 @@ export default function RegisterStorePage() {
 
   // Form State - Store Details
   const [storeName, setStoreName] = useState('');
+  const [typeOfStore, setTypeOfStore] = useState('Standard (Fulfillment Hub)');
   const [ownerName, setOwnerName] = useState('');
   const [mobileNumber, setMobileNumber] = useState('');
   const [email, setEmail] = useState('');
@@ -88,6 +100,14 @@ export default function RegisterStorePage() {
     lat: 12.9716,
     lng: 77.5946,
   });
+
+  const handleLocationChange = (newLoc: LocationData) => {
+    setLocation(newLoc);
+    if (newLoc.city) setCity(newLoc.city);
+    if (newLoc.state) setStateName(newLoc.state);
+    if (newLoc.pincode) setPincode(newLoc.pincode);
+    if (newLoc.line1 && !line1) setLine1(newLoc.line1);
+  };
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -111,8 +131,8 @@ export default function RegisterStorePage() {
   }, []);
 
   // Verify referral code
-  const handleVerifyReferral = async () => {
-    const code = referralCode.trim();
+  const handleVerifyReferral = async (overrideCode?: string) => {
+    const code = (overrideCode || referralCode).trim();
     if (!code) {
       setReferralError('Please enter a referral sponsor code.');
       setVerifiedReferral(null);
@@ -140,6 +160,16 @@ export default function RegisterStorePage() {
       setIsVerifyingRef(false);
     }
   };
+
+  // Pre-fill and verify referral from URL query string if present (?ref=STR00001 or ?referral=...)
+  useEffect(() => {
+    const refFromQuery = searchParams.get('ref') || searchParams.get('referral') || searchParams.get('sponsor');
+    if (refFromQuery) {
+      const cleanRef = refFromQuery.trim();
+      setReferralCode(cleanRef);
+      handleVerifyReferral(cleanRef);
+    }
+  }, [searchParams]);
 
   // Submit Registration
   const handleSubmit = async (e: React.FormEvent) => {
@@ -181,6 +211,7 @@ export default function RegisterStorePage() {
     try {
       const payload = {
         name: storeName.trim(),
+        typeOfStore,
         ownerName: ownerName.trim(),
         email: email.trim() || `${cleanMobile}@store.eshopy.biz`,
         mobileNumber: cleanMobile,
@@ -212,6 +243,7 @@ export default function RegisterStorePage() {
         setSuccessDetails({
           storeId: store.storeId,
           name: store.name,
+          typeOfStore: store.typeOfStore || typeOfStore,
           ownerName: store.ownerName,
           email: store.email,
           mobileNumber: store.mobileNumber,
@@ -307,7 +339,7 @@ export default function RegisterStorePage() {
                   />
                   <Button
                     variant="contained"
-                    onClick={handleVerifyReferral}
+                    onClick={() => handleVerifyReferral()}
                     disabled={isVerifyingRef || !referralCode.trim()}
                     sx={{ height: 40, minWidth: 120 }}
                   >
@@ -451,6 +483,22 @@ export default function RegisterStorePage() {
                   </Grid>
                   <Grid item xs={12} sm={6}>
                     <TextField
+                      select
+                      fullWidth
+                      label="Type of Store *"
+                      value={typeOfStore}
+                      onChange={(e) => setTypeOfStore(e.target.value)}
+                      helperText="Select your store tier or operational capacity"
+                    >
+                      {STORE_TYPES.map((t) => (
+                        <MenuItem key={t.value} value={t.value}>
+                          {t.label}
+                        </MenuItem>
+                      ))}
+                    </TextField>
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <TextField
                       fullWidth
                       label="Owner / Manager Full Name *"
                       placeholder="e.g. Ramesh Kumar"
@@ -480,7 +528,7 @@ export default function RegisterStorePage() {
                       onChange={(e) => setEmail(e.target.value)}
                     />
                   </Grid>
-                  <Grid item xs={12}>
+                  <Grid item xs={12} sm={6}>
                     <TextField
                       fullWidth
                       type={showPassword ? 'text' : 'password'}
@@ -504,71 +552,99 @@ export default function RegisterStorePage() {
 
               <Divider />
 
-              {/* SECTION 4: ADDRESS & MAP LOCATION */}
+              {/* SECTION 4: MAP LOCATION & ADDRESS */}
               <Box>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
                   <PlaceIcon sx={{ color: '#FF7900' }} />
                   <Typography variant="h6" sx={{ fontWeight: 700, color: '#172B30' }}>
-                    4. Store Address & Map Location
+                    4. Store Location & Address
                   </Typography>
                 </Box>
                 <Typography variant="body2" sx={{ color: '#64748B', mb: 2 }}>
-                  Use the map to select your exact location. You can search by area or click on the map to place the pin.
+                  First select your store location on the map. Your PIN code, City, and State will automatically auto-populate below.
                 </Typography>
 
-                <Grid container spacing={2} sx={{ mb: 3 }}>
-                  <Grid item xs={12}>
-                    <TextField
-                      fullWidth
-                      label="Address Line 1 (Building / Shop No. / Street) *"
-                      value={line1}
-                      onChange={(e) => setLine1(e.target.value)}
-                    />
-                  </Grid>
-                  <Grid item xs={12} sm={6}>
-                    <TextField
-                      fullWidth
-                      label="Address Line 2 (Area / Landmark)"
-                      value={line2}
-                      onChange={(e) => setLine2(e.target.value)}
-                    />
-                  </Grid>
-                  <Grid item xs={12} sm={6}>
-                    <TextField
-                      fullWidth
-                      label="City *"
-                      value={city}
-                      onChange={(e) => setCity(e.target.value)}
-                    />
-                  </Grid>
-                  <Grid item xs={12} sm={6}>
-                    <TextField
-                      fullWidth
-                      label="State *"
-                      value={stateName}
-                      onChange={(e) => setStateName(e.target.value)}
-                    />
-                  </Grid>
-                  <Grid item xs={12} sm={6}>
-                    <TextField
-                      fullWidth
-                      label="PIN Code *"
-                      value={pincode}
-                      onChange={(e) => setPincode(e.target.value)}
-                    />
-                  </Grid>
-                </Grid>
+                {/* 1. Map First */}
+                <Box sx={{ mb: 3 }}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#172B30', mb: 0.5 }}>
+                    Select Store Location on Map *
+                  </Typography>
+                  <Typography variant="caption" sx={{ color: '#64748B', display: 'block', mb: 1.5 }}>
+                    Search an area or click directly on the map to drop the store pin.
+                  </Typography>
 
-                {/* MapCN Interactive Location Picker */}
-                <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#172B30', mb: 1 }}>
-                  Pinpoint Location on Map
-                </Typography>
-                <MapLocationPicker
-                  initialLat={location.lat}
-                  initialLng={location.lng}
-                  onChange={(newLoc) => setLocation(newLoc)}
-                  height={340}
-                />
+                  <MapLocationPicker
+                    initialLat={location.lat}
+                    initialLng={location.lng}
+                    onChange={handleLocationChange}
+                    height={340}
+                  />
+                </Box>
+
+                {/* 2. Address Down */}
+                <Box sx={{ mt: 2.5 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#172B30' }}>
+                      Store Address Details
+                    </Typography>
+                    {(pincode || city) && (
+                      <Chip
+                        icon={<CheckCircleIcon sx={{ fontSize: '14px !important' }} />}
+                        label="Auto-populated from map"
+                        size="small"
+                        sx={{ bgcolor: '#ECFDF5', color: '#047857', fontWeight: 700, fontSize: '0.72rem' }}
+                      />
+                    )}
+                  </Box>
+
+                  <Grid container spacing={2}>
+                    <Grid item xs={12}>
+                      <TextField
+                        fullWidth
+                        label="Address Line 1 (Building / Shop No. / Street) *"
+                        placeholder="e.g. Shop #12, Ground Floor, MG Road"
+                        value={line1}
+                        onChange={(e) => setLine1(e.target.value)}
+                      />
+                    </Grid>
+                    <Grid item xs={12} sm={6}>
+                      <TextField
+                        fullWidth
+                        label="Address Line 2 (Area / Landmark)"
+                        placeholder="e.g. Near Metro Station"
+                        value={line2}
+                        onChange={(e) => setLine2(e.target.value)}
+                      />
+                    </Grid>
+                    <Grid item xs={12} sm={6}>
+                      <TextField
+                        fullWidth
+                        label="PIN Code *"
+                        placeholder="e.g. 560001"
+                        value={pincode}
+                        onChange={(e) => setPincode(e.target.value)}
+                      />
+                    </Grid>
+                    <Grid item xs={12} sm={6}>
+                      <TextField
+                        fullWidth
+                        label="City *"
+                        placeholder="e.g. Bengaluru"
+                        value={city}
+                        onChange={(e) => setCity(e.target.value)}
+                      />
+                    </Grid>
+                    <Grid item xs={12} sm={6}>
+                      <TextField
+                        fullWidth
+                        label="State *"
+                        placeholder="e.g. Karnataka"
+                        value={stateName}
+                        onChange={(e) => setStateName(e.target.value)}
+                      />
+                    </Grid>
+                  </Grid>
+                </Box>
               </Box>
 
               {/* SUBMIT BUTTON */}

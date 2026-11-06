@@ -223,9 +223,19 @@ export async function registerStore(req: Request, res: Response): Promise<void> 
     const lat = Number(location?.lat ?? 12.9716);
     const lng = Number(location?.lng ?? 77.5946);
 
+    const typeOfStore = String(req.body.typeOfStore || 'Standard').trim();
+    const isCreatedByAdmin = Boolean(
+      req.body.createdByAdmin ||
+      (req as any).user?.role === 'admin' ||
+      (req as any).user?.role === 'super_admin'
+    );
+    const initialStatus = isCreatedByAdmin ? 'active' : 'pending_approval';
+    const initialIsActive = isCreatedByAdmin;
+
     const store = new Store({
       storeId,
       name: cleanName,
+      typeOfStore,
       ownerName: cleanOwnerName,
       email: cleanEmail || `${cleanMobile}@store.eshopy.biz`,
       mobileNumber: cleanMobile,
@@ -250,8 +260,8 @@ export async function registerStore(req: Request, res: Response): Promise<void> 
         lng,
         formattedAddress: location?.formattedAddress || `${address?.line1 || ''}, ${address?.city || ''}, ${address?.state || ''}`,
       },
-      status: 'active',
-      isActive: true,
+      status: initialStatus,
+      isActive: initialIsActive,
     });
 
     await store.save();
@@ -319,7 +329,7 @@ export async function loginStore(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    if (store.status === 'suspended' || !store.isActive) {
+    if (store.status === 'suspended') {
       res.status(403).json({
         success: false,
         error: { code: 'ACCOUNT_SUSPENDED', message: 'Your store account has been suspended. Please contact administrator.' },
@@ -491,7 +501,8 @@ export async function adminListStores(req: Request, res: Response): Promise<void
  * Admin adds a new store directly.
  */
 export async function adminCreateStore(req: Request, res: Response): Promise<void> {
-  // Leverage registerStore logic by delegating
+  // Mark as created by admin so status is automatically active
+  req.body.createdByAdmin = true;
   return registerStore(req, res);
 }
 
@@ -513,8 +524,18 @@ export async function adminUpdateStoreStatus(req: Request, res: Response): Promi
       return;
     }
 
-    if (status) store.status = status;
-    if (typeof isActive === 'boolean') store.isActive = isActive;
+    if (status) {
+      store.status = status;
+      store.isActive = status === 'active';
+    }
+    if (typeof isActive === 'boolean') {
+      store.isActive = isActive;
+      if (!isActive && store.status === 'active') {
+        store.status = 'pending_approval';
+      } else if (isActive && store.status !== 'active') {
+        store.status = 'active';
+      }
+    }
 
     await store.save();
 
