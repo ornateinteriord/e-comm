@@ -364,7 +364,15 @@ export async function traceReferralChain(
       const vendorDoc = await ecashDb.collection('vendor_tbl').findOne(buildVendorQuery(reachedVendorId));
 
       if (vendorDoc) {
-        const canonicalVendorId = String(vendorDoc.Member_id || vendorDoc.member_id || vendorDoc.member_code || reachedVendorId).trim();
+        const canonicalVendorId = String(
+          vendorDoc.member_code ||
+          vendorDoc.Member_Code ||
+          vendorDoc.Member_code ||
+          vendorDoc.member_Code ||
+          vendorDoc.Member_id ||
+          vendorDoc.member_id ||
+          reachedVendorId
+        ).trim();
 
         // If this vendor is not the direct sponsor (which was added to visited at startup),
         // add this vendor into the upline chain:

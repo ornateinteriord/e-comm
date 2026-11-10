@@ -8,6 +8,7 @@ export interface ReferralLookupResult {
   referralType?: 'vendor' | 'customer';
   vendor_id?: string | null;
   vendor_name?: string | null;
+  member_code?: string | null;
   message?: string;
 }
 
@@ -185,8 +186,18 @@ async function resolveCustomerVendor(cust: any): Promise<{ vendor_id: string | n
           const ecashDb = client ? client.db('e-cash') : mongoose.connection.useDb('e-cash').db;
           const v = await ecashDb.collection('vendor_tbl').findOne(buildVendorQuery(current.referralCode));
           if (v) {
+            const memberCode = String(
+              v.member_code ||
+              v.Member_Code ||
+              v.Member_code ||
+              v.member_Code ||
+              v.Member_id ||
+              v.member_id ||
+              v.mobileno ||
+              current.referralCode
+            ).trim();
             return {
-              vendor_id: String(v.Member_id || v.member_id || v.member_code || current.referralCode),
+              vendor_id: memberCode,
               vendor_name: v.Name || v.name || v.firm_name || 'Vendor',
             };
           }
@@ -242,22 +253,25 @@ export async function lookupReferralCode(rawCode: string): Promise<ReferralLooku
         vendor.business_name ||
         'Vendor';
 
-      const vendorId = String(
-        vendor.Member_id ||
-        vendor.member_id ||
+      const memberCode = String(
         vendor.member_code ||
         vendor.Member_Code ||
+        vendor.Member_code ||
+        vendor.member_Code ||
+        vendor.Member_id ||
+        vendor.member_id ||
         vendor.mobileno ||
         code
-      );
+      ).trim();
 
       return {
         valid: true,
-        referralCode: vendorId,
+        referralCode: memberCode,
         referralName,
         referralType: 'vendor',
-        vendor_id: vendorId,
+        vendor_id: memberCode,
         vendor_name: referralName,
+        member_code: memberCode,
       };
     }
   } catch (err) {
@@ -350,7 +364,15 @@ async function rewardVendorHierarchyWithBudget(
           { _id: vendorDoc._id },
           { $inc: { token: 1 } },
         );
-        updatedVendors.push(String(vendorDoc.Member_id || vendorDoc.member_id || vendorDoc.member_code || vId));
+        updatedVendors.push(String(
+          vendorDoc.member_code ||
+          vendorDoc.Member_Code ||
+          vendorDoc.Member_code ||
+          vendorDoc.member_Code ||
+          vendorDoc.Member_id ||
+          vendorDoc.member_id ||
+          vId
+        ));
         tokensGiven++;
 
         if (tokensGiven >= maxTokensRemaining) {
@@ -535,7 +557,16 @@ export async function lookupStoreReferralCode(rawCode: string): Promise<StoreRef
       if (inactiveStatuses.includes(rawStatus)) {
         return { valid: false, message: 'Vendor referral account is inactive.' };
       }
-      const canonicalCode = String(vendor.Member_id || vendor.member_id || vendor.member_code || vendor.mobileno || code).trim();
+      const canonicalCode = String(
+        vendor.member_code ||
+        vendor.Member_Code ||
+        vendor.Member_code ||
+        vendor.member_Code ||
+        vendor.Member_id ||
+        vendor.member_id ||
+        vendor.mobileno ||
+        code
+      ).trim();
       const vendorName = String(vendor.Name || vendor.name || vendor.firm_name || vendor.Firm_Name || 'Vendor').trim();
       return {
         valid: true,
