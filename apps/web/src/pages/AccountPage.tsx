@@ -615,7 +615,7 @@ export default function AccountPage() {
 
         {/* ==================== 2. HIGHLIGHTS ROW: WALLET + LEVEL + TOKEN ==================== */}
         <Grid container spacing={2.5} sx={{ mb: 3.5 }}>
-          {/* E-Shophy Wallet Card */}
+          {/* E-Shopy Wallet Card */}
           <Grid item xs={12} md={6}>
             <Paper
               elevation={0}
@@ -670,7 +670,7 @@ export default function AccountPage() {
                     </Box>
                     <Box>
                       <Typography variant="subtitle1" fontWeight={900} sx={{ color: '#FFFFFF', lineHeight: 1.2 }}>
-                        E-Shophy Wallet
+                        E-Shopy Wallet
                       </Typography>
                       <Typography variant="caption" sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>
                         Instant checkout & network margins

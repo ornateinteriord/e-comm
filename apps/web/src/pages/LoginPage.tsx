@@ -109,7 +109,7 @@ export default function LoginPage() {
           <Box
             component="img"
             src="/logo.svg"
-            alt="E-Shophy"
+            alt="E-Shopy"
             sx={{ height: 44, width: 'auto', maxWidth: 180, objectFit: 'contain' }}
           />
         </Box>

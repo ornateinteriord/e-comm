@@ -73,8 +73,8 @@ export default function StorePendingActivationView() {
           <Box
             component="img"
             src="/logo-dark.svg"
-            alt="E-Shophy"
-            sx={{ height: 40, width: 200, objectFit: 'contain', mx: 'auto', mb: 2 }}
+            alt="E-Shopy"
+            sx={{ height: 40, width: 'auto', maxWidth: 200, objectFit: 'contain', mx: 'auto', mb: 2 }}
           />
           <Chip
             icon={<HourglassIcon sx={{ fontSize: '15px !important', color: '#B45309' }} />}

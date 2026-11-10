@@ -62,7 +62,7 @@ export default function MapLocationPicker({
     try {
       const resp = await fetch(
         `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`,
-        { headers: { 'User-Agent': 'EShophyStorePortal/1.0' } }
+        { headers: { 'User-Agent': 'EShopyStorePortal/1.0' } }
       );
       if (resp.ok) {
         const data = await resp.json();
@@ -187,7 +187,7 @@ export default function MapLocationPicker({
     try {
       const resp = await fetch(
         `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`,
-        { headers: { 'User-Agent': 'EShophyStorePortal/1.0' } }
+        { headers: { 'User-Agent': 'EShopyStorePortal/1.0' } }
       );
       if (resp.ok) {
         const results = await resp.json();

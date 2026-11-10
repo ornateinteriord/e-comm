@@ -114,7 +114,7 @@ export default function PaymentReturnPage() {
       setStatus('success');
       setPaymentDetails({
         orderId,
-        message: 'Order paid in full using your E-Shophy wallet balance!',
+        message: 'Order paid in full using your E-Shopy wallet balance!',
       });
       if (!hasClearedCart.current) {
         clearCart();

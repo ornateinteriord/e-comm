@@ -1,7 +1,7 @@
 import { createTheme, type Theme } from '@mui/material/styles';
 
 /**
- * E-Shophy Flagship Design System
+ * E-Shopy Flagship Design System
  * 
  * Palette:
  * - Primary buttons:   #FF7900 (hover: #E85D04)

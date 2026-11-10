@@ -772,7 +772,7 @@ export default function CheckoutPage() {
                 </Box>
               </Box>
 
-              {/* E-Shophy Wallet Balance Payment Option */}
+              {/* E-Shopy Wallet Balance Payment Option */}
               {isAuthenticated && availableWalletRupees > 0 && (
                 <Box
                   sx={{
@@ -807,7 +807,7 @@ export default function CheckoutPage() {
                         <AccountBalanceWallet sx={{ color: '#FF7900', fontSize: '1.4rem' }} />
                         <Box>
                           <Typography variant="subtitle2" fontWeight={800}>
-                            Use E-Shophy Wallet Balance
+                            Use E-Shopy Wallet Balance
                           </Typography>
                           <Typography variant="caption" color="text.secondary">
                             Available Balance: <strong>₹{availableWalletRupees.toFixed(2)}</strong>

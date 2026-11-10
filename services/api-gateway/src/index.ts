@@ -55,6 +55,8 @@ const staticAllowedOrigins = [
   'http://localhost:5175',
   'http://localhost:3000',
   'http://localhost:4000',
+  'https://e-shopy-admin.vercel.app',
+  'https://e-shopy-ui.vercel.app',
   'https://e-shophy-admin.vercel.app',
   'https://e-shophy-ui.vercel.app',
   'https://e-comm-three-eta.vercel.app',

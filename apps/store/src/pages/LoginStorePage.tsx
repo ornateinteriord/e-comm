@@ -87,8 +87,8 @@ export default function LoginStorePage() {
           <Box
             component="img"
             src="/logo-dark.svg"
-            alt="E-Shophy"
-            sx={{ height: 38, width: 200, objectFit: 'contain', mx: 'auto', mb: 2 }}
+            alt="E-Shopy"
+            sx={{ height: 38, width: 'auto', maxWidth: 200, objectFit: 'contain', mx: 'auto', mb: 2 }}
           />
 
           <Box sx={{ mb: 3 }}>

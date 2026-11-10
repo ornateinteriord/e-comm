@@ -100,7 +100,7 @@ export default function RegisterPage() {
     if (!successDetails) return;
     const lines = [
       '========================================',
-      '      E-SHOPHY REGISTRATION DETAILS     ',
+      '      E-SHOPY REGISTRATION DETAILS     ',
       '========================================',
       '',
       'LOGIN CREDENTIALS:',
@@ -330,7 +330,7 @@ export default function RegisterPage() {
           <Box
             component="img"
             src="/logo.svg"
-            alt="E-Shophy"
+            alt="E-Shopy"
             sx={{ height: 44, width: 'auto', maxWidth: 180, objectFit: 'contain' }}
           />
         </Box>
@@ -345,7 +345,7 @@ export default function RegisterPage() {
           Create an Account
         </Typography>
         <Typography variant="body2" color="text.secondary" textAlign="center" sx={{ mb: 3 }}>
-          Enter your referral code to unlock registration on E-Shophy
+          Enter your referral code to unlock registration on E-Shopy
         </Typography>
 
         {error && (

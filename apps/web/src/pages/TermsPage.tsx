@@ -32,7 +32,7 @@ export default function TermsPage() {
               1. Acceptance of Terms
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.8 }}>
-              These Terms and Conditions constitute a legally binding agreement between you and E-Shophy Store Private Limited ("E-Shophy", "we", "us"). By registering an account, browsing products, or completing an order on this platform, you acknowledge and agree to comply with all provisions detailed herein.
+              These Terms and Conditions constitute a legally binding agreement between you and E-Shopy Store Private Limited ("E-Shopy", "we", "us"). By registering an account, browsing products, or completing an order on this platform, you acknowledge and agree to comply with all provisions detailed herein.
             </Typography>
           </Box>
 

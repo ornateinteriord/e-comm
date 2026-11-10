@@ -68,8 +68,8 @@ export default function StoreLayout() {
         <Box
           component="img"
           src="/logo-dark.svg"
-          alt="E-Shophy"
-          sx={{ height: 34, width: 160, objectFit: 'contain' }}
+          alt="E-Shopy"
+          sx={{ height: 34, width: 'auto', maxWidth: 160, objectFit: 'contain' }}
         />
         {isMobile && (
           <IconButton onClick={() => setMobileDrawerOpen(false)} sx={{ color: '#CBD5E1' }}>
