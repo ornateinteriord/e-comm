@@ -16,6 +16,6 @@ export const useThemeStore = create<ThemeState>()(
       toggleTheme: () => set((state) => ({ mode: state.mode === 'light' ? 'dark' : 'light' })),
       setMode: (mode) => set({ mode }),
     }),
-    { name: 'eshophy-theme-mode' },
+    { name: 'eshopy-theme-mode' },
   ),
 );

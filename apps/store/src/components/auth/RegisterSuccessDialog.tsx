@@ -86,7 +86,7 @@ export default function RegisterSuccessDialog({
   const handleCopyAll = () => {
     const lines = [
       '========================================',
-      'E-SHOPHY PARTNER STORE CREDENTIALS',
+      'E-SHOPY PARTNER STORE CREDENTIALS',
       '========================================',
       `Store ID: ${details.storeId}`,
       `Store Name: ${details.name}`,

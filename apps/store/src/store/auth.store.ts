@@ -10,14 +10,17 @@ interface StoreAuthState {
   clearAuth: () => void;
 }
 
-const STORAGE_KEY_TOKEN = 'eshophy_store_token';
-const STORAGE_KEY_STORE = 'eshophy_store_data';
+const STORAGE_KEY_TOKEN = 'eshopy_store_token';
+const STORAGE_KEY_STORE = 'eshopy_store_data';
 
 export const useStoreAuthStore = create<StoreAuthState>((set) => {
-  const initialToken = typeof localStorage !== 'undefined' ? localStorage.getItem(STORAGE_KEY_TOKEN) : null;
+  const initialToken =
+    typeof localStorage !== 'undefined'
+      ? localStorage.getItem(STORAGE_KEY_TOKEN) || localStorage.getItem('eshophy_store_token')
+      : null;
   let initialStore: StoreProfile | null = null;
   if (typeof localStorage !== 'undefined') {
-    const raw = localStorage.getItem(STORAGE_KEY_STORE);
+    const raw = localStorage.getItem(STORAGE_KEY_STORE) || localStorage.getItem('eshophy_store_data');
     if (raw) {
       try {
         initialStore = JSON.parse(raw);

@@ -32,7 +32,7 @@ export default function PrivacyPolicyPage() {
               1. Overview and Scope
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.8 }}>
-              E-Shophy Store Private Limited ("E-Shophy", "we", "us", or "our") respects your privacy and is dedicated to safeguarding your personal data. This Privacy Policy details how we collect, process, store, and protect your information when you access our customer storefront, admin interfaces, and API services.
+              E-Shopy Store Private Limited ("E-Shopy", "we", "us", or "our") respects your privacy and is dedicated to safeguarding your personal data. This Privacy Policy details how we collect, process, store, and protect your information when you access our customer storefront, admin interfaces, and API services.
             </Typography>
           </Box>
 
@@ -71,7 +71,7 @@ export default function PrivacyPolicyPage() {
               4. Payment Security & Data Transmission
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.8 }}>
-              E-Shophy does not store complete credit card or debit card numbers on our local databases. All electronic payments are processed directly through PCI-DSS Level 1 compliant gateway partners (Razorpay). Sensitive transmission data is secured using industry standard Transport Layer Security (TLS 1.3) with encrypted database connections.
+              E-Shopy does not store complete credit card or debit card numbers on our local databases. All electronic payments are processed directly through PCI-DSS Level 1 compliant gateway partners (Razorpay). Sensitive transmission data is secured using industry standard Transport Layer Security (TLS 1.3) with encrypted database connections.
             </Typography>
           </Box>
 
@@ -93,9 +93,9 @@ export default function PrivacyPolicyPage() {
               <br />
               <strong>Grievance Officer:</strong> Legal & Compliance Desk
               <br />
-              <strong>Address:</strong> E-Shophy Store Pvt Ltd, Bandra Kurla Complex, Mumbai, Maharashtra 400051
+              <strong>Address:</strong> E-Shopy Store Pvt Ltd, Bandra Kurla Complex, Mumbai, Maharashtra 400051
               <br />
-              <strong>Email:</strong> legal@e-shophy.dev
+              <strong>Email:</strong> legal@e-shopy.dev
             </Typography>
           </Box>
         </Box>

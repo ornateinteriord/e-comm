@@ -66,8 +66,8 @@ export default function AdminLayout() {
           <Box
             component="img"
             src="/logo-dark.svg"
-            alt="E-Shophy"
-            sx={{ height: 35, width: 180, objectFit: 'contain' }}
+            alt="E-Shopy"
+            sx={{ height: 35, width: 'auto', maxWidth: 180, objectFit: 'contain' }}
           />
         </Box>
         {isMobile && (

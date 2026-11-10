@@ -413,7 +413,7 @@ export async function createWalletTopupSession(req: Request, res: Response, next
       order_meta: {
         return_url: returnUrl,
       },
-      order_note: `E-Shophy Wallet Top-up: ₹${amountRupees}`,
+      order_note: `E-Shopy Wallet Top-up: ₹${amountRupees}`,
     };
 
     const response = await fetch(`${cfConfig.baseUrl}/orders`, {

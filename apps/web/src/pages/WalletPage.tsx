@@ -372,7 +372,7 @@ export default function WalletPage() {
             <Box>
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
                 <Chip
-                  label="E-Shophy Wallet"
+                  label="E-Shopy Wallet"
                   size="small"
                   sx={{
                     bgcolor: 'rgba(255, 121, 0, 0.2)',
@@ -1102,7 +1102,7 @@ export default function WalletPage() {
           )}
 
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Add funds instantly to your E-Shophy wallet via Cashfree using UPI, Cards, Net Banking, or Wallets.
+            Add funds instantly to your E-Shopy wallet via Cashfree using UPI, Cards, Net Banking, or Wallets.
           </Typography>
 
           {/* Amount Input */}

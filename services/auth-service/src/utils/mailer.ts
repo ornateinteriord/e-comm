@@ -47,7 +47,7 @@ function findLogoFile(): string | null {
 
 /**
  * Sends a custom themed HTML email with a 6-digit OTP code to verify customer email.
- * Includes the official E-Shophy logo embedded via CID attachment.
+ * Includes the official E-Shopy logo embedded via CID attachment.
  */
 export async function sendEmailVerificationOtp(email: string, name: string, otp: string): Promise<boolean> {
   try {
@@ -63,7 +63,7 @@ export async function sendEmailVerificationOtp(email: string, name: string, otp:
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Verify Your E-Shophy Email</title>
+  <title>Verify Your E-Shopy Email</title>
 </head>
 <body style="margin: 0; padding: 0; background-color: #F8FAFC; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1E293B;">
   <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #F8FAFC; padding: 40px 15px;">
@@ -81,12 +81,12 @@ export async function sendEmailVerificationOtp(email: string, name: string, otp:
                     <!-- Brand Logo -->
                     ${
                       logoFile
-                        ? `<img src="cid:eshopylogo" alt="E-Shophy" style="height: 54px; max-height: 54px; width: auto; max-width: 240px; object-fit: contain; display: block; margin: 0 auto 10px auto;" />`
+                        ? `<img src="cid:eshopylogo" alt="E-Shopy" style="height: 54px; max-height: 54px; width: auto; max-width: 240px; object-fit: contain; display: block; margin: 0 auto 10px auto;" />`
                         : `<div style="display: inline-block; background-color: #FF7900; width: 44px; height: 44px; border-radius: 12px; line-height: 44px; text-align: center; margin-bottom: 12px; box-shadow: 0 4px 12px rgba(255, 121, 0, 0.4);">
                             <span style="font-size: 24px; color: #FFFFFF;">🛒</span>
                           </div>
                           <div style="font-size: 26px; font-weight: 900; letter-spacing: -0.5px; color: #FFFFFF; margin: 0;">
-                            E-<span style="color: #FF7900;">Shophy</span>
+                            E-<span style="color: #FF7900;">Shopy</span>
                           </div>`
                     }
                     <div style="font-size: 13px; color: #94A3B8; margin-top: 6px; font-weight: 500; letter-spacing: 0.5px;">
@@ -108,7 +108,7 @@ export async function sendEmailVerificationOtp(email: string, name: string, otp:
                 Hello <strong style="color: #0F172A;">${safeName}</strong>,
               </p>
               <p style="font-size: 14.5px; line-height: 1.6; color: #475569; margin: 0 0 24px 0;">
-                Thank you for using E-Shophy! To confirm and secure your registered email address (<strong style="color: #FF7900;">${email}</strong>), please enter the 6-digit verification code below:
+                Thank you for using E-Shopy! To confirm and secure your registered email address (<strong style="color: #FF7900;">${email}</strong>), please enter the 6-digit verification code below:
               </p>
 
               <!-- OTP Highlight Box -->
@@ -131,7 +131,7 @@ export async function sendEmailVerificationOtp(email: string, name: string, otp:
               </table>
 
               <p style="font-size: 13.5px; line-height: 1.5; color: #64748B; margin: 0 0 18px 0; text-align: center;">
-                Please do not share this code with anyone. E-Shophy personnel will never ask for your verification code.
+                Please do not share this code with anyone. E-Shopy personnel will never ask for your verification code.
               </p>
               
               <div style="border-top: 1px solid #E2E8F0; margin-top: 28px; padding-top: 20px;">
@@ -146,10 +146,10 @@ export async function sendEmailVerificationOtp(email: string, name: string, otp:
           <tr>
             <td style="background-color: #F8FAFC; padding: 24px 30px; text-align: center; border-top: 1px solid #E2E8F0;">
               <p style="font-size: 12px; color: #64748B; margin: 0 0 6px 0; font-weight: 600;">
-                E-Shophy • Premium E-Commerce & Network Marketplace
+                E-Shopy • Premium E-Commerce & Network Marketplace
               </p>
               <p style="font-size: 11px; color: #94A3B8; margin: 0;">
-                © 2026 E-Shophy. All rights reserved. • <a href="https://www.eshopy.biz" style="color: #FF7900; text-decoration: none; font-weight: 600;">www.eshopy.biz</a>
+                © 2026 E-Shopy. All rights reserved. • <a href="https://www.eshopy.biz" style="color: #FF7900; text-decoration: none; font-weight: 600;">www.eshopy.biz</a>
               </p>
             </td>
           </tr>
@@ -163,11 +163,11 @@ export async function sendEmailVerificationOtp(email: string, name: string, otp:
     `;
 
     const mailOptions: any = {
-      from: `"E-Shophy" <${user}>`,
+      from: `"E-Shopy" <${user}>`,
       to: email,
-      subject: `${otp} is your E-Shophy Email Verification Code`,
+      subject: `${otp} is your E-Shopy Email Verification Code`,
       html: htmlContent,
-      text: `Hello ${safeName},\n\nYour 6-digit email verification code for E-Shophy is: ${otp}\n\nThis code is valid for 10 minutes.\n\nIf you did not request this code, please ignore this email.\n\n© 2026 E-Shophy`,
+      text: `Hello ${safeName},\n\nYour 6-digit email verification code for E-Shopy is: ${otp}\n\nThis code is valid for 10 minutes.\n\nIf you did not request this code, please ignore this email.\n\n© 2026 E-Shopy`,
       attachments: logoFile
         ? [
             {

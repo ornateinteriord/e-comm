@@ -114,7 +114,7 @@ export class ErrorBoundary extends Component<Props, State> {
                 />
 
                 <Typography variant="caption" sx={{ color: '#94a3b8', fontWeight: 600 }}>
-                  E-Shophy Admin Protection
+                  E-Shopy Admin Protection
                 </Typography>
               </Box>
 

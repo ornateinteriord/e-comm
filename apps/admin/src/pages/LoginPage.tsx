@@ -52,12 +52,12 @@ export default function LoginPage() {
               <Box
                 component="img"
                 src="/logo.svg"
-                alt="E-Shophy"
+                alt="E-Shopy"
                 sx={{ height: 46, width: 'auto', maxWidth: 180, objectFit: 'contain' }}
               />
             </Box>
             <Typography variant="h5" fontWeight={900} letterSpacing="-0.02em" sx={{ color: '#172B30' }}>
-              E-Shophy Admin
+              E-Shopy Admin
             </Typography>
             <Typography variant="body2" color="text.secondary">
               Sign in with your administrative credentials

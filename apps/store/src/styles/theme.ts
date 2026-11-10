@@ -1,7 +1,7 @@
 import { createTheme, type Theme } from '@mui/material/styles';
 
 /**
- * E-Shophy Flagship Design System for Partner Stores
+ * E-Shopy Flagship Design System for Partner Stores
  *
  * Primary: #FF7900 (Hover: #E85D04)
  * Secondary / Headings: #172B30

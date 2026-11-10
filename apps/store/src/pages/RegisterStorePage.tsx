@@ -285,8 +285,8 @@ export default function RegisterStorePage() {
           <Box
             component="img"
             src="/logo-dark.svg"
-            alt="E-Shophy"
-            sx={{ height: 42, width: 220, objectFit: 'contain', mx: 'auto', mb: 1.5 }}
+            alt="E-Shopy"
+            sx={{ height: 42, width: 'auto', maxWidth: 220, objectFit: 'contain', mx: 'auto', mb: 1.5 }}
           />
           <Typography variant="h4" sx={{ fontWeight: 800, color: '#172B30' }}>
             Register Your Partner Store

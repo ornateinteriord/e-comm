@@ -223,7 +223,7 @@ export default function StorefrontLayout() {
               <Box
                 component="img"
                 src={isLight ? '/logo.svg' : '/logo-dark.svg'}
-                alt="E-Shophy"
+                alt="E-Shopy"
                 sx={{
                   height: 40,
                   width: 'auto',
@@ -542,7 +542,7 @@ export default function StorefrontLayout() {
                 <Box
                   component="img"
                   src="/logo.svg"
-                  alt="E-Shophy"
+                  alt="E-Shopy"
                   sx={{
                     height: 32,
                     width: 'auto',
@@ -671,7 +671,7 @@ export default function StorefrontLayout() {
           <Box
             component="img"
             src="/logo.svg"
-            alt="E-Shophy"
+            alt="E-Shopy"
             sx={{
               height: 32,
               width: 'auto',
@@ -763,7 +763,7 @@ export default function StorefrontLayout() {
             </Box>
           ) : (
             <Box>
-              <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 1, color: isLight ? '#172B30' : 'white' }}>Welcome to E-Shophy</Typography>
+              <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 1, color: isLight ? '#172B30' : 'white' }}>Welcome to E-Shopy</Typography>
               <Button
                 variant="contained"
                 size="small"
@@ -978,7 +978,7 @@ export default function StorefrontLayout() {
                   lineHeight: 1.3,
                 }}
               >
-                Welcome to E-Shophy
+                Welcome to E-Shopy
               </Typography>
               <Typography
                 variant="caption"
