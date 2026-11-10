@@ -188,11 +188,12 @@ export default function RegisterPage() {
       const { data } = await api.get(`/auth/verify-referral?code=${encodeURIComponent(code)}`);
       if (data.success && data.data?.valid) {
         setIsReferralVerified(true);
-        setResolvedReferralCode(data.data.referralCode || code);
+        const resolvedCode = data.data.member_code || data.data.referralCode || code;
+        setResolvedReferralCode(resolvedCode);
         setReferralName(data.data.referralName || '');
         setReferralType(data.data.referralType || 'vendor');
-        setReferralVendorId(data.data.vendor_id || '');
-        setReferralVendorName(data.data.vendor_name || '');
+        setReferralVendorId(data.data.member_code || data.data.vendor_id || resolvedCode);
+        setReferralVendorName(data.data.vendor_name || data.data.referralName || '');
       } else {
         setIsReferralVerified(false);
         setResolvedReferralCode('');
@@ -445,7 +446,7 @@ export default function RegisterPage() {
                 {isReferralVerified && (
                   <Grid item xs={12}>
                     <TextField
-                      label={referralType === 'vendor' ? 'Verified Sponsor (Vendor ID / Name)' : 'Verified Sponsor (Customer)'}
+                      label={referralType === 'vendor' ? 'Verified Sponsor (Vendor Code / Name)' : 'Verified Sponsor (Customer)'}
                       fullWidth
                       size="small"
                       value={
@@ -1237,7 +1238,7 @@ export default function RegisterPage() {
                           lineHeight: 1.2,
                         }}
                       >
-                        Vendor ID / Vendor Name
+                        Vendor Code / Vendor Name
                       </Typography>
                       <Typography
                         variant="body2"
@@ -1256,7 +1257,7 @@ export default function RegisterPage() {
                       </Typography>
                     </Box>
                     {successDetails?.vendorId && (
-                      <Tooltip title={copiedField === 'vendorId' ? 'Copied!' : 'Copy Vendor ID'} arrow>
+                      <Tooltip title={copiedField === 'vendorId' ? 'Copied!' : 'Copy Vendor Code'} arrow>
                         <IconButton
                           size="small"
                           onClick={() => successDetails && copyToClipboard(successDetails.vendorId!, 'vendorId')}

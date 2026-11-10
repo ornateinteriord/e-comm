@@ -623,7 +623,7 @@ export default function StoresPage() {
             </Box>
           ) : (
             <TableContainer>
-              <Table size="small">
+              <Table size="small" sx={{ '& td, & th': { verticalAlign: 'middle' } }}>
                 <TableHead>
                   <TableRow sx={{ bgcolor: '#F8FAFC' }}>
                     <TableCell sx={{ fontWeight: 700, color: '#475569' }}>Store</TableCell>
@@ -632,7 +632,7 @@ export default function StoresPage() {
                     <TableCell sx={{ fontWeight: 700, color: '#475569' }}>Location</TableCell>
                     <TableCell sx={{ fontWeight: 700, color: '#475569' }}>Sponsor</TableCell>
                     <TableCell sx={{ fontWeight: 700, color: '#475569' }}>Status</TableCell>
-                    <TableCell sx={{ fontWeight: 700, color: '#475569' }} align="right">Actions</TableCell>
+                    <TableCell sx={{ fontWeight: 700, color: '#475569' }} align="center">Actions</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -727,8 +727,8 @@ export default function StoresPage() {
                           )}
                         </Stack>
                       </TableCell>
-                      <TableCell align="right">
-                        <Stack direction="row" spacing={0.75} justifyContent="flex-end" alignItems="center">
+                      <TableCell align="center">
+                        <Stack direction="row" spacing={0.75} justifyContent="center" alignItems="center">
                           <Tooltip title={s.location?.lat && s.location?.lng ? "View on Map" : "No Coordinates Configured"}>
                             <span>
                               <IconButton
