@@ -22,10 +22,19 @@ export default defineConfig({
     sourcemap: true,
     rollupOptions: {
       output: {
-        manualChunks: {
-          'react-vendor': ['react', 'react-dom', 'react-router'],
-          'mui-vendor': ['@mui/material', '@emotion/react', '@emotion/styled'],
-          'query-vendor': ['@tanstack/react-query'],
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('@tanstack/react-query')) {
+              return 'query-vendor';
+            }
+            if (
+              id.includes('react') ||
+              id.includes('@emotion') ||
+              id.includes('@mui')
+            ) {
+              return 'ui-vendor';
+            }
+          }
         },
       },
     },

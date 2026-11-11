@@ -22,11 +22,22 @@ export default defineConfig({
     sourcemap: true,
     rollupOptions: {
       output: {
-        manualChunks: {
-          'react-vendor': ['react', 'react-dom', 'react-router'],
-          'mui-vendor': ['@mui/material', '@emotion/react', '@emotion/styled'],
-          'query-vendor': ['@tanstack/react-query'],
-          'map-vendor': ['maplibre-gl'],
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('maplibre-gl')) {
+              return 'map-vendor';
+            }
+            if (id.includes('@tanstack/react-query')) {
+              return 'query-vendor';
+            }
+            if (
+              id.includes('react') ||
+              id.includes('@emotion') ||
+              id.includes('@mui')
+            ) {
+              return 'ui-vendor';
+            }
+          }
         },
       },
     },
