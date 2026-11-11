@@ -44,37 +44,99 @@ const staticAllowed = [
   'http://localhost:4000',
   'http://localhost:5173',
   'http://localhost:5174',
+  'http://localhost:5175',
   'http://localhost:3000',
+  'https://e-shopy-admin.vercel.app',
+  'https://e-shopy-ui.vercel.app',
+  'https://e-shophy-admin.vercel.app',
+  'https://e-shophy-ui.vercel.app',
+  'https://e-comm-three-eta.vercel.app',
+  'https://e-comm-admin-gules.vercel.app',
   'https://admin.eshopy.biz',
+  'https://store.eshopy.biz',
+  'https://vendor.eshopy.biz',
   'https://www.eshopy.biz',
   'https://eshopy.biz',
 ];
-const envAllowed = (process.env.ALLOWED_ORIGINS ?? '').split(',').map((o) => o.trim()).filter(Boolean);
+const envAllowed = (process.env.ALLOWED_ORIGINS ?? '')
+  .split(',')
+  .map((o) => o.trim().replace(/\/+$/, ''))
+  .filter(Boolean);
 
-app.use(
-  cors({
-    origin: (requestOrigin, callback) => {
-      if (!requestOrigin) return callback(null, true);
-      if (staticAllowed.includes(requestOrigin) || envAllowed.includes(requestOrigin)) return callback(null, true);
-      try {
-        const { hostname } = new URL(requestOrigin);
-        if (
-          hostname.endsWith('.vercel.app') ||
-          hostname.endsWith('.eshopy.biz') ||
-          hostname === 'eshopy.biz' ||
-          hostname === 'localhost' ||
-          hostname === '127.0.0.1'
-        ) {
-          return callback(null, true);
-        }
-      } catch {
-        // ignore
-      }
-      return callback(null, false);
-    },
-    credentials: true,
-  }),
-);
+const ESHOPY_SUBDOMAIN_REGEX = /^https?:\/\/(?:[a-zA-Z0-9-]+\.)*eshopy\.biz(?::\d+)?$/i;
+const VERCEL_SUBDOMAIN_REGEX = /^https?:\/\/(?:[a-zA-Z0-9-]+\.)*vercel\.app(?::\d+)?$/i;
+const LOCALHOST_REGEX = /^https?:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?$/i;
+
+const isOriginAllowed = (origin?: string): boolean => {
+  if (!origin) return true;
+  const cleanOrigin = origin.trim().replace(/\/+$/, '');
+  if (staticAllowed.includes(cleanOrigin) || envAllowed.includes(cleanOrigin)) return true;
+  if (ESHOPY_SUBDOMAIN_REGEX.test(cleanOrigin)) return true;
+  if (VERCEL_SUBDOMAIN_REGEX.test(cleanOrigin)) return true;
+  if (LOCALHOST_REGEX.test(cleanOrigin)) return true;
+  try {
+    const { hostname } = new URL(cleanOrigin);
+    if (hostname.endsWith('.eshopy.biz') || hostname === 'eshopy.biz') return true;
+    if (hostname.endsWith('.vercel.app')) return true;
+    if (hostname === 'localhost' || hostname === '127.0.0.1') return true;
+  } catch {}
+  return false;
+};
+
+app.use((req: Request, res: Response, next) => {
+  const origin = req.headers.origin;
+  if (origin && isOriginAllowed(origin)) {
+    const cleanOrigin = origin.trim().replace(/\/+$/, '');
+    res.setHeader('Access-Control-Allow-Origin', cleanOrigin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD');
+    res.setHeader(
+      'Access-Control-Allow-Headers',
+      req.headers['access-control-request-headers'] ||
+        'Content-Type, Authorization, X-Requested-With, Accept, Origin, Cookie, X-CSRF-Token, x-session-id, X-Client-Type, x-client-type, Cache-Control, Pragma, Expires, x-store-id, X-Store-Id',
+    );
+    res.setHeader('Access-Control-Expose-Headers', 'Set-Cookie');
+    res.setHeader('Access-Control-Max-Age', '86400');
+  }
+
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+  next();
+});
+
+const paymentCors = cors({
+  origin: (requestOrigin, callback) => {
+    if (!requestOrigin) return callback(null, true);
+    const cleanOrigin = requestOrigin.trim().replace(/\/+$/, '');
+    if (isOriginAllowed(cleanOrigin)) return callback(null, cleanOrigin);
+    return callback(null, false);
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD'],
+  allowedHeaders: [
+    'Content-Type',
+    'Authorization',
+    'X-Requested-With',
+    'Accept',
+    'Origin',
+    'Cookie',
+    'X-CSRF-Token',
+    'x-session-id',
+    'X-Client-Type',
+    'x-client-type',
+    'Cache-Control',
+    'Pragma',
+    'Expires',
+    'x-store-id',
+    'X-Store-Id',
+  ],
+  exposedHeaders: ['Set-Cookie'],
+  optionsSuccessStatus: 200,
+});
+
+app.use(paymentCors);
+app.options('*', paymentCors);
 // Capture raw body for Cashfree webhook HMAC verification (must come before JSON parser)
 app.use((req, _res, next) => {
   if (req.path === '/api/v1/webhooks/cashfree') {

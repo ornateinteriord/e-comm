@@ -62,22 +62,32 @@ const staticAllowedOrigins = [
   'https://e-comm-three-eta.vercel.app',
   'https://e-comm-admin-gules.vercel.app',
   'https://admin.eshopy.biz',
+  'https://store.eshopy.biz',
+  'https://vendor.eshopy.biz',
   'https://www.eshopy.biz',
   'https://eshopy.biz',
 ];
 
 const envAllowedOrigins = (process.env.ALLOWED_ORIGINS ?? '')
   .split(',')
-  .map((o) => o.trim())
+  .map((o) => o.trim().replace(/\/+$/, ''))
   .filter(Boolean);
+
+const ESHOPY_SUBDOMAIN_REGEX = /^https?:\/\/(?:[a-zA-Z0-9-]+\.)*eshopy\.biz(?::\d+)?$/i;
+const VERCEL_SUBDOMAIN_REGEX = /^https?:\/\/(?:[a-zA-Z0-9-]+\.)*vercel\.app(?::\d+)?$/i;
+const LOCALHOST_REGEX = /^https?:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?$/i;
 
 export const isOriginAllowed = (origin?: string): boolean => {
   if (!origin) return true; // Server-to-server or same-origin
-  if (staticAllowedOrigins.includes(origin) || envAllowedOrigins.includes(origin)) {
+  const cleanOrigin = origin.trim().replace(/\/+$/, '');
+  if (staticAllowedOrigins.includes(cleanOrigin) || envAllowedOrigins.includes(cleanOrigin)) {
     return true;
   }
+  if (ESHOPY_SUBDOMAIN_REGEX.test(cleanOrigin)) return true;
+  if (VERCEL_SUBDOMAIN_REGEX.test(cleanOrigin)) return true;
+  if (LOCALHOST_REGEX.test(cleanOrigin)) return true;
   try {
-    const { hostname } = new URL(origin);
+    const { hostname } = new URL(cleanOrigin);
     if (hostname.endsWith('.vercel.app')) return true;
     if (hostname.endsWith('.eshopy.biz') || hostname === 'eshopy.biz') return true;
     if (hostname === 'localhost' || hostname === '127.0.0.1') return true;
@@ -87,17 +97,44 @@ export const isOriginAllowed = (origin?: string): boolean => {
   return false;
 };
 
+// Immediate pre-flight OPTIONS handler & CORS header injector
+app.use((req: Request, res: Response, next) => {
+  const origin = req.headers.origin;
+  if (origin && isOriginAllowed(origin)) {
+    const cleanOrigin = origin.trim().replace(/\/+$/, '');
+    res.setHeader('Access-Control-Allow-Origin', cleanOrigin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD');
+    res.setHeader(
+      'Access-Control-Allow-Headers',
+      req.headers['access-control-request-headers'] ||
+        'Content-Type, Authorization, X-Requested-With, Accept, Origin, Cookie, X-CSRF-Token, x-session-id, X-Client-Type, x-client-type, Cache-Control, Pragma, Expires, x-store-id, X-Store-Id',
+    );
+    res.setHeader('Access-Control-Expose-Headers', 'Set-Cookie');
+    res.setHeader('Access-Control-Max-Age', '86400');
+  }
+
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+  next();
+});
+
 const corsOptions: cors.CorsOptions = {
   origin: (requestOrigin, callback) => {
-    if (isOriginAllowed(requestOrigin)) {
-      callback(null, true);
+    if (!requestOrigin) {
+      return callback(null, true);
+    }
+    const cleanOrigin = requestOrigin.trim().replace(/\/+$/, '');
+    if (isOriginAllowed(cleanOrigin)) {
+      callback(null, cleanOrigin);
     } else {
       log.warn({ requestOrigin }, 'CORS rejected origin');
       callback(null, false);
     }
   },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD'],
   allowedHeaders: [
     'Content-Type',
     'Authorization',
@@ -109,6 +146,11 @@ const corsOptions: cors.CorsOptions = {
     'x-session-id',
     'X-Client-Type',
     'x-client-type',
+    'Cache-Control',
+    'Pragma',
+    'Expires',
+    'x-store-id',
+    'X-Store-Id',
   ],
   exposedHeaders: ['Set-Cookie'],
   optionsSuccessStatus: 200, // some legacy browsers choke on 204
@@ -299,13 +341,20 @@ sortedRoutes.forEach(({ path, target }) => {
         proxyRes: (proxyRes, req) => {
           const origin = (req as Request).headers?.origin;
           if (origin && isOriginAllowed(origin)) {
-            proxyRes.headers['access-control-allow-origin'] = origin;
+            const cleanOrigin = origin.trim().replace(/\/+$/, '');
+            proxyRes.headers['access-control-allow-origin'] = cleanOrigin;
             proxyRes.headers['access-control-allow-credentials'] = 'true';
           }
         },
         error: (err, req, res) => {
           log.error({ err, path: req.url, target }, 'Proxy error');
           if ('headersSent' in res && !res.headersSent) {
+            const origin = (req as Request).headers?.origin;
+            if (origin && isOriginAllowed(origin)) {
+              const cleanOrigin = origin.trim().replace(/\/+$/, '');
+              (res as express.Response).setHeader('Access-Control-Allow-Origin', cleanOrigin);
+              (res as express.Response).setHeader('Access-Control-Allow-Credentials', 'true');
+            }
             (res as express.Response).status(502).json({
               success: false,
               error: {
