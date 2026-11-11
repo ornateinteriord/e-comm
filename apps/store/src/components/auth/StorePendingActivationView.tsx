@@ -72,7 +72,7 @@ export default function StorePendingActivationView() {
         <Box sx={{ textAlign: 'center', mb: 4 }}>
           <Box
             component="img"
-            src="/logo-dark.svg"
+            src="/logo.svg"
             alt="E-Shopy"
             sx={{ height: 40, width: 'auto', maxWidth: 200, objectFit: 'contain', mx: 'auto', mb: 2 }}
           />

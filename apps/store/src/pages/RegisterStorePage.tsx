@@ -284,7 +284,7 @@ export default function RegisterStorePage() {
         <Box sx={{ textAlign: 'center', mb: 4 }}>
           <Box
             component="img"
-            src="/logo-dark.svg"
+            src="/logo.svg"
             alt="E-Shopy"
             sx={{ height: 42, width: 'auto', maxWidth: 220, objectFit: 'contain', mx: 'auto', mb: 1.5 }}
           />
