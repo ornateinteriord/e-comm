@@ -15,6 +15,15 @@ import api from '../api/client';
 export default function LoginPage() {
   const navigate = useNavigate();
   const setAuth = useAdminAuthStore((s) => s.setAuth);
+  const isAuthenticated = useAdminAuthStore((s) => s.isAuthenticated);
+  const user = useAdminAuthStore((s) => s.user);
+
+  React.useEffect(() => {
+    const allowedRoles = ['super_admin', 'admin', 'catalog_manager', 'inventory_manager', 'order_manager', 'finance_manager', 'support'];
+    if (isAuthenticated && user && allowedRoles.includes(user.role)) {
+      navigate('/', { replace: true });
+    }
+  }, [isAuthenticated, user, navigate]);
 
   const [email, setEmail] = useState('admin@ornate.dev');
   const [password, setPassword] = useState('Admin@1234');

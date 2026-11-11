@@ -1,5 +1,5 @@
 import React, { Suspense } from 'react';
-import { Routes, Route, Navigate } from 'react-router';
+import { Routes, Route, Navigate, useLocation, Outlet } from 'react-router';
 import { Box, CircularProgress } from '@mui/material';
 import AdminLayout from './layouts/AdminLayout.tsx';
 import { useAdminAuthStore } from './store/auth.store.ts';
@@ -38,12 +38,30 @@ function RequireAdmin({ children }: { children: React.ReactElement }) {
   return children;
 }
 
+function GuestRoute({ children }: { children?: React.ReactElement }) {
+  const { isAuthenticated, user } = useAdminAuthStore();
+  const allowedRoles = ['super_admin', 'admin', 'catalog_manager', 'inventory_manager', 'order_manager', 'finance_manager', 'support'];
+  const location = useLocation();
+
+  if (isAuthenticated && user && allowedRoles.includes(user.role)) {
+    const params = new URLSearchParams(location.search);
+    const redirectTo = params.get('redirect') || '/';
+    return <Navigate to={redirectTo} replace />;
+  }
+
+  return children ? children : <Outlet />;
+}
+
 export default function App() {
   return (
     <ErrorBoundary>
       <Suspense fallback={<PageLoader />}>
         <Routes>
-          <Route path="/login" element={<LoginPage />} />
+          {/* Guest-only Auth Route: Logged-in admins are redirected to dashboard */}
+          <Route element={<GuestRoute />}>
+            <Route path="/login" element={<LoginPage />} />
+          </Route>
+
           {/* Hidden Developer Diagnostic Route - accessible without login */}
           <Route path="/system-health" element={<SystemHealthPage />} />
           <Route path="/dev/health" element={<SystemHealthPage />} />

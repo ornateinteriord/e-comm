@@ -64,6 +64,12 @@ export default function RegisterStorePage() {
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
   const [tempAuthData, setTempAuthData] = useState<{ token: string; store: any } | null>(null);
 
+  useEffect(() => {
+    if (isAuthenticated && !showSuccessDialog) {
+      navigate('/', { replace: true });
+    }
+  }, [isAuthenticated, showSuccessDialog, navigate]);
+
   // Form State - Referral
   const [referralCode, setReferralCode] = useState('');
   const [verifiedReferral, setVerifiedReferral] = useState<{

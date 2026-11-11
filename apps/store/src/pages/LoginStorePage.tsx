@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link as RouterLink } from 'react-router';
 import {
   Box,
@@ -24,7 +24,13 @@ import { useStoreAuthStore } from '../store/auth.store';
 
 export default function LoginStorePage() {
   const navigate = useNavigate();
-  const { setAuth } = useStoreAuthStore();
+  const { setAuth, isAuthenticated } = useStoreAuthStore();
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate('/', { replace: true });
+    }
+  }, [isAuthenticated, navigate]);
 
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');

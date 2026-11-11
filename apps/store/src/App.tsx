@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router';
+import { BrowserRouter, Routes, Route, Navigate, useLocation, Outlet } from 'react-router';
 import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -32,6 +32,19 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function GuestRoute({ children }: { children?: React.ReactNode }) {
+  const { isAuthenticated } = useStoreAuthStore();
+  const location = useLocation();
+
+  if (isAuthenticated) {
+    const params = new URLSearchParams(location.search);
+    const redirectTo = params.get('redirect') || '/';
+    return <Navigate to={redirectTo} replace />;
+  }
+
+  return children ? <>{children}</> : <Outlet />;
+}
+
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
@@ -39,9 +52,11 @@ export default function App() {
         <CssBaseline />
         <BrowserRouter>
           <Routes>
-            {/* Public Auth Routes */}
-            <Route path="/register" element={<RegisterStorePage />} />
-            <Route path="/login" element={<LoginStorePage />} />
+            {/* Guest-only Auth Routes: Logged-in stores are redirected away */}
+            <Route element={<GuestRoute />}>
+              <Route path="/register" element={<RegisterStorePage />} />
+              <Route path="/login" element={<LoginStorePage />} />
+            </Route>
 
             {/* Protected Store Portal Routes */}
             <Route
