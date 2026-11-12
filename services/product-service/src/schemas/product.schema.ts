@@ -30,7 +30,7 @@ export const createProductSchema = z.object({
     pricing: pricingSchema,
     stock: z.number().int().nonnegative().optional(),
     lowStockThreshold: z.number().int().nonnegative().optional(),
-    status: z.enum(['draft', 'active', 'archived']).optional(),
+    status: z.enum(['draft', 'active', 'archived', 'inactive']).optional(),
     isPublished: z.boolean().optional(),
     isFeatured: z.boolean().optional(),
     images: z.array(z.object({ id: z.string().optional(), url: z.string(), alt: z.string().optional(), name: z.string().optional(), order: z.number().optional() })).optional(),

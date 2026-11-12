@@ -131,7 +131,7 @@ export async function adminListProducts(req: Request, res: Response, next: NextF
     const category = req.query.category as string | undefined;
 
     const filter: Record<string, unknown> = {};
-    if (status) filter.status = status;
+    if (status && status !== 'all') filter.status = status;
     if (category) filter.category = category;
     if (search) filter.$text = { $search: search };
 
@@ -273,6 +273,16 @@ export async function updateProduct(req: Request, res: Response, next: NextFunct
       'attributes', 'seoTitle', 'seoDescription', 'taxClass', 'weight', 'dimensions',
     ];
 
+    if (updates.status === 'inactive' && updates.isPublished === undefined) {
+      updates.isPublished = false;
+    } else if (updates.status === 'active' && updates.isPublished === undefined) {
+      updates.isPublished = true;
+    }
+
+    if (updates.status === 'inactive' || updates.isPublished === false) {
+      updates.isFeatured = false;
+    }
+
     if (updates.isFeatured === true) {
       await Product.updateMany({ _id: { $ne: product._id }, isFeatured: true }, { $set: { isFeatured: false } });
     }
@@ -392,7 +402,7 @@ export async function storeListProducts(req: Request, res: Response, next: NextF
     const filter: Record<string, unknown> = {
       category: mongoose.Types.ObjectId.isValid(categoryId) ? new mongoose.Types.ObjectId(categoryId) : categoryId,
     };
-    if (status) filter.status = status;
+    if (status && status !== 'all') filter.status = status;
     if (search) {
       const reg = new RegExp(search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
       filter.$or = [{ name: reg }, { sku: reg }];
@@ -542,8 +552,21 @@ export async function storeUpdateProduct(req: Request, res: Response, next: Next
     if (longDescription !== undefined) product.longDescription = longDescription;
     if (stock !== undefined) product.stock = Number(stock);
     if (lowStockThreshold !== undefined) product.lowStockThreshold = Number(lowStockThreshold);
-    if (status) product.status = status;
-    if (typeof isPublished === 'boolean') product.isPublished = isPublished;
+    if (status) {
+      product.status = status;
+      if (status === 'inactive') {
+        product.isPublished = false;
+        product.isFeatured = false;
+      } else if (status === 'active' && isPublished === undefined) {
+        product.isPublished = true;
+      }
+    }
+    if (typeof isPublished === 'boolean') {
+      product.isPublished = isPublished;
+      if (!isPublished) {
+        product.isFeatured = false;
+      }
+    }
 
     if (pricing) {
       const pricePayload = {

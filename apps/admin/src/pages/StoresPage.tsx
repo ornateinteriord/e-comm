@@ -300,7 +300,7 @@ export default function StoresPage() {
           transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease;
         ">
           <svg style="width: 20px; height: 20px; fill: #FFFFFF;" viewBox="0 0 24 24">
-            <path d="M4 4h16a1 1 0 0 1 1 1v2a2 2 0 0 1-2 2 2 2 0 0 1-2-2 2 2 0 0 1-2 2 2 2 0 0 1-2-2 2 2 0 0 1-2 2 2 2 0 0 1-2-2 2 2 0 0 1-2 2 2 2 0 0 1-2-2V5a1 1 0 0 1 1-1zm-1 7a3.98 3.98 0 0 0 2 3.46V20a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-5.54A3.98 3.98 0 0 0 21 11H3zm3 4h12v4H6v-4z"/>
+            <path d="M5 6h14c.55 0 1-.45 1-1s-.45-1-1-1H5c-.55 0-1 .45-1 1s.45 1 1 1m15.16 1.8c-.09-.46-.5-.8-.98-.8H4.82c-.48 0-.89.34-.98.8l-1 5c-.12.62.35 1.2.98 1.2H4v5c0 .55.45 1 1 1h8c.55 0 1-.45 1-1v-5h4v5c0 .55.45 1 1 1s1-.45 1-1v-5h.18c.63 0 1.1-.58.98-1.2zM12 18H6v-4h6z"/>
           </svg>
         </div>
         <div style="width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 6px solid #EA580C; margin-top: -1px;"></div>
@@ -373,7 +373,7 @@ export default function StoresPage() {
               <div style="display: flex; align-items: center; gap: 8px; min-width: 0;">
                 <div style="width: 28px; height: 28px; border-radius: 6px; background: #FFF7ED; border: 1px solid #FED7AA; display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: #EA580C;">
                   <svg style="width: 15px; height: 15px; fill: currentColor;" viewBox="0 0 24 24">
-                    <path d="M4 4h16a1 1 0 0 1 1 1v2a2 2 0 0 1-2 2 2 2 0 0 1-2-2 2 2 0 0 1-2 2 2 2 0 0 1-2-2 2 2 0 0 1-2 2 2 2 0 0 1-2-2 2 2 0 0 1-2 2 2 2 0 0 1-2-2V5a1 1 0 0 1 1-1zm-1 7a3.98 3.98 0 0 0 2 3.46V20a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-5.54A3.98 3.98 0 0 0 21 11H3zm3 4h12v4H6v-4z"/>
+                    <path d="M5 6h14c.55 0 1-.45 1-1s-.45-1-1-1H5c-.55 0-1 .45-1 1s.45 1 1 1m15.16 1.8c-.09-.46-.5-.8-.98-.8H4.82c-.48 0-.89.34-.98.8l-1 5c-.12.62.35 1.2.98 1.2H4v5c0 .55.45 1 1 1h8c.55 0 1-.45 1-1v-5h4v5c0 .55.45 1 1 1s1-.45 1-1v-5h.18c.63 0 1.1-.58.98-1.2zM12 18H6v-4h6z"/>
                   </svg>
                 </div>
                 <div style="min-width: 0;">

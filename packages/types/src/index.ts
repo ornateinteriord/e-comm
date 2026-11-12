@@ -108,7 +108,7 @@ export interface Category {
 }
 
 // ---- Product ----
-export type ProductStatus = 'draft' | 'active' | 'archived';
+export type ProductStatus = 'draft' | 'active' | 'archived' | 'inactive';
 
 export interface ProductImage {
   id: string;

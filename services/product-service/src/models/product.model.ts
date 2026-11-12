@@ -52,7 +52,7 @@ export interface IProduct extends Document {
   pricing: IProductPricing;
   stock: number;
   lowStockThreshold: number;
-  status: 'draft' | 'active' | 'archived';
+  status: 'draft' | 'active' | 'archived' | 'inactive';
   isPublished: boolean;
   isFeatured?: boolean;
   attributes: IProductAttribute[];
@@ -109,7 +109,7 @@ const productSchema = new Schema<IProduct>(
     lowStockThreshold: { type: Number, default: 5 },
     status: {
       type: String,
-      enum: ['draft', 'active', 'archived'],
+      enum: ['draft', 'active', 'archived', 'inactive'],
       default: 'draft',
       index: true,
     },

@@ -36,6 +36,7 @@ export default function ProductsPage() {
   const [editingProduct, setEditingProduct] = useState<AdminProduct | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive' | 'draft' | 'archived'>('all');
 
   // Toast notification state
   const [toast, setToast] = useState<{
@@ -167,11 +168,11 @@ export default function ProductsPage() {
           dealPrice: dealPaise,
           deal: dealPaise
             ? {
-                isActive: true,
-                startDate: new Date(),
-                endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-                maxQtyPerOrder: 5,
-              }
+              isActive: true,
+              startDate: new Date(),
+              endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+              maxQtyPerOrder: 5,
+            }
             : null,
         },
         stock: Number(form.stock),
@@ -219,6 +220,30 @@ export default function ProductsPage() {
     },
     onError: (err: any) => {
       showToast(err.response?.data?.error?.message || 'Failed to archive product', 'error');
+    },
+  });
+
+  const toggleStatusMutation = useMutation({
+    mutationFn: async ({ id, newStatus }: { id: string; newStatus: 'active' | 'inactive' }) => {
+      const isActivating = newStatus === 'active';
+      const { data } = await api.patch(`/admin/products/${id}`, {
+        status: newStatus,
+        isPublished: isActivating,
+        ...(isActivating ? {} : { isFeatured: false }),
+      });
+      return data;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['admin-products'] });
+      showToast(
+        variables.newStatus === 'active'
+          ? 'Product activated & published to storefront successfully!'
+          : 'Product disabled & hidden from storefront.',
+        'success'
+      );
+    },
+    onError: (err: any) => {
+      showToast(err.response?.data?.error?.message || 'Failed to update product status', 'error');
     },
   });
 
@@ -296,8 +321,8 @@ export default function ProductsPage() {
       inwardPrice: ((p.pricing?.inwardPrice ?? 0) / 100),
       stock: p.stock,
       lowStockThreshold: p.lowStockThreshold || 5,
-      status: p.status,
-      isPublished: p.isPublished,
+      status: p.status || (p.isPublished ? 'active' : 'inactive'),
+      isPublished: p.isPublished ?? (p.status === 'active'),
       isFeatured: Boolean(p.isFeatured),
       images: initialImages,
     });
@@ -306,6 +331,18 @@ export default function ProductsPage() {
   };
 
   const filteredProducts = productsData?.items?.filter((p) => {
+    // Status filter
+    if (statusFilter === 'active') {
+      if (p.status !== 'active' || !p.isPublished) return false;
+    } else if (statusFilter === 'inactive') {
+      if (p.status === 'active' && p.isPublished) return false;
+      if (p.status === 'archived') return false;
+    } else if (statusFilter === 'draft') {
+      if (p.status !== 'draft') return false;
+    } else if (statusFilter === 'archived') {
+      if (p.status !== 'archived') return false;
+    }
+
     if (!searchQuery.trim()) return true;
     const term = searchQuery.toLowerCase();
     return (
@@ -407,7 +444,7 @@ export default function ProductsPage() {
       </Paper>
 
       {/* Filter / Search Bar */}
-      <Paper elevation={0} sx={{ p: 2, mb: 3, borderRadius: '8px', border: '1px solid #e2e8f0', bgcolor: 'background.paper', display: 'flex', alignItems: 'center', gap: 2 }}>
+      <Paper elevation={0} sx={{ p: 2, mb: 3, borderRadius: '8px', border: '1px solid #e2e8f0', bgcolor: 'background.paper', display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
         <TextField
           size="small"
           placeholder="Filter by name, brand, or SKU…"
@@ -420,8 +457,22 @@ export default function ProductsPage() {
               </InputAdornment>
             ),
           }}
-          sx={{ maxWidth: 380, width: '100%' }}
+          sx={{ maxWidth: 320, width: '100%' }}
         />
+        <TextField
+          select
+          size="small"
+          label="Filter Status"
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value as any)}
+          sx={{ minWidth: 180 }}
+        >
+          <MenuItem value="all">All Statuses</MenuItem>
+          <MenuItem value="active">Active Only</MenuItem>
+          <MenuItem value="inactive">Inactive / Disabled Only</MenuItem>
+          <MenuItem value="draft">Draft Only</MenuItem>
+          <MenuItem value="archived">Archived Only</MenuItem>
+        </TextField>
         <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 700, ml: 'auto' }}>
           Showing {filteredProducts.length} of {productsData?.total ?? 0} products
         </Typography>
@@ -446,8 +497,7 @@ export default function ProductsPage() {
                   <TableCell sx={{ fontWeight: 800, color: '#475569' }}>Inward Cost</TableCell>
                   <TableCell sx={{ fontWeight: 800, color: '#475569' }}>Gross Margin</TableCell>
                   <TableCell sx={{ fontWeight: 800, color: '#475569' }}>Stock</TableCell>
-                  <TableCell sx={{ fontWeight: 800, color: '#475569' }}>Status</TableCell>
-                  <TableCell sx={{ fontWeight: 800, color: '#475569', textAlign: 'right' }}>Actions</TableCell>
+                  <TableCell sx={{ fontWeight: 800, color: '#475569', textAlign: 'center', minWidth: 230 }}>Actions</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -536,46 +586,92 @@ export default function ProductsPage() {
                           }}
                         />
                       </TableCell>
-                      <TableCell>
-                        <Chip
-                          label={product.isPublished ? 'Live' : 'Draft'}
-                          size="small"
-                          sx={{
-                            fontWeight: 800,
-                            fontSize: 11,
-                            bgcolor: product.isPublished ? '#e0e7ff' : '#f1f5f9',
-                            color: product.isPublished ? '#4338ca' : '#64748b',
-                          }}
-                        />
-                      </TableCell>
-                      <TableCell sx={{ textAlign: 'right', minWidth: 130 }}>
-                        <Tooltip title={product.isFeatured ? "Active Front Storefront Sponsor" : "Set as Front Page Sponsor Product"}>
+                      <TableCell sx={{ textAlign: 'right', minWidth: 230 }}>
+                        <Box sx={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', gap: 1 }}>
+                          {(() => {
+                            const isProductActive = product.status === 'active' && product.isPublished;
+                            const isProductArchived = product.status === 'archived';
+                            const isProductDraft = product.status === 'draft';
+
+                            return (
+                              <>
+                                <Tooltip title={isProductActive ? "Click to Disable / Deactivate product" : "Click to Enable / Activate product"}>
+                                  <span>
+                                    <Switch
+                                      size="small"
+                                      checked={isProductActive}
+                                      disabled={isProductArchived || toggleStatusMutation.isPending}
+                                      onChange={() =>
+                                        toggleStatusMutation.mutate({
+                                          id: product.id,
+                                          newStatus: isProductActive ? 'inactive' : 'active',
+                                        })
+                                      }
+                                      color="success"
+                                    />
+                                  </span>
+                                </Tooltip>
+                                <Chip
+                                  label={
+                                    isProductArchived
+                                      ? 'Archived'
+                                      : isProductActive
+                                        ? 'Active'
+                                        : isProductDraft
+                                          ? 'Draft'
+                                          : 'Inactive'
+                                  }
+                                  size="small"
+                                  sx={{
+                                    fontWeight: 800,
+                                    fontSize: 11,
+                                    bgcolor: isProductActive
+                                      ? '#dcfce7'
+                                      : isProductArchived
+                                        ? '#f1f5f9'
+                                        : isProductDraft
+                                          ? '#fef3c7'
+                                          : '#fee2e2',
+                                    color: isProductActive
+                                      ? '#15803d'
+                                      : isProductArchived
+                                        ? '#64748b'
+                                        : isProductDraft
+                                          ? '#b45309'
+                                          : '#b91c1c',
+                                  }}
+                                />
+                              </>
+                            );
+                          })()}
+                          <Tooltip title={product.isFeatured ? "Active Front Storefront Sponsor" : "Set as Front Page Sponsor Product"}>
+                            <IconButton
+                              size="small"
+                              onClick={() => setSponsorMutation.mutate(product.id)}
+                              disabled={setSponsorMutation.isPending || product.status !== 'active' || !product.isPublished}
+                              sx={{ color: product.isFeatured ? '#ea580c' : '#cbd5e1', '&:hover': { color: '#ea580c' } }}
+                            >
+                              <StarIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                          <IconButton size="small" onClick={() => openEditDialog(product)} title="Edit Product">
+                            <EditIcon fontSize="small" />
+                          </IconButton>
                           <IconButton
                             size="small"
-                            onClick={() => setSponsorMutation.mutate(product.id)}
-                            disabled={setSponsorMutation.isPending}
-                            sx={{ color: product.isFeatured ? '#ea580c' : '#cbd5e1', '&:hover': { color: '#ea580c' } }}
+                            color="error"
+                            onClick={() => {
+                              setArchiveDialog({
+                                open: true,
+                                productId: product.id,
+                                productName: product.name,
+                              });
+                            }}
+                            title="Archive Product"
                           >
-                            <StarIcon fontSize="small" />
+                            <DeleteIcon fontSize="small" />
                           </IconButton>
-                        </Tooltip>
-                        <IconButton size="small" onClick={() => openEditDialog(product)} title="Edit Product">
-                          <EditIcon fontSize="small" />
-                        </IconButton>
-                        <IconButton
-                          size="small"
-                          color="error"
-                          onClick={() => {
-                            setArchiveDialog({
-                              open: true,
-                              productId: product.id,
-                              productName: product.name,
-                            });
-                          }}
-                          title="Archive Product"
-                        >
-                          <DeleteIcon fontSize="small" />
-                        </IconButton>
+                        </Box>
                       </TableCell>
                     </TableRow>
                   );
@@ -835,17 +931,71 @@ export default function ProductsPage() {
               </Paper>
             </Grid>
 
-            <Grid item xs={12}>
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={form.isPublished}
-                    onChange={(e) => setForm({ ...form, isPublished: e.target.checked })}
-                    color="primary"
-                  />
-                }
-                label={<Typography variant="body2" fontWeight={700}>Publish immediately to customer storefront</Typography>}
-              />
+            <Grid item xs={12} sm={6}>
+              <TextField
+                select
+                fullWidth
+                size="small"
+                label="Product Status"
+                value={form.status}
+                onChange={(e) => {
+                  const newStatus = e.target.value as any;
+                  setForm({
+                    ...form,
+                    status: newStatus,
+                    isPublished: newStatus === 'active',
+                    ...(newStatus !== 'active' ? { isFeatured: false } : {}),
+                  });
+                }}
+              >
+                <MenuItem value="active">Active (Enabled in Storefront)</MenuItem>
+                <MenuItem value="inactive">Inactive / Disabled (Hidden from Storefront)</MenuItem>
+                <MenuItem value="draft">Draft (Unpublished Work-in-Progress)</MenuItem>
+                <MenuItem value="archived">Archived</MenuItem>
+              </TextField>
+            </Grid>
+
+            <Grid item xs={12} sm={6}>
+              <Paper
+                elevation={0}
+                sx={{
+                  p: 1.25,
+                  bgcolor: form.status === 'active' && form.isPublished ? '#f0fdf4' : '#fef2f2',
+                  border: '1px solid',
+                  borderColor: form.status === 'active' && form.isPublished ? '#bbf7d0' : '#fecaca',
+                  borderRadius: '6px',
+                }}
+              >
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={form.status === 'active' && form.isPublished}
+                      onChange={(e) => {
+                        const checked = e.target.checked;
+                        setForm({
+                          ...form,
+                          status: checked ? 'active' : 'inactive',
+                          isPublished: checked,
+                          ...(!checked ? { isFeatured: false } : {}),
+                        });
+                      }}
+                      color="success"
+                    />
+                  }
+                  label={
+                    <Box>
+                      <Typography variant="body2" fontWeight={800} color={form.status === 'active' && form.isPublished ? '#15803d' : '#b91c1c'}>
+                        {form.status === 'active' && form.isPublished ? 'Active / Enabled' : 'Inactive / Disabled'}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: 11 }}>
+                        {form.status === 'active' && form.isPublished
+                          ? 'Visible and purchasable in customer store'
+                          : 'Hidden from customer storefront and search'}
+                      </Typography>
+                    </Box>
+                  }
+                />
+              </Paper>
             </Grid>
           </Grid>
         </DialogContent>
