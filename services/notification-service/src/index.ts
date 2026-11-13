@@ -137,6 +137,8 @@ app.get('/health', (_req: Request, res: Response) => {
 
 // Mounted paths
 app.use('/api/v1/notifications', notificationRoutes);
+app.use('/notifications', notificationRoutes);
+
 
 // Error handler
 // eslint-disable-next-line @typescript-eslint/no-unused-vars

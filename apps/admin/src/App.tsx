@@ -17,6 +17,7 @@ const ContactMessagesPage = React.lazy(() => import('./pages/ContactMessagesPage
 const CouponsPage = React.lazy(() => import('./pages/CouponsPage.tsx'));
 const AuditLogsPage = React.lazy(() => import('./pages/AuditLogsPage.tsx'));
 const SystemHealthPage = React.lazy(() => import('./pages/SystemHealthPage.tsx'));
+const WhatsAppTestPage = React.lazy(() => import('./pages/WhatsAppTestPage.tsx'));
 const NotFoundPage = React.lazy(() => import('./pages/NotFoundPage.tsx'));
 import ErrorBoundary from './components/ErrorBoundary.tsx';
 
@@ -65,6 +66,8 @@ export default function App() {
           {/* Hidden Developer Diagnostic Route - accessible without login */}
           <Route path="/system-health" element={<SystemHealthPage />} />
           <Route path="/dev/health" element={<SystemHealthPage />} />
+          <Route path="/whatsapp-test" element={<WhatsAppTestPage />} />
+          <Route path="/dev/whatsapp" element={<WhatsAppTestPage />} />
 
           <Route
             element={
@@ -84,6 +87,7 @@ export default function App() {
             <Route path="contact-messages" element={<ContactMessagesPage />} />
             <Route path="coupons" element={<CouponsPage />} />
             <Route path="audit-logs" element={<AuditLogsPage />} />
+            <Route path="whatsapp-test" element={<WhatsAppTestPage />} />
             {/* Also accessible inside admin shell if logged in */}
             <Route path="system-health" element={<SystemHealthPage />} />
             <Route path="dev/health" element={<SystemHealthPage />} />

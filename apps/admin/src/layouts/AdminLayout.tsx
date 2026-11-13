@@ -20,6 +20,7 @@ import {
   Storefront as StorefrontIcon,
   Menu as MenuIcon,
   Close as CloseIcon,
+  Chat as WhatsAppIcon,
 } from '@mui/icons-material';
 import { useAdminAuthStore } from '../store/auth.store';
 import api from '../api/client';
@@ -38,6 +39,7 @@ const NAV_ITEMS = [
   { text: 'Inquiries & Messages', path: '/contact-messages', icon: <ContactMailIcon /> },
   { text: 'Coupons & Promos', path: '/coupons', icon: <CouponsIcon /> },
   { text: 'Audit Logs', path: '/audit-logs', icon: <AuditIcon /> },
+  { text: 'WhatsApp Test', path: '/whatsapp-test', icon: <WhatsAppIcon /> },
 ];
 
 export default function AdminLayout() {
