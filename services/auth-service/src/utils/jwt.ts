@@ -12,6 +12,7 @@ export function signAccessToken(payload: {
   role: UserRole;
   storeId?: string;
   categoryId?: string;
+  subcategoryId?: string;
 }): string {
   return jwt.sign(payload, ACCESS_SECRET, { expiresIn: ACCESS_EXPIRY });
 }

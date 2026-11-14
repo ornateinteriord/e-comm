@@ -38,6 +38,7 @@ import {
   HourglassTop as PendingIcon,
   Block as SuspendedIcon,
   Delete as DeleteIcon,
+  Inventory as InventoryIcon,
 } from '@mui/icons-material';
 import maplibregl from 'maplibre-gl';
 import api from '../api/client';
@@ -48,6 +49,7 @@ export default function StoresPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [viewMode, setViewMode] = useState<'table' | 'map'>('table');
+  const [isAssigningStock, setIsAssigningStock] = useState<string | null>(null);
 
   // Add Store Dialog State
   const [openAddModal, setOpenAddModal] = useState(false);
@@ -57,11 +59,13 @@ export default function StoresPage() {
   // New Store Form Fields
   const [name, setName] = useState('');
   const [typeOfStore, setTypeOfStore] = useState('Standard (Fulfillment Hub)');
+  const [maxStockLimit, setMaxStockLimit] = useState<number | string>(2500);
   const [ownerName, setOwnerName] = useState('');
   const [mobileNumber, setMobileNumber] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [categoryId, setCategoryId] = useState('');
+  const [subcategoryId, setSubcategoryId] = useState('');
   const [referralCode, setReferralCode] = useState('');
   const [line1, setLine1] = useState('');
   const [city, setCity] = useState('');
@@ -158,31 +162,63 @@ export default function StoresPage() {
     }
   };
 
+  const handleStoreTypeChange = (newType: string) => {
+    setTypeOfStore(newType);
+    if (newType.includes('Basic')) {
+      setMaxStockLimit(500);
+    } else if (newType.includes('Advanced') || newType.includes('Wholesale') || newType.includes('Flagship')) {
+      setMaxStockLimit(10000);
+    } else {
+      setMaxStockLimit(2500);
+    }
+  };
+
+  const handleAutoAssignStock = async (storeId: string, storeName: string) => {
+    setIsAssigningStock(storeId);
+    try {
+      const resp = await api.post(`/admin/stores/${storeId}/auto-assign-stock`);
+      if (resp.data?.success) {
+        alert(resp.data.message || `Successfully allocated stock to ${storeName}`);
+        loadData();
+      }
+    } catch (err: any) {
+      alert(err.response?.data?.error?.message || 'Failed to auto-assign stock');
+    } finally {
+      setIsAssigningStock(null);
+    }
+  };
+
   // Handle Add Store Submit
   const handleCreateStore = async (e: React.FormEvent) => {
     e.preventDefault();
     setModalError(null);
 
     const cleanMobile = mobileNumber.replace(/\D/g, '').trim();
-    if (!name.trim() || !ownerName.trim() || !cleanMobile || !password || !categoryId || !referralCode.trim()) {
-      setModalError('Store Name, Owner Name, Mobile, Password, Category, and Sponsor Code are required.');
+    if (!name.trim() || !ownerName.trim() || !cleanMobile || !password || (!categoryId && !subcategoryId) || !referralCode.trim()) {
+      setModalError('Store Name, Owner Name, Mobile, Password, Subcategory, and Sponsor Code are required.');
       return;
     }
 
     const selectedCat = categories.find((c) => (c.id || c._id) === categoryId);
+    const subcats = selectedCat?.subcategories || [];
+    const selectedSubcat = subcats.find((sc: any) => (sc.id || sc._id) === subcategoryId) || selectedCat;
 
     setIsSubmitting(true);
     try {
       const payload = {
         name: name.trim(),
         typeOfStore,
+        maxStockLimit: Number(maxStockLimit) || 2500,
         ownerName: ownerName.trim(),
         mobileNumber: cleanMobile,
         email: email.trim() || `${cleanMobile}@store.eshopy.biz`,
         password,
-        categoryId,
+        categoryId: selectedCat?.id || selectedCat?._id || categoryId,
         categoryName: selectedCat?.name || 'General',
         categorySlug: selectedCat?.slug || 'general',
+        subcategoryId: selectedSubcat?.id || selectedSubcat?._id || subcategoryId || categoryId,
+        subcategoryName: selectedSubcat?.name || selectedCat?.name || 'General',
+        subcategorySlug: selectedSubcat?.slug || selectedCat?.slug || 'general',
         referralCode: referralCode.trim(),
         address: {
           line1: line1.trim() || 'Store Address',
@@ -207,11 +243,10 @@ export default function StoresPage() {
         setEmail('');
         setPassword('');
         setCategoryId('');
+        setSubcategoryId('');
+        setMaxStockLimit(2500);
         setReferralCode('');
         setLine1('');
-        setCity('');
-        setStateName('');
-        setPincode('');
         loadData();
       }
     } catch (err: any) {
@@ -627,7 +662,8 @@ export default function StoresPage() {
                 <TableHead>
                   <TableRow sx={{ bgcolor: '#F8FAFC' }}>
                     <TableCell sx={{ fontWeight: 700, color: '#475569' }}>Store</TableCell>
-                    <TableCell sx={{ fontWeight: 700, color: '#475569' }}>Category</TableCell>
+                    <TableCell sx={{ fontWeight: 700, color: '#475569' }}>Subcategory & Category</TableCell>
+                    <TableCell sx={{ fontWeight: 700, color: '#475569' }}>Stock Capacity</TableCell>
                     <TableCell sx={{ fontWeight: 700, color: '#475569' }}>Owner & Contact</TableCell>
                     <TableCell sx={{ fontWeight: 700, color: '#475569' }}>Location</TableCell>
                     <TableCell sx={{ fontWeight: 700, color: '#475569' }}>Sponsor</TableCell>
@@ -657,10 +693,43 @@ export default function StoresPage() {
                       </TableCell>
                       <TableCell>
                         <Chip
-                          label={s.categoryName || 'General'}
+                          label={s.subcategoryName || s.categoryName || 'General'}
                           size="small"
-                          sx={{ bgcolor: '#FFF7ED', color: '#FF7900', fontWeight: 700, fontSize: '0.75rem' }}
+                          sx={{ bgcolor: '#EEF2FF', color: '#4F46E5', fontWeight: 700, fontSize: '0.72rem' }}
                         />
+                        {s.subcategoryName && s.categoryName && s.subcategoryName !== s.categoryName && (
+                          <Typography variant="caption" sx={{ color: '#94A3B8', display: 'block', fontSize: '0.68rem', mt: 0.25 }}>
+                            in {s.categoryName}
+                          </Typography>
+                        )}
+                      </TableCell>
+                      <TableCell sx={{ minWidth: 150 }}>
+                        {(() => {
+                          const total = Number(s.currentStockTotal ?? 0);
+                          const max = Number(s.maxStockLimit ?? 2500);
+                          const pct = Math.min(100, Math.round((total / (max || 1)) * 100));
+                          const barColor = pct >= 90 ? '#EF4444' : pct >= 70 ? '#F59E0B' : '#10B981';
+                          const remaining = Math.max(0, max - total);
+
+                          return (
+                            <Box>
+                              <Stack direction="row" justifyContent="space-between" alignItems="center">
+                                <Typography variant="caption" sx={{ fontWeight: 800, color: '#0F172A', fontSize: '0.75rem' }}>
+                                  {total} / {max}
+                                </Typography>
+                                <Typography variant="caption" sx={{ fontWeight: 700, color: barColor, fontSize: '0.7rem' }}>
+                                  {pct}%
+                                </Typography>
+                              </Stack>
+                              <Box sx={{ width: '100%', height: 6, bgcolor: '#F1F5F9', borderRadius: 3, mt: 0.5, overflow: 'hidden' }}>
+                                <Box sx={{ width: `${pct}%`, height: '100%', bgcolor: barColor, borderRadius: 3, transition: 'width 0.3s' }} />
+                              </Box>
+                              <Typography variant="caption" sx={{ color: '#64748B', fontSize: '0.675rem', display: 'block', mt: 0.25 }}>
+                                {remaining > 0 ? `${remaining} units left` : 'Store Full'}
+                              </Typography>
+                            </Box>
+                          );
+                        })()}
                       </TableCell>
                       <TableCell>
                         <Typography variant="body2" sx={{ fontWeight: 600, color: '#172B30' }}>
@@ -729,6 +798,31 @@ export default function StoresPage() {
                       </TableCell>
                       <TableCell align="center">
                         <Stack direction="row" spacing={0.75} justifyContent="center" alignItems="center">
+                          <Tooltip title="Auto-Assign Unassigned Products (FIFO)">
+                            <span>
+                              <IconButton
+                                size="small"
+                                disabled={isAssigningStock === s.storeId}
+                                onClick={() => handleAutoAssignStock(s.storeId, s.name)}
+                                sx={{
+                                  color: '#4F46E5',
+                                  bgcolor: 'rgba(79, 70, 229, 0.08)',
+                                  border: '1px solid rgba(79, 70, 229, 0.25)',
+                                  '&:hover': {
+                                    bgcolor: 'rgba(79, 70, 229, 0.18)',
+                                    borderColor: '#4F46E5',
+                                  },
+                                }}
+                              >
+                                {isAssigningStock === s.storeId ? (
+                                  <CircularProgress size={16} sx={{ color: '#4F46E5' }} />
+                                ) : (
+                                  <InventoryIcon fontSize="small" />
+                                )}
+                              </IconButton>
+                            </span>
+                          </Tooltip>
+
                           <Tooltip title={s.location?.lat && s.location?.lng ? "View on Map" : "No Coordinates Configured"}>
                             <span>
                               <IconButton
@@ -836,13 +930,16 @@ export default function StoresPage() {
                 <TextField
                   select
                   fullWidth
-                  label="Assign Product Category *"
+                  label="Main Category *"
                   value={categoryId}
-                  onChange={(e) => setCategoryId(e.target.value)}
+                  onChange={(e) => {
+                    setCategoryId(e.target.value);
+                    setSubcategoryId('');
+                  }}
                 >
                   {categories.map((c) => (
                     <MenuItem key={c.id || c._id} value={c.id || c._id}>
-                      {c.name} {c.isAvailable ? '(Available)' : `(Claimed: ${c.claimedByStore?.name})`}
+                      {c.name}
                     </MenuItem>
                   ))}
                 </TextField>
@@ -851,16 +948,54 @@ export default function StoresPage() {
                 <TextField
                   select
                   fullWidth
+                  label="Assigned Subcategory *"
+                  value={subcategoryId}
+                  onChange={(e) => setSubcategoryId(e.target.value)}
+                  disabled={!categoryId}
+                  helperText={!categoryId ? 'Select main category first' : ''}
+                >
+                  {(() => {
+                    const selCat = categories.find((c) => (c.id || c._id) === categoryId);
+                    const subcats = selCat?.subcategories || [];
+                    if (subcats.length > 0) {
+                      return subcats.map((sc: any) => (
+                        <MenuItem key={sc.id || sc._id} value={sc.id || sc._id}>
+                          {sc.name} {sc.isAvailable ? '(Available)' : `(Claimed: ${sc.claimedByStore?.name})`}
+                        </MenuItem>
+                      ));
+                    }
+                    return (
+                      <MenuItem value={categoryId}>
+                        {selCat?.name || 'General'} (Direct Category)
+                      </MenuItem>
+                    );
+                  })()}
+                </TextField>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  select
+                  fullWidth
                   label="Type of Store *"
                   value={typeOfStore}
-                  onChange={(e) => setTypeOfStore(e.target.value)}
+                  onChange={(e) => handleStoreTypeChange(e.target.value)}
                 >
-                  <MenuItem value="Basic (Neighborhood Express)">Basic — Neighborhood Express Store</MenuItem>
-                  <MenuItem value="Standard (Fulfillment Hub)">Standard — Fulfillment Hub</MenuItem>
-                  <MenuItem value="Advanced (Superstore)">Advanced — Regional Superstore</MenuItem>
-                  <MenuItem value="Flagship (Experience Center)">Flagship — Experience Center</MenuItem>
-                  <MenuItem value="Wholesale (Mega Distribution Point)">Wholesale — Mega Distribution Hub</MenuItem>
+                  <MenuItem value="Basic (Neighborhood Express)">Basic — Neighborhood Express (Default 500 units)</MenuItem>
+                  <MenuItem value="Standard (Fulfillment Hub)">Standard — Fulfillment Hub (Default 2,500 units)</MenuItem>
+                  <MenuItem value="Advanced (Superstore)">Advanced — Regional Superstore (Default 10,000 units)</MenuItem>
+                  <MenuItem value="Flagship (Experience Center)">Flagship — Experience Center (Default 10,000 units)</MenuItem>
+                  <MenuItem value="Wholesale (Mega Distribution Point)">Wholesale — Mega Distribution Hub (Default 10,000 units)</MenuItem>
                 </TextField>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  type="number"
+                  label="Max Stock Limit (Total Units) *"
+                  value={maxStockLimit}
+                  onChange={(e) => setMaxStockLimit(e.target.value)}
+                  helperText="Total units capacity across all products combined"
+                />
               </Grid>
               <Grid item xs={12} sm={6}>
                 <TextField

@@ -28,6 +28,12 @@ export interface IStore extends Document {
   categoryId: string;
   categoryName: string;
   categorySlug: string;
+  subcategoryId?: string;
+  subcategoryName?: string;
+  subcategorySlug?: string;
+  maxStockLimit: number;
+  currentStockTotal: number;
+  availableCapacity?: number;
   referralCode: string;
   referralName: string;
   referralType: 'vendor' | 'store';
@@ -73,6 +79,11 @@ const storeSchema = new Schema<IStore>(
     categoryId: { type: String, required: true, index: true },
     categoryName: { type: String, required: true, trim: true },
     categorySlug: { type: String, required: true, trim: true },
+    subcategoryId: { type: String, trim: true, index: true },
+    subcategoryName: { type: String, trim: true },
+    subcategorySlug: { type: String, trim: true },
+    maxStockLimit: { type: Number, default: 2500, min: 0 },
+    currentStockTotal: { type: Number, default: 0, min: 0 },
     referralCode: { type: String, required: true, trim: true, index: true },
     referralName: { type: String, required: true, trim: true },
     referralType: { type: String, enum: ['vendor', 'store'], required: true },
@@ -94,11 +105,28 @@ const storeSchema = new Schema<IStore>(
         ret.id = ret._id?.toString() || ret.id;
         delete ret.passwordHash;
         delete ret.__v;
+        ret.availableCapacity = Math.max(0, (ret.maxStockLimit ?? 2500) - (ret.currentStockTotal ?? 0));
         return ret;
       },
     },
   },
 );
+
+storeSchema.virtual('availableCapacity').get(function () {
+  return Math.max(0, (this.maxStockLimit ?? 2500) - (this.currentStockTotal ?? 0));
+});
+
+export function getDefaultMaxStockLimit(typeOfStore?: string): number {
+  const normalized = String(typeOfStore || '').toLowerCase();
+  if (normalized.includes('basic') || normalized.includes('express')) {
+    return 500;
+  }
+  if (normalized.includes('advanced') || normalized.includes('superstore') || normalized.includes('warehouse')) {
+    return 10000;
+  }
+  // Standard or fallback
+  return 2500;
+}
 
 export const Store = mongoose.model<IStore>('Store', storeSchema);
 

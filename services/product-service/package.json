@@ -12,6 +12,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "db:seed": "tsx src/scripts/seed.ts",
+    "seed:subcategories": "tsx src/scripts/seed-subcategories.ts",
     "index:all": "tsx src/scripts/reindex-all.ts"
   },
   "dependencies": {

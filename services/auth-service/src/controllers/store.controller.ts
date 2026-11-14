@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import { mongoose } from '@ornate/db';
-import { Store, generateNextStoreId } from '../models/store.model.js';
+import { Store, generateNextStoreId, getDefaultMaxStockLimit } from '../models/store.model.js';
 import { lookupStoreReferralCode } from '../utils/referral.js';
 import { signAccessToken, signRefreshToken } from '../utils/jwt.js';
 import { createLogger } from '@ornate/logger';
@@ -52,41 +52,100 @@ export async function verifyStoreReferral(req: Request, res: Response): Promise<
 
 /**
  * GET /api/v1/store/categories/available
- * Returns all active categories with availability flag (each category can have only one store).
+ * Returns root categories and nested subcategories with store assignment & capacity info.
  */
 export async function getAvailableCategories(_req: Request, res: Response): Promise<void> {
   try {
     const catalogDb = getCatalogDb();
-    const categories = await catalogDb.collection('categories').find({ isActive: true }).sort({ order: 1, name: 1 }).toArray();
+    const allCategories = await catalogDb
+      .collection('categories')
+      .find({ isActive: true })
+      .sort({ order: 1, name: 1 })
+      .toArray();
 
-    // Find all active stores and map their categoryId
-    const activeStores = await Store.find({ isActive: true, status: { $ne: 'suspended' } }).select('categoryId storeId name');
-    const storeMap = new Map<string, { storeId: string; name: string }>();
+    // Find all active stores and map by subcategoryId & categoryId
+    const activeStores = await Store.find({ isActive: true, status: { $ne: 'suspended' } }).select(
+      'categoryId categoryName subcategoryId subcategoryName storeId name maxStockLimit currentStockTotal typeOfStore',
+    );
+
+    const storeSubcatMap = new Map<string, any>();
+    const storeCatMap = new Map<string, any>();
 
     for (const s of activeStores) {
+      const remainingSpace = Math.max(0, (s.maxStockLimit ?? 2500) - (s.currentStockTotal ?? 0));
+      const sInfo = {
+        storeId: s.storeId,
+        name: s.name,
+        typeOfStore: s.typeOfStore,
+        maxStockLimit: s.maxStockLimit,
+        currentStockTotal: s.currentStockTotal,
+        hasSpace: remainingSpace > 0,
+      };
+      if (s.subcategoryId) {
+        storeSubcatMap.set(String(s.subcategoryId), sInfo);
+      }
       if (s.categoryId) {
-        storeMap.set(String(s.categoryId), { storeId: s.storeId, name: s.name });
+        storeCatMap.set(String(s.categoryId), sInfo);
       }
     }
 
-    const result = categories.map((cat: any) => {
+    const roots: any[] = [];
+    const subcategoriesMap = new Map<string, any[]>();
+
+    for (const cat of allCategories) {
       const catId = cat._id.toString();
-      const claimed = storeMap.get(catId);
-      return {
-        id: catId,
-        _id: catId,
-        name: cat.name,
-        slug: cat.slug,
-        description: cat.description || '',
-        image: cat.image || '',
-        isAvailable: !claimed,
-        claimedByStore: claimed || null,
-      };
-    });
+      const parentId = cat.parent ? cat.parent.toString() : null;
+
+      if (!parentId) {
+        roots.push({
+          id: catId,
+          _id: catId,
+          name: cat.name,
+          slug: cat.slug,
+          description: cat.description || '',
+          image: cat.image || '',
+          subcategories: [],
+        });
+      } else {
+        const claimed = storeSubcatMap.get(catId);
+        const subItem = {
+          id: catId,
+          _id: catId,
+          parentId,
+          name: cat.name,
+          slug: cat.slug,
+          description: cat.description || '',
+          image: cat.image || '',
+          isAvailable: !claimed || claimed.hasSpace === false,
+          claimedByStore: claimed || null,
+        };
+        const list = subcategoriesMap.get(parentId) || [];
+        list.push(subItem);
+        subcategoriesMap.set(parentId, list);
+      }
+    }
+
+    for (const root of roots) {
+      root.subcategories = subcategoriesMap.get(root.id) || [];
+    }
 
     res.json({
       success: true,
-      data: result,
+      data: roots,
+      flat: allCategories.map((c: any) => {
+        const cId = c._id.toString();
+        const claimed = storeSubcatMap.get(cId) || storeCatMap.get(cId);
+        return {
+          id: cId,
+          _id: cId,
+          name: c.name,
+          slug: c.slug,
+          parent: c.parent ? c.parent.toString() : null,
+          parentId: c.parent ? c.parent.toString() : null,
+          isAvailable: !claimed || claimed.hasSpace === false,
+          claimedByStore: claimed || null,
+        };
+      }),
     });
   } catch (err: any) {
     log.error({ err }, 'Failed to fetch available categories for store');
@@ -112,6 +171,11 @@ export async function registerStore(req: Request, res: Response): Promise<void> 
       categoryId,
       categoryName,
       categorySlug,
+      subcategoryId,
+      subcategoryName,
+      subcategorySlug,
+      typeOfStore: rawTypeOfStore,
+      maxStockLimit: rawLimit,
       referralCode,
       address,
       location,
@@ -123,10 +187,10 @@ export async function registerStore(req: Request, res: Response): Promise<void> 
     const cleanOwnerName = String(ownerName || '').trim();
     const cleanReferral = String(referralCode || '').trim();
 
-    if (!cleanName || !cleanOwnerName || !cleanMobile || !password || !categoryId || !cleanReferral) {
+    if (!cleanName || !cleanOwnerName || !cleanMobile || !password || (!categoryId && !subcategoryId) || !cleanReferral) {
       res.status(422).json({
         success: false,
-        error: { code: 'VALIDATION_ERROR', message: 'Store name, owner name, mobile, password, category, and sponsor code are required.' },
+        error: { code: 'VALIDATION_ERROR', message: 'Store name, owner name, mobile, password, subcategory, and sponsor code are required.' },
       });
       return;
     }
@@ -157,21 +221,101 @@ export async function registerStore(req: Request, res: Response): Promise<void> 
       return;
     }
 
-    // 2. Verify category exclusivity
-    const existingCategoryStore = await Store.findOne({
-      categoryId: String(categoryId),
-      isActive: true,
-      status: { $ne: 'suspended' },
-    });
-    if (existingCategoryStore) {
-      res.status(422).json({
-        success: false,
-        error: { code: 'CATEGORY_ALREADY_TAKEN', message: `This category is already assigned to store "${existingCategoryStore.name}" (${existingCategoryStore.storeId}). Each category can only have one store.` },
-      });
-      return;
+    // 2. Resolve subcategory and parent root category
+    const catalogDb = getCatalogDb();
+    let finalCatId = String(categoryId || '').trim();
+    let finalCatName = categoryName || '';
+    let finalCatSlug = categorySlug || '';
+    let finalSubcatId = String(subcategoryId || '').trim();
+    let finalSubcatName = subcategoryName || '';
+    let finalSubcatSlug = subcategorySlug || '';
+
+    if (finalSubcatId) {
+      try {
+        const subDoc = await catalogDb.collection('categories').findOne({
+          $or: [
+            ...(mongoose.Types.ObjectId.isValid(finalSubcatId) ? [{ _id: new mongoose.Types.ObjectId(finalSubcatId) }] : []),
+            { id: finalSubcatId },
+            { slug: finalSubcatId },
+          ],
+        });
+        if (subDoc) {
+          finalSubcatId = subDoc._id.toString();
+          finalSubcatName = subDoc.name;
+          finalSubcatSlug = subDoc.slug;
+
+          if (subDoc.parent) {
+            const parentDoc = await catalogDb.collection('categories').findOne({ _id: subDoc.parent });
+            if (parentDoc) {
+              finalCatId = parentDoc._id.toString();
+              finalCatName = parentDoc.name;
+              finalCatSlug = parentDoc.slug;
+            }
+          } else {
+            finalCatId = finalSubcatId;
+            finalCatName = finalSubcatName;
+            finalCatSlug = finalSubcatSlug;
+          }
+        }
+      } catch (err) {
+        log.warn({ err }, 'Error resolving subcategory');
+      }
+    } else if (finalCatId) {
+      try {
+        const catDoc = await catalogDb.collection('categories').findOne({
+          $or: [
+            ...(mongoose.Types.ObjectId.isValid(finalCatId) ? [{ _id: new mongoose.Types.ObjectId(finalCatId) }] : []),
+            { id: finalCatId },
+            { slug: finalCatId },
+          ],
+        });
+        if (catDoc) {
+          if (catDoc.parent) {
+            finalSubcatId = catDoc._id.toString();
+            finalSubcatName = catDoc.name;
+            finalSubcatSlug = catDoc.slug;
+            const parentDoc = await catalogDb.collection('categories').findOne({ _id: catDoc.parent });
+            if (parentDoc) {
+              finalCatId = parentDoc._id.toString();
+              finalCatName = parentDoc.name;
+              finalCatSlug = parentDoc.slug;
+            }
+          } else {
+            finalCatName = catDoc.name;
+            finalCatSlug = catDoc.slug;
+            finalSubcatId = finalCatId;
+            finalSubcatName = finalCatName;
+            finalSubcatSlug = finalCatSlug;
+          }
+        }
+      } catch (err) {
+        log.warn({ err }, 'Error resolving category');
+      }
     }
 
-    // 3. Verify unique mobile and email
+    // 3. Verify subcategory exclusivity
+    if (finalSubcatId) {
+      const existingSubStore = await Store.findOne({
+        subcategoryId: finalSubcatId,
+        isActive: true,
+        status: { $ne: 'suspended' },
+      });
+      if (existingSubStore) {
+        const remCap = Math.max(0, (existingSubStore.maxStockLimit ?? 2500) - (existingSubStore.currentStockTotal ?? 0));
+        if (remCap > 0) {
+          res.status(422).json({
+            success: false,
+            error: {
+              code: 'SUBCATEGORY_ALREADY_TAKEN',
+              message: `Subcategory "${finalSubcatName || finalSubcatId}" is already assigned to active store "${existingSubStore.name}" (${existingSubStore.storeId}), which still has available capacity (${remCap} units).`,
+            },
+          });
+          return;
+        }
+      }
+    }
+
+    // 4. Verify unique mobile and email
     const existingMobile = await Store.findOne({ mobileNumber: cleanMobile });
     if (existingMobile) {
       res.status(409).json({
@@ -192,27 +336,6 @@ export async function registerStore(req: Request, res: Response): Promise<void> 
       }
     }
 
-    // 4. Validate or fetch category details if not provided
-    let finalCatName = categoryName;
-    let finalCatSlug = categorySlug;
-    if (!finalCatName || !finalCatSlug) {
-      try {
-        const catalogDb = getCatalogDb();
-        const catDoc = await catalogDb.collection('categories').findOne({
-          $or: [
-            { _id: new mongoose.Types.ObjectId(categoryId) },
-            { id: String(categoryId) },
-          ],
-        });
-        if (catDoc) {
-          finalCatName = catDoc.name;
-          finalCatSlug = catDoc.slug;
-        }
-      } catch {
-        // fallback
-      }
-    }
-
     // 5. Generate unique Store ID
     const storeId = await generateNextStoreId();
 
@@ -223,7 +346,9 @@ export async function registerStore(req: Request, res: Response): Promise<void> 
     const lat = Number(location?.lat ?? 12.9716);
     const lng = Number(location?.lng ?? 77.5946);
 
-    const typeOfStore = String(req.body.typeOfStore || 'Standard').trim();
+    const typeOfStore = String(rawTypeOfStore || 'Standard (Fulfillment Hub)').trim();
+    const maxStockLimit = Number(rawLimit) > 0 ? Number(rawLimit) : getDefaultMaxStockLimit(typeOfStore);
+
     const isCreatedByAdmin = Boolean(
       req.body.createdByAdmin ||
       (req as any).user?.role === 'admin' ||
@@ -236,14 +361,19 @@ export async function registerStore(req: Request, res: Response): Promise<void> 
       storeId,
       name: cleanName,
       typeOfStore,
+      maxStockLimit,
+      currentStockTotal: 0,
       ownerName: cleanOwnerName,
       email: cleanEmail || `${cleanMobile}@store.eshopy.biz`,
       mobileNumber: cleanMobile,
       passwordHash,
       role: 'store',
-      categoryId: String(categoryId),
+      categoryId: finalCatId,
       categoryName: finalCatName || 'General',
       categorySlug: finalCatSlug || 'general',
+      subcategoryId: finalSubcatId || finalCatId,
+      subcategoryName: finalSubcatName || finalCatName || 'General',
+      subcategorySlug: finalSubcatSlug || finalCatSlug || 'general',
       referralCode: refResult.referralCode,
       referralName: refResult.referralName,
       referralType: refResult.referralType,
@@ -266,12 +396,68 @@ export async function registerStore(req: Request, res: Response): Promise<void> 
 
     await store.save();
 
+    // 8. Auto-assign any pending unassigned stock in this subcategory to the new store
+    try {
+      let remainingCap = store.maxStockLimit;
+      const targetSubcat = store.subcategoryId;
+      if (remainingCap > 0 && targetSubcat) {
+        const pendingProducts = await catalogDb
+          .collection('products')
+          .find({
+            $or: [
+              { subcategoryId: targetSubcat, unassignedStock: { $gt: 0 } },
+              { subcategoryId: targetSubcat, assignmentStatus: { $in: ['unassigned', 'partially_assigned'] } },
+              { subcategoryId: targetSubcat, storeId: null },
+            ],
+          })
+          .sort({ createdAt: 1 })
+          .toArray();
+
+        let allocatedUnits = 0;
+        for (const prod of pendingProducts) {
+          if (remainingCap <= 0) break;
+          const unassigned = Number(prod.unassignedStock ?? (prod.storeId ? 0 : prod.stock));
+          if (unassigned <= 0) continue;
+
+          const qtyToAllocate = Math.min(unassigned, remainingCap);
+          const newAssigned = (Number(prod.assignedStock) || 0) + qtyToAllocate;
+          const newUnassigned = unassigned - qtyToAllocate;
+          const newStatus = newUnassigned === 0 ? 'assigned' : 'partially_assigned';
+
+          await catalogDb.collection('products').updateOne(
+            { _id: prod._id },
+            {
+              $set: {
+                storeId: store.storeId,
+                storeName: store.name,
+                assignedStock: newAssigned,
+                unassignedStock: newUnassigned,
+                assignmentStatus: newStatus,
+              },
+            },
+          );
+
+          remainingCap -= qtyToAllocate;
+          allocatedUnits += qtyToAllocate;
+        }
+
+        if (allocatedUnits > 0) {
+          store.currentStockTotal = allocatedUnits;
+          await store.save();
+          log.info({ storeId: store.storeId, allocatedUnits }, 'Auto-assigned pending products to new store upon creation');
+        }
+      }
+    } catch (autoErr) {
+      log.warn({ autoErr, storeId: store.storeId }, 'Error auto-assigning products on store creation');
+    }
+
     const accessToken = signAccessToken({
       userId: store._id.toString(),
       email: store.email,
       role: 'store',
       storeId: store.storeId,
       categoryId: store.categoryId,
+      subcategoryId: store.subcategoryId,
     });
     const refreshToken = signRefreshToken({ userId: store._id.toString() });
 
@@ -352,6 +538,7 @@ export async function loginStore(req: Request, res: Response): Promise<void> {
       role: 'store',
       storeId: store.storeId,
       categoryId: store.categoryId,
+      subcategoryId: store.subcategoryId,
     });
     const refreshToken = signRefreshToken({ userId: store._id.toString() });
 

@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import mongoose from 'mongoose';
 import slugify from 'slugify';
 import { Category } from '../models/category.model.js';
 import { Product } from '../models/product.model.js';
@@ -13,7 +14,7 @@ function buildSlug(name: string): string {
 async function buildAncestors(
   parentId?: string | null,
 ): Promise<Array<{ id: string; name: string; slug: string }>> {
-  if (!parentId) return [];
+  if (!parentId || !mongoose.Types.ObjectId.isValid(parentId)) return [];
   const parent = await Category.findById(parentId);
   if (!parent) return [];
   return [...parent.ancestors, { id: parent.id as string, name: parent.name, slug: parent.slug }];
@@ -23,16 +24,50 @@ async function buildAncestors(
 export async function listCategories(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const parentId = req.query.parent as string | undefined;
+    const tree = req.query.tree === 'true';
     const filter: Record<string, unknown> = { isActive: true };
-    if (parentId === 'null' || parentId === '') filter.parent = null;
-    else if (parentId) filter.parent = parentId;
+
+    if (!tree) {
+      if (parentId === 'null' || parentId === '') filter.parent = null;
+      else if (parentId) filter.parent = parentId;
+    }
 
     const categories = await Category.find(filter).sort({ order: 1, name: 1 });
-    const formatted = categories.map((cat) => ({
-      ...cat.toObject(),
-      id: cat._id.toString(),
-      _id: cat._id.toString(),
-    }));
+    const formatted = categories.map((cat) => {
+      const obj = cat.toObject();
+      const parentStr = cat.parent ? cat.parent.toString() : null;
+      return {
+        ...obj,
+        id: cat._id.toString(),
+        _id: cat._id.toString(),
+        parent: parentStr,
+        parentId: parentStr,
+      };
+    });
+
+    if (tree) {
+      // Build hierarchical category tree
+      const roots: any[] = [];
+      const childrenMap = new Map<string, any[]>();
+
+      for (const item of formatted) {
+        if (!item.parent) {
+          roots.push({ ...item, children: [] });
+        } else {
+          const list = childrenMap.get(item.parent) || [];
+          list.push(item);
+          childrenMap.set(item.parent, list);
+        }
+      }
+
+      for (const root of roots) {
+        root.children = childrenMap.get(root.id) || [];
+      }
+
+      res.json({ success: true, data: roots });
+      return;
+    }
+
     res.json({ success: true, data: formatted });
   } catch (err) {
     next(err);
@@ -64,27 +99,63 @@ export async function getCategoryBySlug(req: Request, res: Response, next: NextF
 // POST /api/v1/admin/categories
 export async function createCategory(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const { name, description, image, parent, order, seoTitle, seoDescription } = req.body;
-    const slug = buildSlug(name);
+    const { name, description, image, parent, parentId, order, seoTitle, seoDescription } = req.body;
+    if (!name || !name.trim()) {
+      res.status(400).json({ success: false, error: { code: 'NAME_REQUIRED', message: 'Category name is required.' } });
+      return;
+    }
 
-    // Validate circular parent
-    if (parent) {
-      const parentCat = await Category.findById(parent);
-      if (!parentCat) {
+    const targetParent = parent || parentId || null;
+    let parentDoc: any = null;
+
+    if (targetParent) {
+      if (!mongoose.Types.ObjectId.isValid(targetParent)) {
+        res.status(400).json({ success: false, error: { code: 'INVALID_PARENT_ID', message: 'Invalid parent category ID.' } });
+        return;
+      }
+      parentDoc = await Category.findById(targetParent);
+      if (!parentDoc) {
         res.status(404).json({ success: false, error: { code: 'PARENT_NOT_FOUND', message: 'Parent category not found.' } });
         return;
       }
     }
 
-    const ancestors = await buildAncestors(parent);
+    let baseSlug = buildSlug(name.trim());
+    let slug = baseSlug;
+    let counter = 1;
+    while (await Category.findOne({ slug })) {
+      slug = `${baseSlug}-${counter++}`;
+    }
+
+    const ancestors = parentDoc ? await buildAncestors(parentDoc._id.toString()) : [];
     const category = await Category.create({
-      name, slug, description, image, parent: parent ?? null, ancestors,
-      order: order ?? 0, seoTitle, seoDescription,
+      name: name.trim(),
+      slug,
+      description: description?.trim() || undefined,
+      image,
+      parent: parentDoc ? parentDoc._id : null,
+      ancestors,
+      order: order ?? 0,
+      seoTitle,
+      seoDescription,
     });
 
-    log.info({ categoryId: category.id, slug }, 'Category created');
-    res.status(201).json({ success: true, data: category });
-  } catch (err) {
+    log.info({ categoryId: category.id, slug, parentId: parentDoc?._id }, 'Category created');
+    res.status(201).json({
+      success: true,
+      data: {
+        ...category.toObject(),
+        id: category._id.toString(),
+        _id: category._id.toString(),
+        parent: parentDoc ? parentDoc._id.toString() : null,
+        parentId: parentDoc ? parentDoc._id.toString() : null,
+      },
+    });
+  } catch (err: any) {
+    if (err.code === 11000) {
+      res.status(409).json({ success: false, error: { code: 'DUPLICATE_SLUG', message: 'Category slug already exists.' } });
+      return;
+    }
     next(err);
   }
 }

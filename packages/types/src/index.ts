@@ -20,6 +20,7 @@ export interface JwtPayload {
   role: UserRole;
   storeId?: string;
   categoryId?: string;
+  subcategoryId?: string;
   iat: number;
   exp: number;
 }
@@ -93,14 +94,17 @@ export interface InternalProductPricing extends ProductPricing {
 // ---- Category ----
 export interface Category {
   id: string;
+  _id?: string;
   name: string;
   slug: string;
   description?: string;
   image?: string;
+  parent?: string | null;
   parentId?: string | null;
   ancestors: Array<{ id: string; name: string; slug: string }>;
   order: number;
   isActive: boolean;
+  children?: Category[];
   seoTitle?: string;
   seoDescription?: string;
   createdAt: string;
@@ -141,9 +145,14 @@ export interface PublicProduct {
   longDescription?: string;
   categoryId: string;
   categoryName: string;
+  subcategoryId?: string;
+  subcategoryName?: string;
   images: ProductImage[];
   pricing: ApplicablePrice;
   stock: number;
+  assignedStock?: number;
+  unassignedStock?: number;
+  assignmentStatus?: 'assigned' | 'partially_assigned' | 'unassigned';
   attributes: ProductAttribute[];
   variants: ProductVariant[];
   status: ProductStatus;
@@ -568,6 +577,12 @@ export interface StoreProfile {
   categoryId: string;
   categoryName: string;
   categorySlug?: string;
+  subcategoryId?: string;
+  subcategoryName?: string;
+  subcategorySlug?: string;
+  maxStockLimit?: number;
+  currentStockTotal?: number;
+  availableCapacity?: number;
   referralCode: string;
   referralName: string;
   referralType: 'vendor' | 'store';

@@ -15,6 +15,7 @@ import {
   TableRow,
   TableCell,
   TableContainer,
+  LinearProgress,
 } from '@mui/material';
 import {
   Inventory2 as ProductsIcon,
@@ -30,7 +31,7 @@ import { useStoreAuthStore } from '../store/auth.store';
 import StoreReferralCard from '../components/referral/StoreReferralCard';
 
 export default function DashboardPage() {
-  const { store } = useStoreAuthStore();
+  const { store, updateStoreProfile } = useStoreAuthStore();
   const [stats, setStats] = useState({
     totalProducts: 0,
     pendingOrders: 0,
@@ -48,6 +49,13 @@ export default function DashboardPage() {
           api.get('/store/products?limit=1').catch(() => ({ data: { data: { pagination: { total: 0 } } } })),
           api.get('/store/orders?limit=10').catch(() => ({ data: { data: { items: [] } } })),
         ]);
+
+        // Refresh store profile to get latest stock totals and capacity
+        api.get('/store/me').then((resp) => {
+          if (resp.data?.success && resp.data.data) {
+            updateStoreProfile(resp.data.data);
+          }
+        }).catch(() => {});
 
         const totalProds = prodResp.data?.data?.pagination?.total ?? 0;
         const orders = ordersResp.data?.data?.items ?? [];
@@ -110,15 +118,23 @@ export default function DashboardPage() {
         }}
       >
         <Box>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 0.5 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 0.5, flexWrap: 'wrap' }}>
             <Typography variant="h5" sx={{ fontWeight: 800, color: '#172B30' }}>
               Welcome, {store?.name || 'Partner Store'}
             </Typography>
             <Chip
-              label={store?.categoryName || 'General'}
+              label={store?.subcategoryName ? `${store.categoryName || 'Category'} > ${store.subcategoryName}` : (store?.categoryName || 'General')}
               size="small"
               sx={{ bgcolor: '#FFF7ED', color: '#FF7900', fontWeight: 700 }}
             />
+            {store?.typeOfStore && (
+              <Chip
+                label={`${store.typeOfStore} Tier`}
+                size="small"
+                variant="outlined"
+                sx={{ borderColor: '#CBD5E1', color: '#475569', fontWeight: 600, fontSize: '0.75rem' }}
+              />
+            )}
           </Box>
           <Typography variant="body2" sx={{ color: '#64748B' }}>
             Store ID: <strong>{store?.storeId}</strong> • Manager: {store?.ownerName} • {store?.address?.city}, {store?.address?.state}
@@ -146,6 +162,109 @@ export default function DashboardPage() {
           </Button>
         </Stack>
       </Paper>
+
+      {/* Store Subcategory & Capacity Overview Card */}
+      {store && (
+        <Paper
+          elevation={0}
+          sx={{
+            p: { xs: 2, sm: 2.5 },
+            borderRadius: 3,
+            bgcolor: '#FFFFFF',
+            border: '1px solid #E2E8F0',
+            mb: 3,
+          }}
+        >
+          <Grid container spacing={2.5} alignItems="center">
+            <Grid item xs={12} md={5}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 0.5 }}>
+                <Box
+                  sx={{
+                    width: 42,
+                    height: 42,
+                    borderRadius: 2,
+                    bgcolor: '#FFF7ED',
+                    color: '#FF7900',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <ProductsIcon />
+                </Box>
+                <Box>
+                  <Typography variant="caption" sx={{ color: '#64748B', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                    Dedicated Subcategory
+                  </Typography>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 800, color: '#172B30' }}>
+                    {store.subcategoryName || store.categoryName || 'General Subcategory'}
+                  </Typography>
+                </Box>
+              </Box>
+              <Typography variant="caption" sx={{ color: '#64748B', display: 'block', mt: 0.5 }}>
+                Category: <strong>{store.categoryName || 'General'}</strong> • Tier: <strong>{store.typeOfStore || 'Standard'}</strong> (Max: {(store.maxStockLimit ?? 2500).toLocaleString()} units)
+              </Typography>
+            </Grid>
+
+            <Grid item xs={12} md={7}>
+              <Box sx={{ p: 2, borderRadius: 2, bgcolor: '#F8FAFC', border: '1px solid #E2E8F0' }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                  <Typography variant="body2" sx={{ fontWeight: 700, color: '#172B30' }}>
+                    Store Physical Stock Capacity
+                  </Typography>
+                  {(() => {
+                    const maxL = store.maxStockLimit ?? 2500;
+                    const curL = store.currentStockTotal ?? 0;
+                    const pct = Math.min(100, Math.round((curL / maxL) * 100));
+                    return (
+                      <Chip
+                        label={`${curL.toLocaleString()} / ${maxL.toLocaleString()} units (${pct}%)`}
+                        size="small"
+                        sx={{
+                          fontWeight: 700,
+                          bgcolor: pct >= 90 ? '#FEF2F2' : pct >= 75 ? '#FFFBEB' : '#ECFDF5',
+                          color: pct >= 90 ? '#B91C1C' : pct >= 75 ? '#B45309' : '#047857',
+                        }}
+                      />
+                    );
+                  })()}
+                </Box>
+                {(() => {
+                  const maxL = store.maxStockLimit ?? 2500;
+                  const curL = store.currentStockTotal ?? 0;
+                  const pct = Math.min(100, Math.round((curL / maxL) * 100));
+                  const available = Math.max(0, maxL - curL);
+                  return (
+                    <>
+                      <LinearProgress
+                        variant="determinate"
+                        value={pct}
+                        sx={{
+                          height: 8,
+                          borderRadius: 4,
+                          bgcolor: '#E2E8F0',
+                          '& .MuiLinearProgress-bar': {
+                            borderRadius: 4,
+                            bgcolor: pct >= 90 ? '#EF4444' : pct >= 75 ? '#F59E0B' : '#10B981',
+                          },
+                        }}
+                      />
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 1 }}>
+                        <Typography variant="caption" sx={{ color: available > 0 ? '#047857' : '#B91C1C', fontWeight: 600 }}>
+                          {available > 0 ? `${available.toLocaleString()} units available capacity` : 'Store is at maximum capacity limit'}
+                        </Typography>
+                        <Typography variant="caption" sx={{ color: '#94A3B8' }}>
+                          Overflow queues as unassigned
+                        </Typography>
+                      </Box>
+                    </>
+                  );
+                })()}
+              </Box>
+            </Grid>
+          </Grid>
+        </Paper>
+      )}
 
       {/* Referral Link & Code Quick Card */}
       {store?.storeId && (

@@ -70,6 +70,7 @@ export default function ProductsPage() {
     sku: '',
     brand: '',
     category: '',
+    subcategoryId: '',
     shortDescription: '',
     longDescription: '',
     mrp: 1000,
@@ -96,7 +97,7 @@ export default function ProductsPage() {
     queryKey: ['admin-categories'],
     queryFn: async () => {
       try {
-        const res = await api.get('/categories');
+        const res = await api.get('/categories?tree=true');
         const raw = res.data?.data?.categories || res.data?.data || res.data || [];
         const rawList = Array.isArray(raw) ? raw : [];
         if (rawList.length > 0) {
@@ -105,6 +106,9 @@ export default function ProductsPage() {
             _id: String(cat._id || cat.id || ''),
             name: cat.name,
             slug: cat.slug,
+            parent: cat.parent ? String(cat.parent) : null,
+            parentId: cat.parentId ? String(cat.parentId) : null,
+            children: cat.children || [],
           }));
         }
       } catch {
@@ -119,6 +123,9 @@ export default function ProductsPage() {
               _id: String(cat._id || cat.id || ''),
               name: cat.name,
               slug: cat.slug,
+              parent: cat.parent ? String(cat.parent) : null,
+              parentId: cat.parentId ? String(cat.parentId) : null,
+              children: cat.children || [],
             }));
           }
         } catch {
@@ -159,6 +166,8 @@ export default function ProductsPage() {
         sku: form.sku.toUpperCase(),
         brand: form.brand,
         category: targetCategory,
+        subcategory: form.subcategoryId || null,
+        subcategoryId: form.subcategoryId || null,
         shortDescription: form.shortDescription,
         longDescription: form.longDescription,
         pricing: {
@@ -280,6 +289,7 @@ export default function ProductsPage() {
       sku: `PROD-${Math.floor(100 + Math.random() * 900)}`,
       brand: '',
       category: defaultCatId,
+      subcategoryId: '',
       shortDescription: '',
       longDescription: '',
       mrp: 2999,
@@ -313,6 +323,7 @@ export default function ProductsPage() {
       sku: p.sku,
       brand: p.brand || '',
       category: String(catId),
+      subcategoryId: (p as any).subcategoryId || '',
       shortDescription: p.shortDescription || '',
       longDescription: p.longDescription || '',
       mrp: ((p.pricing?.mrp ?? 0) / 100),
@@ -550,7 +561,14 @@ export default function ProductsPage() {
                         {product.sku}
                       </TableCell>
                       <TableCell sx={{ fontSize: '0.85rem' }}>
-                        {product.categoryName || 'General'}
+                        <Typography variant="body2" sx={{ fontWeight: 700, color: '#0F172A', fontSize: '0.8rem' }}>
+                          {product.subcategoryName || product.categoryName || 'General'}
+                        </Typography>
+                        {product.subcategoryName && product.categoryName && product.subcategoryName !== product.categoryName && (
+                          <Typography variant="caption" sx={{ color: '#94A3B8', display: 'block', fontSize: '0.68rem' }}>
+                            in {product.categoryName}
+                          </Typography>
+                        )}
                       </TableCell>
                       <TableCell sx={{ color: '#94a3b8', textDecoration: mrp > selling ? 'line-through' : 'none' }}>
                         ₹{mrp.toLocaleString('en-IN')}
@@ -574,9 +592,9 @@ export default function ProductsPage() {
                           }}
                         />
                       </TableCell>
-                      <TableCell>
+                      <TableCell sx={{ minWidth: 160 }}>
                         <Chip
-                          label={`${product.stock} left`}
+                          label={`${product.stock} total units`}
                           size="small"
                           sx={{
                             fontWeight: 800,
@@ -585,6 +603,35 @@ export default function ProductsPage() {
                             color: product.stock <= 5 ? '#b91c1c' : '#334155',
                           }}
                         />
+                        {/* Store Assignment Status badge */}
+                        {(() => {
+                          const status = product.assignmentStatus || (product.storeId ? 'assigned' : 'unassigned');
+                          if (status === 'assigned') {
+                            return (
+                              <Chip
+                                label={`Store: ${product.storeName || product.storeId || 'Assigned'}`}
+                                size="small"
+                                sx={{ display: 'flex', mt: 0.5, height: 18, fontSize: '0.62rem', fontWeight: 800, bgcolor: '#ECFDF5', color: '#047857', border: '1px solid #A7F3D0' }}
+                              />
+                            );
+                          }
+                          if (status === 'partially_assigned') {
+                            return (
+                              <Chip
+                                label={`Split: ${product.assignedStock || 0} in store / ${product.unassignedStock || 0} unassigned`}
+                                size="small"
+                                sx={{ display: 'flex', mt: 0.5, height: 18, fontSize: '0.62rem', fontWeight: 800, bgcolor: '#FFFBEB', color: '#B45309', border: '1px solid #FDE68A' }}
+                              />
+                            );
+                          }
+                          return (
+                            <Chip
+                              label="Unassigned (Waiting for store)"
+                              size="small"
+                              sx={{ display: 'flex', mt: 0.5, height: 18, fontSize: '0.62rem', fontWeight: 800, bgcolor: '#F1F5F9', color: '#475569', border: '1px solid #CBD5E1' }}
+                            />
+                          );
+                        })()}
                       </TableCell>
                       <TableCell sx={{ textAlign: 'right', minWidth: 230 }}>
                         <Box sx={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', gap: 1 }}>
@@ -731,7 +778,7 @@ export default function ProductsPage() {
                 fullWidth
                 size="small"
                 value={form.category}
-                onChange={(e) => setForm({ ...form, category: e.target.value })}
+                onChange={(e) => setForm({ ...form, category: e.target.value, subcategoryId: '' })}
                 InputLabelProps={{ shrink: true }}
                 SelectProps={{
                   displayEmpty: true,
@@ -762,6 +809,34 @@ export default function ProductsPage() {
                     </MenuItem>
                   );
                 })}
+              </TextField>
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                select
+                label="Subcategory (Store Assignment)"
+                fullWidth
+                size="small"
+                value={form.subcategoryId}
+                onChange={(e) => setForm({ ...form, subcategoryId: e.target.value })}
+                InputLabelProps={{ shrink: true }}
+                helperText="Stock will auto-route to stores assigned to this subcategory"
+              >
+                <MenuItem value="">
+                  <em>None (Assign to Main Category)</em>
+                </MenuItem>
+                {(() => {
+                  const selCat = categories.find((c: any) => (c.id || c._id) === form.category);
+                  const subcats = (selCat as any)?.children || [];
+                  return subcats.map((sc: any, idx: number) => {
+                    const val = sc.id || sc._id || `subcat-${idx}`;
+                    return (
+                      <MenuItem key={val} value={val}>
+                        {sc.name}
+                      </MenuItem>
+                    );
+                  });
+                })()}
               </TextField>
             </Grid>
 

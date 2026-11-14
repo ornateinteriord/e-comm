@@ -9,6 +9,7 @@ import { serializePublicProduct, serializeAdminProduct } from '../utils/product.
 import { validatePrices } from '@ornate/pricing-utils';
 import { createLogger } from '@ornate/logger';
 import { emitSearchEvent } from '../utils/search-event.js';
+import { allocateStockForProduct, autoAssignUnassignedStockToStore } from '../utils/stock-allocation.js';
 
 const log = createLogger('product-controller');
 
@@ -194,11 +195,39 @@ export async function createProduct(req: Request, res: Response, next: NextFunct
     }
 
     const slug = generateSlug(name, sku);
+
+    // Resolve subcategory details
+    const subcatId = req.body.subcategoryId || (subcategory ? subcategory.toString() : null);
+    let subcatDoc: any = null;
+    let finalSubcatName = req.body.subcategoryName;
+    if (subcatId) {
+      subcatDoc = await Category.findById(subcatId).catch(() => null);
+      if (subcatDoc) {
+        finalSubcatName = subcatDoc.name;
+      }
+    }
+
+    // Allocate stock to an active store in this subcategory up to store capacity limit
+    const incomingStock = stock ?? 0;
+    const allocation = await allocateStockForProduct({
+      subcategoryId: subcatId,
+      categoryId: category ? category.toString() : null,
+      stock: incomingStock,
+    });
+
     const product = await Product.create({
       name, slug, sku: sku.toUpperCase(), brand, shortDescription, longDescription,
-      category, subcategory,
+      category,
+      subcategory: subcatDoc ? subcatDoc._id : (subcategory ?? null),
+      subcategoryId: subcatId || (subcatDoc ? subcatDoc._id.toString() : undefined),
+      subcategoryName: finalSubcatName,
+      storeId: allocation.storeId,
+      storeName: allocation.storeName,
+      assignedStock: allocation.assignedStock,
+      unassignedStock: allocation.unassignedStock,
+      assignmentStatus: allocation.assignmentStatus,
       pricing: { ...pricing },
-      stock: stock ?? 0,
+      stock: incomingStock,
       lowStockThreshold: lowStockThreshold ?? 5,
       status: status ?? 'draft',
       isPublished: isPublished ?? false,
@@ -478,6 +507,21 @@ export async function storeCreateProduct(req: Request, res: Response, next: Next
     }
 
     const slug = generateSlug(name, skuUpper);
+
+    const targetSubcatId = (req.body.subcategoryId || (req.user as any)?.subcategoryId || categoryId)?.toString();
+    let subcatName: string | undefined = undefined;
+    if (targetSubcatId && mongoose.Types.ObjectId.isValid(targetSubcatId)) {
+      const subcatDoc = await Category.findById(targetSubcatId).select('name');
+      if (subcatDoc) subcatName = subcatDoc.name;
+    }
+
+    const incomingStock = stock ?? 0;
+    const allocation = await allocateStockForProduct({
+      requestedStoreId: storeId,
+      subcategoryId: targetSubcatId,
+      stock: incomingStock,
+    });
+
     const product = await Product.create({
       name,
       slug,
@@ -486,8 +530,13 @@ export async function storeCreateProduct(req: Request, res: Response, next: Next
       shortDescription,
       longDescription,
       category: mongoose.Types.ObjectId.isValid(categoryId) ? new mongoose.Types.ObjectId(categoryId) : categoryId,
+      subcategoryId: targetSubcatId,
+      subcategoryName: subcatName,
       pricing: pricePayload,
-      stock: stock ?? 0,
+      stock: incomingStock,
+      assignedStock: allocation.assignedStock,
+      unassignedStock: allocation.unassignedStock,
+      assignmentStatus: allocation.assignmentStatus,
       lowStockThreshold: lowStockThreshold ?? 5,
       status: status ?? 'active',
       isPublished: typeof isPublished === 'boolean' ? isPublished : true,
@@ -498,8 +547,8 @@ export async function storeCreateProduct(req: Request, res: Response, next: Next
       taxClass,
       weight,
       dimensions,
-      storeId,
-      storeName: storeId,
+      storeId: allocation.storeId || storeId,
+      storeName: allocation.storeName || storeId,
       createdBy: { type: 'store', id: req.user!.userId, name: storeId },
       images: (images ?? []).map((img: any, idx: number) => ({
         id: img.id || uuidv4(),
@@ -596,6 +645,49 @@ export async function storeUpdateProduct(req: Request, res: Response, next: Next
       success: true,
       data: serializePublicProduct(product),
       message: 'Product updated successfully.',
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * POST /api/v1/admin/stores/:storeId/auto-assign-stock
+ * Automatically allocates pending unassigned products to a store up to its maximum capacity.
+ */
+export async function adminAutoAssignStock(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { storeId } = req.params;
+    const conn: any = mongoose.connection;
+    const client = typeof conn.getClient === 'function' ? conn.getClient() : conn.client;
+    const authDb = client ? client.db(process.env.AUTH_DB_NAME ?? 'ornate_auth') : mongoose.connection.useDb(process.env.AUTH_DB_NAME ?? 'ornate_auth').db;
+
+    const store = await authDb.collection('stores').findOne({ storeId });
+    if (!store) {
+      res.status(404).json({ success: false, error: { code: 'STORE_NOT_FOUND', message: 'Store not found.' } });
+      return;
+    }
+
+    const result = await autoAssignUnassignedStockToStore({
+      storeId: store.storeId,
+      name: store.name,
+      subcategoryId: store.subcategoryId || store.categoryId,
+      maxStockLimit: store.maxStockLimit,
+      currentStockTotal: store.currentStockTotal,
+    });
+
+    const updatedStore = await authDb.collection('stores').findOne({ storeId });
+
+    res.json({
+      success: true,
+      data: {
+        allocatedProducts: result.allocatedProducts,
+        allocatedUnits: result.allocatedUnits,
+        currentStockTotal: updatedStore?.currentStockTotal ?? 0,
+        maxStockLimit: updatedStore?.maxStockLimit ?? 2500,
+        availableCapacity: Math.max(0, (updatedStore?.maxStockLimit ?? 2500) - (updatedStore?.currentStockTotal ?? 0)),
+      },
+      message: `Successfully allocated ${result.allocatedUnits} units across ${result.allocatedProducts} products to store ${store.name}.`,
     });
   } catch (err) {
     next(err);

@@ -48,9 +48,14 @@ export interface IProduct extends Document {
   longDescription?: string;
   category: mongoose.Types.ObjectId;
   subcategory?: mongoose.Types.ObjectId | null;
+  subcategoryId?: string;
+  subcategoryName?: string;
   images: IProductImage[];
   pricing: IProductPricing;
   stock: number;
+  assignedStock: number;
+  unassignedStock: number;
+  assignmentStatus: 'assigned' | 'partially_assigned' | 'unassigned';
   lowStockThreshold: number;
   status: 'draft' | 'active' | 'archived' | 'inactive';
   isPublished: boolean;
@@ -95,7 +100,9 @@ const productSchema = new Schema<IProduct>(
     shortDescription: { type: String },
     longDescription: { type: String },
     category: { type: Schema.Types.ObjectId, ref: 'Category', required: true, index: true },
-    subcategory: { type: Schema.Types.ObjectId, ref: 'Category', default: null },
+    subcategory: { type: Schema.Types.ObjectId, ref: 'Category', default: null, index: true },
+    subcategoryId: { type: String, trim: true, index: true },
+    subcategoryName: { type: String, trim: true },
     images: [
       {
         id: { type: String, required: true },
@@ -106,6 +113,14 @@ const productSchema = new Schema<IProduct>(
     ],
     pricing: { type: productPricingSchema, required: true },
     stock: { type: Number, required: true, min: 0, default: 0 },
+    assignedStock: { type: Number, required: true, min: 0, default: 0 },
+    unassignedStock: { type: Number, required: true, min: 0, default: 0 },
+    assignmentStatus: {
+      type: String,
+      enum: ['assigned', 'partially_assigned', 'unassigned'],
+      default: 'unassigned',
+      index: true,
+    },
     lowStockThreshold: { type: Number, default: 5 },
     status: {
       type: String,
