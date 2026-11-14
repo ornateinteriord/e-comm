@@ -238,6 +238,7 @@ export async function register(req: Request, res: Response, next: NextFunction):
       referralType: customer.referralType || refResult.referralType || 'vendor',
       referralCode: customer.referralCode || rawRefCode,
       vendor_id: customer.vendor_id,
+      newCustomerId: customer._id.toString(),
     });
 
     const accessToken = signAccessToken({ userId: customer.id, email: customer.email, role: customer.role });

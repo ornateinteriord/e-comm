@@ -117,7 +117,9 @@ export function buildVendorQuery(code: string): { $or: any[] } {
 
 /**
  * Builds MongoDB $or query for customers matching:
- * customerId, customer_id, email, mobileNumber, phone, username, referralCode
+ * customerId, customer_id, email, mobileNumber, phone, username, userId
+ * NOTE: referralCode is explicitly NOT included here, as referralCode indicates WHO referred this customer,
+ * not the customer's own identity.
  */
 export function buildCustomerQuery(code: string): { $or: any[] } {
   const { strings, numbers, regexes } = getSearchVariants(code);
@@ -130,7 +132,7 @@ export function buildCustomerQuery(code: string): { $or: any[] } {
     'mobileNumber',
     'phone',
     'username',
-    'referralCode',
+    'userId',
   ];
 
   for (const field of customerFields) {
@@ -142,11 +144,15 @@ export function buildCustomerQuery(code: string): { $or: any[] } {
     }
   }
 
-  const numericCustomerFields = ['mobileNumber', 'phone', 'username'];
+  const numericCustomerFields = ['customerId', 'customer_id', 'mobileNumber', 'phone', 'username'];
   for (const field of numericCustomerFields) {
     for (const n of numbers) {
       conditions.push({ [field]: n });
     }
+  }
+
+  if (mongoose.Types.ObjectId.isValid(code)) {
+    conditions.unshift({ _id: new mongoose.Types.ObjectId(code) });
   }
 
   return { $or: conditions.length > 0 ? conditions : [{ customerId: code }] };
@@ -295,7 +301,6 @@ export async function lookupReferralCode(rawCode: string): Promise<ReferralLooku
       const referralCode = String(
         customer.customerId ||
         customer.customer_id ||
-        customer.referralCode ||
         customer.mobileNumber ||
         customer.phone ||
         customer.username ||
@@ -333,6 +338,7 @@ export interface ReferralRewardResult {
 /**
  * Helper to reward a vendor and all upstream vendors in its introducer_hierarchy with token: +1
  * Respects maxTokensRemaining budget so total tokens distributed across chain never exceeds 20.
+ * Increments both `token` and `tokens` to maintain compatibility with all dashboard variants.
  * Vendors NEVER receive a level increment.
  */
 async function rewardVendorHierarchyWithBudget(
@@ -359,12 +365,25 @@ async function rewardVendorHierarchyWithBudget(
       const vendorDoc = await ecashDb.collection('vendor_tbl').findOne(buildVendorQuery(vId));
 
       if (vendorDoc) {
-        // Increment token only (vendors never get level increment)
+        // Track all known identifiers of this vendor to prevent duplicate reward iterations
+        visitedVendors.add(String(vendorDoc._id).toLowerCase());
+        if (vendorDoc.Member_id) visitedVendors.add(String(vendorDoc.Member_id).toLowerCase());
+        if (vendorDoc.member_id) visitedVendors.add(String(vendorDoc.member_id).toLowerCase());
+        if (vendorDoc.member_code) visitedVendors.add(String(vendorDoc.member_code).toLowerCase());
+        if (vendorDoc.Member_Code) visitedVendors.add(String(vendorDoc.Member_Code).toLowerCase());
+        if (vendorDoc.mobileno) visitedVendors.add(String(vendorDoc.mobileno).toLowerCase());
+        if (vendorDoc.MobileNo) visitedVendors.add(String(vendorDoc.MobileNo).toLowerCase());
+
+        // Increment both token and tokens fields so all interfaces reflect the reward
         await ecashDb.collection('vendor_tbl').updateOne(
           { _id: vendorDoc._id },
-          { $inc: { token: 1 } },
+          {
+            $inc: { token: 1, tokens: 1 },
+            $set: { updatedAt: new Date() },
+          },
         );
-        updatedVendors.push(String(
+
+        const canonicalCode = String(
           vendorDoc.member_code ||
           vendorDoc.Member_Code ||
           vendorDoc.Member_code ||
@@ -372,7 +391,8 @@ async function rewardVendorHierarchyWithBudget(
           vendorDoc.Member_id ||
           vendorDoc.member_id ||
           vId
-        ));
+        );
+        updatedVendors.push(canonicalCode);
         tokensGiven++;
 
         if (tokensGiven >= maxTokensRemaining) {
@@ -414,13 +434,14 @@ async function rewardVendorHierarchyWithBudget(
  *      Customer A receives level: +1 and token: +1.
  *    - Continues until total tokens reaches 20, or a sponsor's role is Vendor.
  * 3. When a Vendor is encountered:
- *    - Vendor receives token: +1 (NO level increase).
+ *    - Vendor receives token: +1 and tokens: +1 (NO level increase).
  *    - If total tokens < 20, checks vendor's introducer_hierarchy and gives token: +1 to upstream vendors until 20 tokens total.
  */
 export async function applyReferralRewards(params: {
   referralType?: 'vendor' | 'customer' | string | null;
   referralCode?: string | null;
   vendor_id?: string | null;
+  newCustomerId?: string | null;
 }): Promise<ReferralRewardResult> {
   const result: ReferralRewardResult = {
     vendorUpdated: false,
@@ -441,6 +462,11 @@ export async function applyReferralRewards(params: {
 
     const visitedVendors = new Set<string>();
     const visitedCustomers = new Set<string>();
+
+    // Safeguard: explicitly mark the newly registered customer so they are never rewarded for their own registration
+    if (params.newCustomerId) {
+      visitedCustomers.add(String(params.newCustomerId).toLowerCase());
+    }
 
     if (params.referralType === 'vendor') {
       const vendorId = params.vendor_id || params.referralCode;
@@ -468,17 +494,35 @@ export async function applyReferralRewards(params: {
         if (!custId || visitedCustomers.has(custId.toLowerCase())) break;
         visitedCustomers.add(custId.toLowerCase());
 
-        const customerDoc = await Customer.findOne(buildCustomerQuery(custId));
+        // Find referring customer, excluding the new customer
+        const customerDoc = await Customer.findOne({
+          ...buildCustomerQuery(custId),
+          ...(params.newCustomerId && mongoose.Types.ObjectId.isValid(params.newCustomerId)
+            ? { _id: { $ne: new mongoose.Types.ObjectId(params.newCustomerId) } }
+            : {}),
+        });
 
         if (customerDoc) {
+          // Track all identifiers of this customer to prevent duplicate loops
+          visitedCustomers.add(String(customerDoc._id).toLowerCase());
+          if (customerDoc.customerId) visitedCustomers.add(String(customerDoc.customerId).toLowerCase());
+          if (customerDoc.customer_id) visitedCustomers.add(String(customerDoc.customer_id).toLowerCase());
+          if (customerDoc.mobileNumber) visitedCustomers.add(String(customerDoc.mobileNumber).toLowerCase());
+          if (customerDoc.phone) visitedCustomers.add(String(customerDoc.phone).toLowerCase());
+          if (customerDoc.email) visitedCustomers.add(String(customerDoc.email).toLowerCase());
+
           // Increment Customer: level: +1 AND token: +1
           await Customer.updateOne(
             { _id: customerDoc._id },
-            { $inc: { level: 1, token: 1 } },
+            {
+              $inc: { level: 1, token: 1 },
+              $set: { updatedAt: new Date() },
+            },
           );
           tokensDistributed++;
           result.customerUpdated = true;
-          result.customerIds?.push(String(customerDoc.customerId || customerDoc.customer_id || custId));
+          const canonicalCustId = String(customerDoc.customerId || customerDoc.customer_id || custId);
+          result.customerIds?.push(canonicalCustId);
 
           if (tokensDistributed >= MAX_TOTAL_TOKENS) {
             break; // 20 tokens cap reached
@@ -487,12 +531,23 @@ export async function applyReferralRewards(params: {
           const parentRef = String(customerDoc.referralCode || '').trim();
           const parentType = customerDoc.referralType;
 
-          if (parentType === 'vendor') {
+          if (parentType === 'vendor' || (!parentType && customerDoc.vendor_id)) {
             // Sponsor role is vendor -> stop customer level increment and switch to vendor token hierarchy
             reachedVendorId = customerDoc.vendor_id || parentRef;
             break;
           } else if (parentRef) {
-            currentCode = parentRef;
+            // Check if parentRef is another customer or points to a vendor
+            const parentCustomer = await Customer.findOne({
+              ...buildCustomerQuery(parentRef),
+              _id: { $ne: customerDoc._id },
+            });
+            if (parentCustomer) {
+              currentCode = parentCustomer.customerId || parentRef;
+            } else {
+              // Not a customer -> points to vendor
+              reachedVendorId = customerDoc.vendor_id || parentRef;
+              break;
+            }
           } else if (customerDoc.vendor_id) {
             reachedVendorId = customerDoc.vendor_id;
             break;
@@ -500,11 +555,19 @@ export async function applyReferralRewards(params: {
             break; // No further sponsor
           }
         } else {
-          // If code is not another customer, it points to a vendor in vendor_tbl
+          // If code is not another customer, check if it points to a vendor in vendor_tbl
           try {
             const vDoc = await ecashDb?.collection('vendor_tbl').findOne(buildVendorQuery(custId));
             if (vDoc) {
-              reachedVendorId = String(vDoc.Member_id || vDoc.member_id || vDoc.member_code || custId);
+              reachedVendorId = String(
+                vDoc.member_code ||
+                vDoc.Member_Code ||
+                vDoc.Member_code ||
+                vDoc.member_Code ||
+                vDoc.Member_id ||
+                vDoc.member_id ||
+                custId
+              );
             } else {
               reachedVendorId = custId;
             }
