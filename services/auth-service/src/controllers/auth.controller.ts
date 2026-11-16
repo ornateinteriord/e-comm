@@ -113,7 +113,7 @@ export async function verifyReferral(req: Request, res: Response): Promise<void>
       referralType: result.referralType,
       vendor_id: result.vendor_id ?? null,
       vendor_name: result.vendor_name ?? null,
-      member_code: result.member_code ?? result.vendor_id ?? null,
+      member_code: result.referralType === 'vendor' ? (result.member_code ?? result.vendor_id ?? null) : null,
     },
   });
 }

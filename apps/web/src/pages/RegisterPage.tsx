@@ -188,12 +188,17 @@ export default function RegisterPage() {
       const { data } = await api.get(`/auth/verify-referral?code=${encodeURIComponent(code)}`);
       if (data.success && data.data?.valid) {
         setIsReferralVerified(true);
-        const resolvedCode = data.data.member_code || data.data.referralCode || code;
+        const refType: 'vendor' | 'customer' = data.data.referralType || 'vendor';
+        // For customer referrals, the sponsor code is strictly the customer's referralCode (e.g. 652055), never the upstream vendor ID
+        const resolvedCode = refType === 'customer'
+          ? (data.data.referralCode || code)
+          : (data.data.member_code || data.data.referralCode || code);
+
         setResolvedReferralCode(resolvedCode);
         setReferralName(data.data.referralName || '');
-        setReferralType(data.data.referralType || 'vendor');
-        setReferralVendorId(data.data.member_code || data.data.vendor_id || resolvedCode);
-        setReferralVendorName(data.data.vendor_name || data.data.referralName || '');
+        setReferralType(refType);
+        setReferralVendorId(data.data.vendor_id || (refType === 'vendor' ? resolvedCode : ''));
+        setReferralVendorName(data.data.vendor_name || (refType === 'vendor' ? data.data.referralName : ''));
       } else {
         setIsReferralVerified(false);
         setResolvedReferralCode('');
@@ -281,8 +286,11 @@ export default function RegisterPage() {
 
       const { data } = await api.post('/auth/register', payload);
       const registeredUser = data?.data?.user;
-      const vId = registeredUser?.vendor_id || referralVendorId || (referralType === 'vendor' ? (registeredUser?.referralCode || resolvedReferralCode || referralCode) : undefined);
-      const vName = registeredUser?.vendor_name || referralVendorName || (referralType === 'vendor' ? (registeredUser?.referralName || referralName) : undefined);
+      const finalReferralType = registeredUser?.referralType || referralType || 'vendor';
+      const isVendorRef = finalReferralType === 'vendor';
+
+      const vId = registeredUser?.vendor_id || referralVendorId || (isVendorRef ? (registeredUser?.referralCode || resolvedReferralCode || referralCode) : undefined);
+      const vName = registeredUser?.vendor_name || referralVendorName || (isVendorRef ? (registeredUser?.referralName || referralName) : undefined);
 
       setSuccessDetails({
         accessToken: data?.data?.accessToken,
@@ -295,7 +303,7 @@ export default function RegisterPage() {
         customerId: registeredUser?.customerId || registeredUser?.customer_id,
         sponsorName: registeredUser?.referralName || referralName || 'Sponsor',
         sponsorCode: registeredUser?.referralCode || resolvedReferralCode || referralCode,
-        sponsorType: registeredUser?.referralType || referralType || 'vendor',
+        sponsorType: finalReferralType,
         vendorId: vId,
         vendorName: vName,
       });

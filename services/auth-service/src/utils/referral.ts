@@ -315,6 +315,7 @@ export async function lookupReferralCode(rawCode: string): Promise<ReferralLooku
         referralType: 'customer',
         vendor_id,
         vendor_name,
+        member_code: null,
       };
     }
   } catch (err) {
