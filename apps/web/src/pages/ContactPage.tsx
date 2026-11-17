@@ -26,6 +26,8 @@ import {
   SupportAgent as SupportAgentIcon,
   AccessTime as AccessTimeIcon,
   HelpOutline as HelpIcon,
+  Business as BusinessIcon,
+  CorporateFare as CorporateFareIcon,
 } from '@mui/icons-material';
 import { Link as RouterLink } from 'react-router';
 import api from '../api/client';
@@ -81,7 +83,7 @@ export default function ContactPage() {
 
       setSuccessMessage(
         data.message ||
-          'Thank you for reaching out! Your message has been safely received. Our concierge team will respond shortly.',
+        'Thank you for reaching out! Your message has been safely received. Our concierge team will respond shortly.',
       );
       setForm({
         name: '',
@@ -93,7 +95,7 @@ export default function ContactPage() {
     } catch (err: any) {
       setErrorMessage(
         err.response?.data?.error?.message ||
-          'Failed to send your message. Please check your network connection or try again later.',
+        'Failed to send your message. Please check your network connection or try again later.',
       );
     } finally {
       setIsLoading(false);
@@ -150,12 +152,13 @@ export default function ContactPage() {
       {/* Main Container */}
       <Container maxWidth="lg" sx={{ mt: { xs: -3, md: -4 } }}>
         {/* Quick Contact Cards */}
-        <Grid container spacing={3} sx={{ mb: 5 }}>
-          <Grid item xs={12} sm={4}>
+        <Grid container spacing={2.5} sx={{ mb: 5 }}>
+          {/* Card 1: Email */}
+          <Grid item xs={12} sm={6} lg={3}>
             <Paper
               elevation={0}
               sx={{
-                p: 3,
+                p: 2.5,
                 borderRadius: '12px',
                 border: '1px solid',
                 borderColor: isLight ? '#e2e8f0' : 'rgba(255, 255, 255, 0.1)',
@@ -169,36 +172,51 @@ export default function ContactPage() {
             >
               <Box
                 sx={{
-                  p: 1.5,
+                  p: 1.25,
                   borderRadius: '10px',
                   bgcolor: 'rgba(255, 121, 0, 0.1)',
                   color: '#FF7900',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
+                  flexShrink: 0,
                 }}
               >
                 <EmailIcon fontSize="medium" />
               </Box>
-              <Box>
-                <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 700, textTransform: 'uppercase' }}>
+              <Box sx={{ minWidth: 0, flex: 1 }}>
+                <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                   Email Support
                 </Typography>
-                <Typography variant="subtitle1" fontWeight={800} sx={{ color: 'text.primary', mt: 0.25 }}>
-                  support@eshopy.biz
-                </Typography>
-                <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.5 }}>
-                  <AccessTimeIcon sx={{ fontSize: 13 }} /> Typical reply within 2-4 hours
+                <Link
+                  href="mailto:eshopy650@gmail.com"
+                  sx={{
+                    color: 'text.primary',
+                    textDecoration: 'none',
+                    fontWeight: 800,
+                    fontSize: '0.92rem',
+                    display: 'block',
+                    mt: 0.25,
+                    wordBreak: 'break-all',
+                    '&:hover': { color: '#FF7900' },
+                    transition: 'color 0.15s ease',
+                  }}
+                >
+                  eshopy650@gmail.com
+                </Link>
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.75 }}>
+                  <AccessTimeIcon sx={{ fontSize: 13 }} /> Reply within 2-4 hours
                 </Typography>
               </Box>
             </Paper>
           </Grid>
 
-          <Grid item xs={12} sm={4}>
+          {/* Card 2: Phone / Mobile */}
+          <Grid item xs={12} sm={6} lg={3}>
             <Paper
               elevation={0}
               sx={{
-                p: 3,
+                p: 2.5,
                 borderRadius: '12px',
                 border: '1px solid',
                 borderColor: isLight ? '#e2e8f0' : 'rgba(255, 255, 255, 0.1)',
@@ -212,36 +230,63 @@ export default function ContactPage() {
             >
               <Box
                 sx={{
-                  p: 1.5,
+                  p: 1.25,
                   borderRadius: '10px',
                   bgcolor: 'rgba(255, 121, 0, 0.1)',
                   color: '#FF7900',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
+                  flexShrink: 0,
                 }}
               >
                 <PhoneIcon fontSize="medium" />
               </Box>
-              <Box>
-                <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 700, textTransform: 'uppercase' }}>
-                  Direct Phone Hotline
+              <Box sx={{ minWidth: 0, flex: 1 }}>
+                <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  Mobile & Helpline
                 </Typography>
-                <Typography variant="subtitle1" fontWeight={800} sx={{ color: 'text.primary', mt: 0.25 }}>
-                  +91 1800-889-2700
-                </Typography>
-                <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.5 }}>
-                  <AccessTimeIcon sx={{ fontSize: 13 }} /> Mon - Sat, 9:00 AM - 7:00 PM IST
+                <Box sx={{ mt: 0.25, display: 'flex', flexDirection: 'column', gap: 0.25 }}>
+                  <Link
+                    href="tel:+917676518566"
+                    sx={{
+                      color: 'text.primary',
+                      textDecoration: 'none',
+                      fontWeight: 800,
+                      fontSize: '0.92rem',
+                      '&:hover': { color: '#FF7900' },
+                      transition: 'color 0.15s ease',
+                    }}
+                  >
+                    +91 7676518566
+                  </Link>
+                  <Link
+                    href="tel:+917411011100"
+                    sx={{
+                      color: 'text.primary',
+                      textDecoration: 'none',
+                      fontWeight: 800,
+                      fontSize: '0.92rem',
+                      '&:hover': { color: '#FF7900' },
+                      transition: 'color 0.15s ease',
+                    }}
+                  >
+                    +91 7411011100
+                  </Link>
+                </Box>
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.75 }}>
+                  <AccessTimeIcon sx={{ fontSize: 13 }} /> Mon - Sat, 9 AM - 7 PM
                 </Typography>
               </Box>
             </Paper>
           </Grid>
 
-          <Grid item xs={12} sm={4}>
+          {/* Card 3: Administrative Office */}
+          <Grid item xs={12} sm={6} lg={3}>
             <Paper
               elevation={0}
               sx={{
-                p: 3,
+                p: 2.5,
                 borderRadius: '12px',
                 border: '1px solid',
                 borderColor: isLight ? '#e2e8f0' : 'rgba(255, 255, 255, 0.1)',
@@ -255,26 +300,72 @@ export default function ContactPage() {
             >
               <Box
                 sx={{
-                  p: 1.5,
+                  p: 1.25,
                   borderRadius: '10px',
                   bgcolor: 'rgba(255, 121, 0, 0.1)',
                   color: '#FF7900',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
+                  flexShrink: 0,
                 }}
               >
                 <LocationIcon fontSize="medium" />
               </Box>
-              <Box>
-                <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 700, textTransform: 'uppercase' }}>
-                  Corporate Hub
+              <Box sx={{ minWidth: 0, flex: 1 }}>
+                <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  Administrative Office
                 </Typography>
-                <Typography variant="subtitle1" fontWeight={800} sx={{ color: 'text.primary', mt: 0.25 }}>
-                  Bengaluru, Karnataka
+                <Typography variant="body2" fontWeight={800} sx={{ color: 'text.primary', mt: 0.25, lineHeight: 1.35 }}>
+                  Shop No. G2, Asha Chandra Trade Center, Court Road
                 </Typography>
-                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-                  PIN: 560073, India
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5, lineHeight: 1.3 }}>
+                  Udupi, Karnataka, India - 576101
+                </Typography>
+              </Box>
+            </Paper>
+          </Grid>
+
+          {/* Card 4: Registered Office */}
+          <Grid item xs={12} sm={6} lg={3}>
+            <Paper
+              elevation={0}
+              sx={{
+                p: 2.5,
+                borderRadius: '12px',
+                border: '1px solid',
+                borderColor: isLight ? '#e2e8f0' : 'rgba(255, 255, 255, 0.1)',
+                bgcolor: isLight ? '#ffffff' : '#111827',
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: 2,
+                boxShadow: '0 4px 14px rgba(0,0,0,0.04)',
+                height: '100%',
+              }}
+            >
+              <Box
+                sx={{
+                  p: 1.25,
+                  borderRadius: '10px',
+                  bgcolor: 'rgba(255, 121, 0, 0.1)',
+                  color: '#FF7900',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                }}
+              >
+                <CorporateFareIcon fontSize="medium" />
+              </Box>
+              <Box sx={{ minWidth: 0, flex: 1 }}>
+                <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  Registered Office
+                </Typography>
+                <Typography variant="body2" fontWeight={800} sx={{ color: 'text.primary', mt: 0.25, lineHeight: 1.35 }}>
+                  L-29 Ground Floor, Block L Mohan Garden, Uttam Nagar
+                </Typography>
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5, lineHeight: 1.3 }}>
+                  West Delhi, New Delhi, India - 110059
                 </Typography>
               </Box>
             </Paper>
@@ -421,9 +512,93 @@ export default function ContactPage() {
             </Paper>
           </Grid>
 
-          {/* Right Side: FAQ and Assurance Card */}
+          {/* Right Side: Corporate Info, FAQ and Assurance Card */}
           <Grid item xs={12} md={5}>
             <Stack spacing={3}>
+              <Paper
+                elevation={0}
+                sx={{
+                  p: 3.5,
+                  borderRadius: '16px',
+                  border: '1px solid',
+                  borderColor: isLight ? '#e2e8f0' : 'rgba(255, 255, 255, 0.1)',
+                  bgcolor: isLight ? '#ffffff' : '#111827',
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
+                  <BusinessIcon sx={{ color: '#FF7900' }} />
+                  <Typography variant="h6" fontWeight={800} sx={{ color: 'text.primary' }}>
+                    Corporate Information
+                  </Typography>
+                </Box>
+                <Divider sx={{ mb: 2.5 }} />
+
+                <Stack spacing={2}>
+                  <Box>
+                    <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 700, textTransform: 'uppercase' }}>
+                      Company Legal Name
+                    </Typography>
+                    <Typography variant="subtitle2" fontWeight={800} color="text.primary">
+                      BLUSKY MICRO SERVICES FOUNDATION
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      Registration No: 407403 · ROC Delhi II · Inc: 25/11/2022
+                    </Typography>
+                  </Box>
+
+                  <Box>
+                    <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 700, textTransform: 'uppercase' }}>
+                      Corporate Identification Number (CIN)
+                    </Typography>
+                    <Typography variant="body2" fontWeight={800} sx={{ fontFamily: 'monospace', color: '#FF7900', letterSpacing: '0.04em' }}>
+                      U65100DL2022NPL407403
+                    </Typography>
+                  </Box>
+
+                  <Box>
+                    <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 700, textTransform: 'uppercase' }}>
+                      Registered Office Address
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25, lineHeight: 1.6 }}>
+                      W/o VIKAS KUMAR JHA, L-29 Ground Floor, Block L Mohan Garden, Uttam Nagar, West Delhi, New Delhi, Delhi, India, 110059
+                    </Typography>
+                  </Box>
+
+                  <Box>
+                    <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 700, textTransform: 'uppercase' }}>
+                      Administrative Office
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25, lineHeight: 1.6 }}>
+                      SHOP NO. G2, ASHA CHANDRA TRADE CENTER, COURT ROAD, UDUPI, TALUK & DISTRICT, Udupi, Karnataka, India, 576101
+                    </Typography>
+                  </Box>
+
+                  <Divider />
+
+                  <Box>
+                    <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 700, textTransform: 'uppercase', display: 'block', mb: 0.5 }}>
+                      Official Contact Desk
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: 'text.secondary', mb: 0.5 }}>
+                      <strong>Email:</strong>{' '}
+                      <Link href="mailto:eshopy650@gmail.com" sx={{ color: '#FF7900', textDecoration: 'none', fontWeight: 700 }}>
+                        eshopy650@gmail.com
+                      </Link>
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                      <strong>Mobile:</strong>{' '}
+                      <Link href="tel:+917676518566" sx={{ color: '#FF7900', textDecoration: 'none', fontWeight: 700 }}>
+                        +91 7676518566
+                      </Link>
+                      {', '}
+                      <Link href="tel:+917411011100" sx={{ color: '#FF7900', textDecoration: 'none', fontWeight: 700 }}>
+                        +91 7411011100
+                      </Link>
+                    </Typography>
+                  </Box>
+                </Stack>
+              </Paper>
+
               <Paper
                 elevation={0}
                 sx={{
@@ -495,7 +670,15 @@ export default function ContactPage() {
                     Need Urgent Order Assistance?
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
-                    Call our toll-free line directly for priority escalations during working hours.
+                    Call our helpline directly at{' '}
+                    <Link href="tel:+917676518566" sx={{ color: '#FF7900', fontWeight: 700, textDecoration: 'none' }}>
+                      +91 7676518566
+                    </Link>{' '}
+                    or{' '}
+                    <Link href="tel:+917411011100" sx={{ color: '#FF7900', fontWeight: 700, textDecoration: 'none' }}>
+                      +91 7411011100
+                    </Link>{' '}
+                    for priority escalations during working hours.
                   </Typography>
                 </Box>
               </Paper>

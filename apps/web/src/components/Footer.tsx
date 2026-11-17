@@ -93,7 +93,7 @@ export default function Footer() {
 
         <Box sx={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 2 }}>
           <Typography variant="caption" sx={{ color: '#94A3B8' }}>
-            © {new Date().getFullYear()} E-Shopy Pvt Ltd. All rights reserved.
+            © {new Date().getFullYear()} BLUSKY MICRO SERVICES FOUNDATION (E-Shopy). All rights reserved.
           </Typography>
           <Typography variant="caption" sx={{ color: '#64748B' }}>
             Flagship Reliability · Verified Genuine Products
