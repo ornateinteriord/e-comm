@@ -17,10 +17,12 @@
     "@ornate/pricing-utils": "workspace:*",
     "@ornate/types": "workspace:*",
     "@tanstack/react-query": "^5.59.0",
+    "@types/qrcode": "^1.5.6",
     "axios": "^1.7.7",
     "clsx": "^2.1.1",
     "lucide-react": "^0.447.0",
     "maplibre-gl": "^4.7.1",
+    "qrcode": "^1.5.4",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-router": "^7.0.0",
@@ -37,4 +39,3 @@
     "vite": "^5.4.8"
   }
 }
-
