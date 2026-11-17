@@ -47,6 +47,7 @@ const staticAllowed = [
   'https://e-comm-three-eta.vercel.app',
   'https://e-comm-admin-gules.vercel.app',
   'https://admin.eshopy.biz',
+  'https://seller.eshopy.biz',
   'https://store.eshopy.biz',
   'https://vendor.eshopy.biz',
   'https://www.eshopy.biz',
@@ -87,7 +88,7 @@ app.use((req: Request, res: Response, next) => {
     res.setHeader(
       'Access-Control-Allow-Headers',
       req.headers['access-control-request-headers'] ||
-        'Content-Type, Authorization, X-Requested-With, Accept, Origin, Cookie, X-CSRF-Token, x-session-id, X-Client-Type, x-client-type, Cache-Control, Pragma, Expires, x-store-id, X-Store-Id',
+        'Content-Type, Authorization, X-Requested-With, Accept, Origin, Cookie, X-CSRF-Token, x-session-id, X-Client-Type, x-client-type, Cache-Control, Pragma, Expires, x-seller-id, X-Seller-Id, x-store-id, X-Store-Id',
     );
     res.setHeader('Access-Control-Expose-Headers', 'Set-Cookie');
     res.setHeader('Access-Control-Max-Age', '86400');
@@ -122,6 +123,8 @@ const orderCors = cors({
     'Cache-Control',
     'Pragma',
     'Expires',
+    'x-seller-id',
+    'X-Seller-Id',
     'x-store-id',
     'X-Store-Id',
   ],

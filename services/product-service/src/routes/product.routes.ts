@@ -2,6 +2,7 @@ import { Router } from 'express';
 import {
   listProducts, getProductBySlug, getFeaturedProduct,
   adminListProducts, createProduct, updateProduct, deleteProduct, getAdminProduct, setSponsorProduct,
+  sellerListProducts, sellerCreateProduct, sellerUpdateProduct,
   storeListProducts, storeCreateProduct, storeUpdateProduct,
 } from '../controllers/product.controller.js';
 import { listCategories, getCategoryBySlug, createCategory, updateCategory, deleteCategory } from '../controllers/category.controller.js';
@@ -26,7 +27,19 @@ router.get('/categories', listCategories);
 router.get('/api/v1/categories/:slug', getCategoryBySlug);
 router.get('/categories/:slug', getCategoryBySlug);
 
-// ---- Store product routes ----
+// ---- Seller product routes ----
+router.get('/api/v1/seller/products', attachUser, requireRole('seller'), sellerListProducts);
+router.get('/seller/products', attachUser, requireRole('seller'), sellerListProducts);
+router.post('/api/v1/seller/products', attachUser, requireRole('seller'), sellerCreateProduct);
+router.post('/seller/products', attachUser, requireRole('seller'), sellerCreateProduct);
+router.post('/api/v1/seller/products/upload-images', attachUser, requireRole('seller'), uploadMultipleStandaloneImages);
+router.post('/seller/products/upload-images', attachUser, requireRole('seller'), uploadMultipleStandaloneImages);
+router.post('/api/v1/seller/products/upload-image', attachUser, requireRole('seller'), uploadSingleImage);
+router.post('/seller/products/upload-image', attachUser, requireRole('seller'), uploadSingleImage);
+router.patch('/api/v1/seller/products/:id', attachUser, requireRole('seller'), sellerUpdateProduct);
+router.patch('/seller/products/:id', attachUser, requireRole('seller'), sellerUpdateProduct);
+
+// ---- Store product routes (legacy aliases) ----
 router.get('/api/v1/store/products', attachUser, requireRole('store'), storeListProducts);
 router.get('/store/products', attachUser, requireRole('store'), storeListProducts);
 router.post('/api/v1/store/products', attachUser, requireRole('store'), storeCreateProduct);

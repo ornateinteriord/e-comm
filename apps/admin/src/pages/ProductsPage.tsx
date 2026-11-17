@@ -825,7 +825,7 @@ export default function ProductsPage() {
                       size="small"
                       value={form.inwardPrice}
                       onChange={(e) => setForm({ ...form, inwardPrice: Number(e.target.value) })}
-                      helperText="Store Supplier Cost"
+                      helperText="Seller Supplier Cost"
                     />
                   </Grid>
                 </Grid>
@@ -989,7 +989,7 @@ export default function ProductsPage() {
                       </Typography>
                       <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: 11 }}>
                         {form.status === 'active' && form.isPublished
-                          ? 'Visible and purchasable in customer store'
+                          ? 'Visible and purchasable in customer storefront'
                           : 'Hidden from customer storefront and search'}
                       </Typography>
                     </Box>

@@ -17,7 +17,12 @@ export function attachUser(req: Request, _res: Response, next: NextFunction): vo
   if (authHeader?.startsWith('Bearer ')) {
     const token = authHeader.slice(7);
     try {
-      req.user = jwt.verify(token, ACCESS_SECRET) as JwtPayload;
+      const decoded = jwt.verify(token, ACCESS_SECRET) as JwtPayload;
+      if (decoded) {
+        decoded.sellerId = decoded.sellerId || decoded.storeId;
+        decoded.storeId = decoded.sellerId;
+      }
+      req.user = decoded;
     } catch {
       // ignore
     }
@@ -35,6 +40,7 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
 
 const ROLE_HIERARCHY: Record<UserRole, number> = {
   customer: 0,
+  seller: 1,
   store: 1,
   support: 2,
   catalog_manager: 3,

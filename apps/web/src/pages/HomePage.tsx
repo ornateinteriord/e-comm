@@ -22,6 +22,7 @@ import {
 } from "@mui/icons-material";
 import api from "../api/client";
 import ProductCard from "../components/ProductCard";
+import MobilePromoFeed from "../components/MobilePromoFeed";
 import type { PublicProduct } from "@ornate/types";
 
 
@@ -125,6 +126,14 @@ export default function HomePage() {
 
   const isHeroProductLoading = isLoadingSponsor || (isLoading && !featuredSponsorProduct);
 
+  // De-duplicated product feed for the mobile promotional rails
+  const promoProducts: PublicProduct[] = [];
+  for (const product of [sponsorProduct, ...dealProducts, ...standardProducts]) {
+    if (product && !promoProducts.some((p) => p.id === product.id)) {
+      promoProducts.push(product);
+    }
+  }
+
   return (
     <Box sx={{ pb: { xs: 6, md: 10 } }}>
       {/* Mobile Category Scroll Strip */}
@@ -192,13 +201,16 @@ export default function HomePage() {
         })}
       </Box>
 
+      {/* Mobile Promotional Feed (product banners + 2-column deals) */}
+      <MobilePromoFeed products={promoProducts} isLoading={isLoading} />
+
       {/* Hero Section */}
       <Box
         sx={{
           bgcolor: isLight ? "#F5F6F7" : "#0B1120",
           color: isLight ? "#172B30" : "white",
-          pt: { xs: 5, md: 8 },
-          pb: { xs: 6, md: 10 },
+          pt: { xs: 4, md: 8 },
+          pb: { xs: 5, md: 10 },
           borderBottom: `1px solid ${isLight ? "#E5E7EB" : "rgba(255, 255, 255, 0.08)"}`,
         }}
       >
@@ -237,7 +249,7 @@ export default function HomePage() {
                 sx={{
                   fontWeight: 900,
                   letterSpacing: "-0.035em",
-                  fontSize: { xs: "2.2rem", sm: "3rem", md: "3.5rem" },
+                  fontSize: { xs: "1.95rem", sm: "3rem", md: "3.5rem" },
                   lineHeight: { xs: 1.15, md: 1.1 },
                   color: isLight ? "#172B30" : "#FFFFFF",
                   mb: 2.5,
@@ -694,7 +706,7 @@ export default function HomePage() {
 
       {/* Promotional Deals */}
       {dealProducts.length > 0 && (
-        <Container maxWidth="lg" sx={{ mt: { xs: 5, md: 10 } }}>
+        <Container maxWidth="lg" sx={{ mt: { xs: 5, md: 10 }, display: { xs: "none", md: "block" } }}>
           <Box
             sx={{
               p: { xs: 2.5, md: 3.5 },

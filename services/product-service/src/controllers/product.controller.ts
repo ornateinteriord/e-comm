@@ -378,18 +378,18 @@ export async function getAdminProduct(req: Request, res: Response, next: NextFun
 }
 
 // ==========================================
-// STORE PORTAL PRODUCT CONTROLLERS
+// SELLER PORTAL PRODUCT CONTROLLERS
 // ==========================================
 
 /**
- * GET /api/v1/store/products
- * Returns all products within the store's assigned category.
+ * GET /api/v1/seller/products
+ * Returns all products within the seller's assigned category.
  */
-export async function storeListProducts(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function sellerListProducts(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const categoryId = req.user?.categoryId;
     if (!categoryId) {
-      res.status(400).json({ success: false, error: { code: 'CATEGORY_REQUIRED', message: 'Store has no category assigned.' } });
+      res.status(400).json({ success: false, error: { code: 'CATEGORY_REQUIRED', message: 'Seller has no category assigned.' } });
       return;
     }
 
@@ -431,15 +431,15 @@ export async function storeListProducts(req: Request, res: Response, next: NextF
 }
 
 /**
- * POST /api/v1/store/products
- * Creates a product within the store's category.
+ * POST /api/v1/seller/products
+ * Creates a product within the seller's category.
  */
-export async function storeCreateProduct(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function sellerCreateProduct(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const categoryId = req.user?.categoryId;
-    const storeId = req.user?.storeId;
+    const sellerId = req.user?.sellerId || req.user?.storeId;
     if (!categoryId) {
-      res.status(400).json({ success: false, error: { code: 'CATEGORY_REQUIRED', message: 'Store has no category assigned.' } });
+      res.status(400).json({ success: false, error: { code: 'CATEGORY_REQUIRED', message: 'Seller has no category assigned.' } });
       return;
     }
 
@@ -498,9 +498,11 @@ export async function storeCreateProduct(req: Request, res: Response, next: Next
       taxClass,
       weight,
       dimensions,
-      storeId,
-      storeName: storeId,
-      createdBy: { type: 'store', id: req.user!.userId, name: storeId },
+      sellerId,
+      sellerName: sellerId,
+      storeId: sellerId,
+      storeName: sellerId,
+      createdBy: { type: 'seller', id: req.user!.userId, name: sellerId },
       images: (images ?? []).map((img: any, idx: number) => ({
         id: img.id || uuidv4(),
         url: img.url,
@@ -511,7 +513,7 @@ export async function storeCreateProduct(req: Request, res: Response, next: Next
     });
 
     await emitSearchEvent(product.id as string, 'upsert');
-    log.info({ productId: product.id, sku: product.sku, storeId }, 'Product created by store');
+    log.info({ productId: product.id, sku: product.sku, sellerId }, 'Product created by seller');
 
     res.status(201).json({
       success: true,
@@ -524,9 +526,9 @@ export async function storeCreateProduct(req: Request, res: Response, next: Next
 }
 
 /**
- * PATCH /api/v1/store/products/:id
+ * PATCH /api/v1/seller/products/:id
  */
-export async function storeUpdateProduct(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function sellerUpdateProduct(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const { id } = req.params;
     const categoryId = req.user?.categoryId;
@@ -540,7 +542,7 @@ export async function storeUpdateProduct(req: Request, res: Response, next: Next
       category: catMatch,
     });
     if (!product) {
-      res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Product not found in store category.' } });
+      res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Product not found in seller category.' } });
       return;
     }
 
@@ -601,3 +603,8 @@ export async function storeUpdateProduct(req: Request, res: Response, next: Next
     next(err);
   }
 }
+
+// Backward compatibility exports
+export const storeListProducts = sellerListProducts;
+export const storeCreateProduct = sellerCreateProduct;
+export const storeUpdateProduct = sellerUpdateProduct;

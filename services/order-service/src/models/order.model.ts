@@ -1,5 +1,6 @@
 import mongoose, { Schema, Document } from 'mongoose';
 import type { PaymentStatus, FulfilmentStatus, OrderAddress, OrderPricing, OrderItem, StatusHistoryEntry } from '@ornate/types';
+import { ITEM_STATUSES, ORDER_FULFILMENT_STATUSES, PAYMENT_STATUSES } from '../domain/order-lifecycle.js';
 
 export interface IOrder extends Document {
   orderNumber: string;
@@ -60,11 +61,13 @@ const orderItemSchema = new Schema<OrderItem>(
     image: { type: String },
     categoryId: { type: String, index: true },
     categoryName: { type: String },
+    sellerId: { type: String, index: true },
+    sellerName: { type: String },
     storeId: { type: String, index: true },
     storeName: { type: String },
     itemStatus: {
       type: String,
-      enum: ['pending', 'confirmed', 'packed', 'dispatched', 'delivered', 'cancelled'],
+      enum: [...ITEM_STATUSES],
       default: 'pending',
       index: true,
     },
@@ -105,13 +108,13 @@ const orderSchema = new Schema<IOrder>(
     couponCode: { type: String, default: null },
     paymentStatus: {
       type: String,
-      enum: ['pending', 'paid', 'failed', 'refunded', 'partially_refunded'],
+      enum: [...PAYMENT_STATUSES],
       default: 'pending',
       index: true,
     },
     fulfilmentStatus: {
       type: String,
-      enum: ['pending', 'confirmed', 'processing', 'packed', 'shipped', 'delivered', 'cancelled', 'return_requested', 'returned'],
+      enum: [...ORDER_FULFILMENT_STATUSES],
       default: 'pending',
       index: true,
     },

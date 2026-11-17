@@ -91,11 +91,15 @@ export default function PrivacyPolicyPage() {
             <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.8 }}>
               In accordance with the Information Technology Act, 2000 and rules made thereunder, questions or grievances regarding data protection may be directed to:
               <br />
-              <strong>Grievance Officer:</strong> Legal & Compliance Desk
+              <strong>Company:</strong> BLUSKY MICRO SERVICES FOUNDATION (CIN: U65100DL2022NPL407403)
               <br />
-              <strong>Address:</strong> E-Shopy Store Pvt Ltd, Bandra Kurla Complex, Mumbai, Maharashtra 400051
+              <strong>Registered Office:</strong> W/o VIKAS KUMAR JHA, L-29 Ground Floor, Block L Mohan Garden, Uttam Nagar, West Delhi, New Delhi, Delhi, India - 110059
               <br />
-              <strong>Email:</strong> legal@e-shopy.dev
+              <strong>Administrative Office:</strong> SHOP NO. G2, ASHA CHANDRA TRADE CENTER, COURT ROAD, UDUPI, Karnataka, India - 576101
+              <br />
+              <strong>Email:</strong> eshopy650@gmail.com
+              <br />
+              <strong>Mobile / Helpline:</strong> +91 7676518566, +91 7411011100
             </Typography>
           </Box>
         </Box>

@@ -147,7 +147,7 @@ export default function NotFoundPage() {
                 '&:hover': { bgcolor: '#E85D04' },
               }}
             >
-              Back to Store Home
+              Back to Home
             </Button>
 
             <Stack direction="row" spacing={1.5}>

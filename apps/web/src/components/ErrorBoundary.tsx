@@ -175,7 +175,7 @@ export class ErrorBoundary extends Component<Props, State> {
                     '&:hover': { borderColor: '#D1D5DB', bgcolor: '#F9FAFB' },
                   }}
                 >
-                  Back to Store Home
+                  Back to Home
                 </Button>
 
                 <Button

@@ -113,7 +113,7 @@ export async function verifyReferral(req: Request, res: Response): Promise<void>
       referralType: result.referralType,
       vendor_id: result.vendor_id ?? null,
       vendor_name: result.vendor_name ?? null,
-      member_code: result.member_code ?? result.vendor_id ?? null,
+      member_code: result.referralType === 'vendor' ? (result.member_code ?? result.vendor_id ?? null) : null,
     },
   });
 }
@@ -238,6 +238,7 @@ export async function register(req: Request, res: Response, next: NextFunction):
       referralType: customer.referralType || refResult.referralType || 'vendor',
       referralCode: customer.referralCode || rawRefCode,
       vendor_id: customer.vendor_id,
+      newCustomerId: customer._id.toString(),
     });
 
     const accessToken = signAccessToken({ userId: customer.id, email: customer.email, role: customer.role });

@@ -3,6 +3,18 @@ import mongoose from 'mongoose';
 import { Order, IOrder } from '../models/order.model.js';
 import { createLogger } from '@ornate/logger';
 import { distributeOrderCommissions } from '../utils/commission.js';
+import {
+  canCustomerCancel,
+  canTransitionOrder,
+  canTransitionItem,
+  canTransitionPayment,
+  deriveOrderFulfilmentStatus,
+  isOrderFulfilmentStatus,
+  isItemStatus,
+  isPaymentStatus,
+  nextItemStatuses,
+  nextOrderFulfilmentStatuses,
+} from '../domain/order-lifecycle.js';
 
 const log = createLogger('order-controller');
 
@@ -321,10 +333,14 @@ export async function cancelOrder(req: Request, res: Response, next: NextFunctio
       return;
     }
 
-    if (order.fulfilmentStatus !== 'pending' && order.fulfilmentStatus !== 'confirmed') {
+    if (!canCustomerCancel(order.fulfilmentStatus)) {
       res.status(400).json({
         success: false,
-        error: { code: 'CANNOT_CANCEL', message: `Order cannot be cancelled in '${order.fulfilmentStatus}' state.` },
+        error: {
+          code: 'CANNOT_CANCEL',
+          message: `Order cannot be cancelled in '${order.fulfilmentStatus}' state.`,
+          details: { allowed: nextOrderFulfilmentStatuses(order.fulfilmentStatus) },
+        },
       });
       return;
     }
@@ -399,8 +415,50 @@ export async function adminUpdateOrderStatus(req: Request, res: Response, next: 
       return;
     }
 
-    if (fulfilmentStatus) order.fulfilmentStatus = fulfilmentStatus;
-    if (paymentStatus) order.paymentStatus = paymentStatus;
+    if (fulfilmentStatus !== undefined && fulfilmentStatus !== null) {
+      if (!isOrderFulfilmentStatus(fulfilmentStatus)) {
+        res.status(422).json({
+          success: false,
+          error: { code: 'INVALID_STATUS', message: `Unknown fulfilment status '${fulfilmentStatus}'.` },
+        });
+        return;
+      }
+      if (!canTransitionOrder(order.fulfilmentStatus, fulfilmentStatus)) {
+        res.status(409).json({
+          success: false,
+          error: {
+            code: 'INVALID_TRANSITION',
+            message: `Order cannot move from '${order.fulfilmentStatus}' to '${fulfilmentStatus}'.`,
+            details: { allowed: nextOrderFulfilmentStatuses(order.fulfilmentStatus) },
+          },
+        });
+        return;
+      }
+      order.fulfilmentStatus = fulfilmentStatus;
+    }
+
+    if (paymentStatus !== undefined && paymentStatus !== null) {
+      if (!isPaymentStatus(paymentStatus)) {
+        res.status(422).json({
+          success: false,
+          error: { code: 'INVALID_STATUS', message: `Unknown payment status '${paymentStatus}'.` },
+        });
+        return;
+      }
+      if (!canTransitionPayment(order.paymentStatus, paymentStatus)) {
+        res.status(409).json({
+          success: false,
+          error: {
+            code: 'INVALID_TRANSITION',
+            message: `Payment cannot move from '${order.paymentStatus}' to '${paymentStatus}'.`,
+            details: { allowed: [order.paymentStatus] },
+          },
+        });
+        return;
+      }
+      order.paymentStatus = paymentStatus;
+    }
+
     if (trackingNumber !== undefined) order.trackingNumber = trackingNumber;
     if (shippingProvider !== undefined) order.shippingProvider = shippingProvider;
 
@@ -462,11 +520,35 @@ export async function confirmOrderPayment(req: Request, res: Response, next: Nex
       res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Order not found.' } });
       return;
     }
-    order.paymentStatus = paymentStatus as any;
-    if (fulfilmentStatus) order.fulfilmentStatus = fulfilmentStatus as any;
+    if (!isPaymentStatus(paymentStatus)) {
+      res.status(422).json({
+        success: false,
+        error: { code: 'INVALID_STATUS', message: `Unknown payment status '${paymentStatus}'.` },
+      });
+      return;
+    }
+    if (!canTransitionPayment(order.paymentStatus, paymentStatus)) {
+      res.status(409).json({
+        success: false,
+        error: {
+          code: 'INVALID_TRANSITION',
+          message: `Payment cannot move from '${order.paymentStatus}' to '${paymentStatus}'.`,
+          details: { allowed: [order.paymentStatus] },
+        },
+      });
+      return;
+    }
+
+    order.paymentStatus = paymentStatus;
+    // The gateway's fulfilment suggestion is applied only when it is a legal
+    // forward move. A late webhook must still be able to mark an already-shipped
+    // order as paid without dragging its fulfilment state backwards.
+    if (isOrderFulfilmentStatus(fulfilmentStatus) && canTransitionOrder(order.fulfilmentStatus, fulfilmentStatus)) {
+      order.fulfilmentStatus = fulfilmentStatus;
+    }
     if (paymentReference) order.paymentReference = paymentReference;
     order.statusHistory.push({
-      status: (fulfilmentStatus as any) || 'confirmed',
+      status: order.fulfilmentStatus,
       changedBy: 'Payment Gateway',
       changedAt: new Date().toISOString(),
       note: note || 'Payment verified successfully.',
@@ -504,20 +586,20 @@ export async function adminTriggerOrderCommission(req: Request, res: Response, n
 }
 
 // ==========================================
-// STORE PORTAL ORDER CONTROLLERS
+// SELLER PORTAL ORDER CONTROLLERS
 // ==========================================
 
 /**
- * GET /api/v1/store/orders
- * Returns orders containing products in the store's category, with items filtered to store scope.
+ * GET /api/v1/seller/orders
+ * Returns orders containing products in the seller's category, with items filtered to seller scope.
  */
-export async function storeListOrders(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function sellerListOrders(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const categoryId = req.user?.categoryId;
-    const storeId = req.user?.storeId;
+    const sellerId = req.user?.sellerId || req.user?.storeId;
 
-    if (!categoryId && !storeId) {
-      res.status(400).json({ success: false, error: { code: 'UNAUTHORIZED', message: 'No store or category assigned.' } });
+    if (!categoryId && !sellerId) {
+      res.status(400).json({ success: false, error: { code: 'UNAUTHORIZED', message: 'No seller or category assigned.' } });
       return;
     }
 
@@ -527,7 +609,10 @@ export async function storeListOrders(req: Request, res: Response, next: NextFun
     const status = req.query.status as string | undefined;
 
     const matchConditions: any[] = [];
-    if (storeId) matchConditions.push({ 'items.storeId': storeId });
+    if (sellerId) {
+      matchConditions.push({ 'items.sellerId': sellerId });
+      matchConditions.push({ 'items.storeId': sellerId });
+    }
     if (categoryId) matchConditions.push({ 'items.categoryId': categoryId });
 
     const query: any = { $or: matchConditions };
@@ -537,11 +622,11 @@ export async function storeListOrders(req: Request, res: Response, next: NextFun
       Order.countDocuments(query),
     ]);
 
-    // Filter each order's items so the store only receives their category items
+    // Filter each order's items so the seller only receives their category items
     let filteredOrders = orders.map((o) => {
       const obj = o.toObject();
       obj.items = (obj.items || []).filter((it: any) =>
-        (storeId && it.storeId === storeId) || (categoryId && it.categoryId === categoryId)
+        (sellerId && (it.sellerId === sellerId || it.storeId === sellerId)) || (categoryId && it.categoryId === categoryId)
       );
       return obj;
     });
@@ -572,12 +657,12 @@ export async function storeListOrders(req: Request, res: Response, next: NextFun
 }
 
 /**
- * GET /api/v1/store/orders/:orderNumber
+ * GET /api/v1/seller/orders/:orderNumber
  */
-export async function storeGetOrderDetails(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function sellerGetOrderDetails(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const categoryId = req.user?.categoryId;
-    const storeId = req.user?.storeId;
+    const sellerId = req.user?.sellerId || req.user?.storeId;
     const orderId = String(req.params.id || '');
 
     const order = await Order.findOne({
@@ -594,7 +679,7 @@ export async function storeGetOrderDetails(req: Request, res: Response, next: Ne
 
     const obj = order.toObject();
     obj.items = (obj.items || []).filter((it: any) =>
-      (storeId && it.storeId === storeId) || (categoryId && it.categoryId === categoryId)
+      (sellerId && (it.sellerId === sellerId || it.storeId === sellerId)) || (categoryId && it.categoryId === categoryId)
     );
 
     if (obj.items.length === 0) {
@@ -609,19 +694,21 @@ export async function storeGetOrderDetails(req: Request, res: Response, next: Ne
 }
 
 /**
- * PATCH /api/v1/store/orders/:id/status
- * Updates delivery/dispatch status for items belonging to this store.
+ * PATCH /api/v1/seller/orders/:id/status
+ * Updates delivery/dispatch status for items belonging to this seller.
  */
-export async function storeUpdateItemStatus(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function sellerUpdateItemStatus(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const categoryId = req.user?.categoryId;
-    const storeId = req.user?.storeId;
+    const sellerId = req.user?.sellerId || req.user?.storeId;
     const orderId = String(req.params.id || '');
     const { status, courierName, trackingNumber, productId } = req.body;
 
-    const validStatuses = ['pending', 'confirmed', 'packed', 'dispatched', 'delivered', 'cancelled'];
-    if (!validStatuses.includes(status)) {
-      res.status(400).json({ success: false, error: { code: 'INVALID_STATUS', message: 'Invalid delivery status.' } });
+    if (!isItemStatus(status)) {
+      res.status(422).json({
+        success: false,
+        error: { code: 'INVALID_STATUS', message: 'Invalid delivery status.' },
+      });
       return;
     }
 
@@ -637,41 +724,55 @@ export async function storeUpdateItemStatus(req: Request, res: Response, next: N
       return;
     }
 
-    let updatedCount = 0;
-    for (const it of order.items) {
-      const matchesStore = (storeId && it.storeId === storeId) || (categoryId && it.categoryId === categoryId);
-      const matchesProduct = !productId || it.productId === productId;
-      if (matchesStore && matchesProduct) {
-        it.itemStatus = status;
-        if (courierName) it.courierName = courierName;
-        if (trackingNumber) it.trackingNumber = trackingNumber;
-        if (status === 'dispatched') it.dispatchedAt = new Date().toISOString();
-        if (status === 'delivered') it.deliveredAt = new Date().toISOString();
-        updatedCount++;
-      }
-    }
+    const matchedItems = order.items.filter(
+      (it) =>
+        ((sellerId && (it.sellerId === sellerId || it.storeId === sellerId)) || (categoryId && it.categoryId === categoryId)) &&
+        (!productId || it.productId === productId),
+    );
 
-    if (updatedCount === 0) {
-      res.status(404).json({ success: false, error: { code: 'NO_ITEMS_FOUND', message: 'No items in this order match your store/category.' } });
+    // Validate the whole batch before mutating anything, so an illegal item
+    // never leaves the order half-updated.
+    const blocked = matchedItems
+      .map((it) => ({
+        productId: it.productId,
+        from: isItemStatus(it.itemStatus) ? it.itemStatus : ('pending' as const),
+      }))
+      .filter((entry) => !canTransitionItem(entry.from, status));
+
+    if (blocked.length > 0) {
+      res.status(409).json({
+        success: false,
+        error: {
+          code: 'INVALID_TRANSITION',
+          message: `Cannot move item from '${blocked[0].from}' to '${status}'.`,
+          details: { blocked, allowed: nextItemStatuses(blocked[0].from) },
+        },
+      });
       return;
     }
 
-    // Recalculate master order fulfilmentStatus
-    const allDispatched = order.items.every((it) => ['dispatched', 'delivered'].includes(it.itemStatus || ''));
-    const allDelivered = order.items.every((it) => it.itemStatus === 'delivered');
-    const someDispatched = order.items.some((it) => ['dispatched', 'delivered'].includes(it.itemStatus || ''));
-
-    if (allDelivered) {
-      order.fulfilmentStatus = 'delivered';
-    } else if (allDispatched) {
-      order.fulfilmentStatus = 'shipped';
-    } else if (someDispatched) {
-      order.fulfilmentStatus = 'processing';
+    let updatedCount = 0;
+    for (const it of matchedItems) {
+      it.itemStatus = status;
+      if (courierName) it.courierName = courierName;
+      if (trackingNumber) it.trackingNumber = trackingNumber;
+      if (status === 'dispatched') it.dispatchedAt = new Date().toISOString();
+      if (status === 'delivered') it.deliveredAt = new Date().toISOString();
+      updatedCount++;
     }
+
+    if (updatedCount === 0) {
+      res.status(404).json({ success: false, error: { code: 'NO_ITEMS_FOUND', message: 'No items in this order match your seller category.' } });
+      return;
+    }
+
+    // Recalculate the master order status from the item states. Derivation can
+    // only move the order forward; see deriveOrderFulfilmentStatus.
+    order.fulfilmentStatus = deriveOrderFulfilmentStatus(order.items, order.fulfilmentStatus);
 
     order.statusHistory.push({
       status: order.fulfilmentStatus,
-      changedBy: `Store (${storeId || req.user?.storeId || 'Store'})`,
+      changedBy: `Seller (${sellerId || 'Seller'})`,
       changedAt: new Date().toISOString(),
       note: `Items updated to "${status}"${courierName ? ` via ${courierName}` : ''}${trackingNumber ? ` (Tracking: ${trackingNumber})` : ''}`,
     });
@@ -687,4 +788,9 @@ export async function storeUpdateItemStatus(req: Request, res: Response, next: N
     next(err);
   }
 }
+
+// Backward compatibility exports
+export const storeListOrders = sellerListOrders;
+export const storeGetOrderDetails = sellerGetOrderDetails;
+export const storeUpdateItemStatus = sellerUpdateItemStatus;
 

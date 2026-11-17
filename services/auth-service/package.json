@@ -11,7 +11,8 @@
     "format": "prettier --write src/",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "setup:admin": "tsx src/scripts/setup-admin.ts"
+    "setup:admin": "tsx src/scripts/setup-admin.ts",
+    "migrate:sellers": "tsx src/scripts/migrate-stores-to-sellers.ts"
   },
   "dependencies": {
     "@ornate/db": "workspace:*",

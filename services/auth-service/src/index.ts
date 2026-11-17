@@ -11,6 +11,7 @@ import authRoutes from './routes/auth.routes.js';
 import userRoutes from './routes/user.routes.js';
 import contactRoutes from './routes/contact.routes.js';
 import walletRoutes from './routes/wallet.routes.js';
+import sellerRoutes from './routes/seller.routes.js';
 import storeRoutes from './routes/store.routes.js';
 import { requireAuth, requireRole } from './middleware/auth.middleware.js';
 import {
@@ -46,6 +47,7 @@ const staticAllowed = [
   'https://e-comm-three-eta.vercel.app',
   'https://e-comm-admin-gules.vercel.app',
   'https://admin.eshopy.biz',
+  'https://seller.eshopy.biz',
   'https://store.eshopy.biz',
   'https://vendor.eshopy.biz',
   'https://www.eshopy.biz',
@@ -121,6 +123,8 @@ const authCors = cors({
     'Cache-Control',
     'Pragma',
     'Expires',
+    'x-seller-id',
+    'X-Seller-Id',
     'x-store-id',
     'X-Store-Id',
   ],

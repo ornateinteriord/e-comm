@@ -62,6 +62,7 @@ const staticAllowedOrigins = [
   'https://e-comm-three-eta.vercel.app',
   'https://e-comm-admin-gules.vercel.app',
   'https://admin.eshopy.biz',
+  'https://seller.eshopy.biz',
   'https://store.eshopy.biz',
   'https://vendor.eshopy.biz',
   'https://www.eshopy.biz',
@@ -108,7 +109,7 @@ app.use((req: Request, res: Response, next) => {
     res.setHeader(
       'Access-Control-Allow-Headers',
       req.headers['access-control-request-headers'] ||
-        'Content-Type, Authorization, X-Requested-With, Accept, Origin, Cookie, X-CSRF-Token, x-session-id, X-Client-Type, x-client-type, Cache-Control, Pragma, Expires, x-store-id, X-Store-Id',
+        'Content-Type, Authorization, X-Requested-With, Accept, Origin, Cookie, X-CSRF-Token, x-session-id, X-Client-Type, x-client-type, Cache-Control, Pragma, Expires, x-seller-id, X-Seller-Id, x-store-id, X-Store-Id',
     );
     res.setHeader('Access-Control-Expose-Headers', 'Set-Cookie');
     res.setHeader('Access-Control-Max-Age', '86400');
@@ -149,6 +150,8 @@ const corsOptions: cors.CorsOptions = {
     'Cache-Control',
     'Pragma',
     'Expires',
+    'x-seller-id',
+    'X-Seller-Id',
     'x-store-id',
     'X-Store-Id',
   ],
@@ -290,9 +293,15 @@ const serviceRoutes: Array<{ path: string; target: string }> = [
   { path: '/api/v1/admin/customers', target: authTarget },
   { path: '/api/v1/admin/users', target: authTarget },
   { path: '/api/v1/admin/audit-logs', target: authTarget },
+  { path: '/api/v1/admin/sellers', target: authTarget },
   { path: '/api/v1/admin/stores', target: authTarget },
 
-  // Store Routes
+  // Seller Routes
+  { path: '/api/v1/seller/products', target: productTarget },
+  { path: '/api/v1/seller/orders', target: orderTarget },
+  { path: '/api/v1/seller', target: authTarget },
+
+  // Store Routes (legacy aliases)
   { path: '/api/v1/store/products', target: productTarget },
   { path: '/api/v1/store/orders', target: orderTarget },
   { path: '/api/v1/store', target: authTarget },
