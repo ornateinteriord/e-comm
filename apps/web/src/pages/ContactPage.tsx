@@ -189,6 +189,22 @@ export default function ContactPage() {
                   Email Support
                 </Typography>
                 <Link
+                  href="mailto:77411011100sandeep@gmail.com"
+                  sx={{
+                    color: 'text.primary',
+                    textDecoration: 'none',
+                    fontWeight: 800,
+                    fontSize: '0.92rem',
+                    display: 'block',
+                    mt: 0.25,
+                    wordBreak: 'break-all',
+                    '&:hover': { color: '#FF7900' },
+                    transition: 'color 0.15s ease',
+                  }}
+                >
+                  77411011100sandeep@gmail.com
+                </Link>
+                <Link
                   href="mailto:eshopy650@gmail.com"
                   sx={{
                     color: 'text.primary',
