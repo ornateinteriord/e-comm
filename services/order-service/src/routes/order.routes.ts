@@ -9,6 +9,9 @@ import {
   adminGetDashboardMetrics,
   confirmOrderPayment,
   adminTriggerOrderCommission,
+  sellerListOrders,
+  sellerGetOrderDetails,
+  sellerUpdateItemStatus,
   storeListOrders,
   storeGetOrderDetails,
   storeUpdateItemStatus,
@@ -26,7 +29,15 @@ router.get('/orders/:id', getOrderById);
 router.post('/orders/:id/cancel', requireAuth, cancelOrder);
 router.patch('/orders/:id/payment-confirmation', confirmOrderPayment);
 
-// Store orders & fulfillment
+// Seller orders & fulfillment
+router.get('/api/v1/seller/orders', requireAuth, requireRole('seller'), sellerListOrders);
+router.get('/seller/orders', requireAuth, requireRole('seller'), sellerListOrders);
+router.get('/api/v1/seller/orders/:id', requireAuth, requireRole('seller'), sellerGetOrderDetails);
+router.get('/seller/orders/:id', requireAuth, requireRole('seller'), sellerGetOrderDetails);
+router.patch('/api/v1/seller/orders/:id/status', requireAuth, requireRole('seller'), sellerUpdateItemStatus);
+router.patch('/seller/orders/:id/status', requireAuth, requireRole('seller'), sellerUpdateItemStatus);
+
+// Store orders & fulfillment (legacy aliases)
 router.get('/api/v1/store/orders', requireAuth, requireRole('store'), storeListOrders);
 router.get('/store/orders', requireAuth, requireRole('store'), storeListOrders);
 router.get('/api/v1/store/orders/:id', requireAuth, requireRole('store'), storeGetOrderDetails);

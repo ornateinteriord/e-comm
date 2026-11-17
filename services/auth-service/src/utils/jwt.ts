@@ -10,6 +10,7 @@ export function signAccessToken(payload: {
   userId: string;
   email: string;
   role: UserRole;
+  sellerId?: string;
   storeId?: string;
   categoryId?: string;
 }): string {

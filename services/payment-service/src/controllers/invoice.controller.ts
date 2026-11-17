@@ -5,10 +5,10 @@ import axios from 'axios';
 const ORDER_SERVICE_URL = process.env.ORDER_SERVICE_URL ?? 'http://localhost:4006';
 
 const DEFAULT_SELLER = {
-  name: process.env.SELLER_NAME ?? 'Ornate Store Pvt Ltd',
+  name: process.env.SELLER_NAME ?? 'Ornate Seller Pvt Ltd',
   address: process.env.SELLER_ADDRESS ?? '42 Tech Hub, Outer Ring Road, Bengaluru, Karnataka, 560103',
   gstin: process.env.SELLER_GSTIN ?? '29ABCDE1234F1Z5',
-  email: process.env.SELLER_EMAIL ?? 'store@Ornate.dev',
+  email: process.env.SELLER_EMAIL ?? 'seller@ornate.dev',
   phone: process.env.SELLER_PHONE ?? '+91-9876543210',
 };
 

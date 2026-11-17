@@ -586,20 +586,20 @@ export async function adminTriggerOrderCommission(req: Request, res: Response, n
 }
 
 // ==========================================
-// STORE PORTAL ORDER CONTROLLERS
+// SELLER PORTAL ORDER CONTROLLERS
 // ==========================================
 
 /**
- * GET /api/v1/store/orders
- * Returns orders containing products in the store's category, with items filtered to store scope.
+ * GET /api/v1/seller/orders
+ * Returns orders containing products in the seller's category, with items filtered to seller scope.
  */
-export async function storeListOrders(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function sellerListOrders(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const categoryId = req.user?.categoryId;
-    const storeId = req.user?.storeId;
+    const sellerId = req.user?.sellerId || req.user?.storeId;
 
-    if (!categoryId && !storeId) {
-      res.status(400).json({ success: false, error: { code: 'UNAUTHORIZED', message: 'No store or category assigned.' } });
+    if (!categoryId && !sellerId) {
+      res.status(400).json({ success: false, error: { code: 'UNAUTHORIZED', message: 'No seller or category assigned.' } });
       return;
     }
 
@@ -609,7 +609,10 @@ export async function storeListOrders(req: Request, res: Response, next: NextFun
     const status = req.query.status as string | undefined;
 
     const matchConditions: any[] = [];
-    if (storeId) matchConditions.push({ 'items.storeId': storeId });
+    if (sellerId) {
+      matchConditions.push({ 'items.sellerId': sellerId });
+      matchConditions.push({ 'items.storeId': sellerId });
+    }
     if (categoryId) matchConditions.push({ 'items.categoryId': categoryId });
 
     const query: any = { $or: matchConditions };
@@ -619,11 +622,11 @@ export async function storeListOrders(req: Request, res: Response, next: NextFun
       Order.countDocuments(query),
     ]);
 
-    // Filter each order's items so the store only receives their category items
+    // Filter each order's items so the seller only receives their category items
     let filteredOrders = orders.map((o) => {
       const obj = o.toObject();
       obj.items = (obj.items || []).filter((it: any) =>
-        (storeId && it.storeId === storeId) || (categoryId && it.categoryId === categoryId)
+        (sellerId && (it.sellerId === sellerId || it.storeId === sellerId)) || (categoryId && it.categoryId === categoryId)
       );
       return obj;
     });
@@ -654,12 +657,12 @@ export async function storeListOrders(req: Request, res: Response, next: NextFun
 }
 
 /**
- * GET /api/v1/store/orders/:orderNumber
+ * GET /api/v1/seller/orders/:orderNumber
  */
-export async function storeGetOrderDetails(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function sellerGetOrderDetails(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const categoryId = req.user?.categoryId;
-    const storeId = req.user?.storeId;
+    const sellerId = req.user?.sellerId || req.user?.storeId;
     const orderId = String(req.params.id || '');
 
     const order = await Order.findOne({
@@ -676,7 +679,7 @@ export async function storeGetOrderDetails(req: Request, res: Response, next: Ne
 
     const obj = order.toObject();
     obj.items = (obj.items || []).filter((it: any) =>
-      (storeId && it.storeId === storeId) || (categoryId && it.categoryId === categoryId)
+      (sellerId && (it.sellerId === sellerId || it.storeId === sellerId)) || (categoryId && it.categoryId === categoryId)
     );
 
     if (obj.items.length === 0) {
@@ -691,13 +694,13 @@ export async function storeGetOrderDetails(req: Request, res: Response, next: Ne
 }
 
 /**
- * PATCH /api/v1/store/orders/:id/status
- * Updates delivery/dispatch status for items belonging to this store.
+ * PATCH /api/v1/seller/orders/:id/status
+ * Updates delivery/dispatch status for items belonging to this seller.
  */
-export async function storeUpdateItemStatus(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function sellerUpdateItemStatus(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const categoryId = req.user?.categoryId;
-    const storeId = req.user?.storeId;
+    const sellerId = req.user?.sellerId || req.user?.storeId;
     const orderId = String(req.params.id || '');
     const { status, courierName, trackingNumber, productId } = req.body;
 
@@ -723,7 +726,7 @@ export async function storeUpdateItemStatus(req: Request, res: Response, next: N
 
     const matchedItems = order.items.filter(
       (it) =>
-        ((storeId && it.storeId === storeId) || (categoryId && it.categoryId === categoryId)) &&
+        ((sellerId && (it.sellerId === sellerId || it.storeId === sellerId)) || (categoryId && it.categoryId === categoryId)) &&
         (!productId || it.productId === productId),
     );
 
@@ -759,7 +762,7 @@ export async function storeUpdateItemStatus(req: Request, res: Response, next: N
     }
 
     if (updatedCount === 0) {
-      res.status(404).json({ success: false, error: { code: 'NO_ITEMS_FOUND', message: 'No items in this order match your store/category.' } });
+      res.status(404).json({ success: false, error: { code: 'NO_ITEMS_FOUND', message: 'No items in this order match your seller category.' } });
       return;
     }
 
@@ -769,7 +772,7 @@ export async function storeUpdateItemStatus(req: Request, res: Response, next: N
 
     order.statusHistory.push({
       status: order.fulfilmentStatus,
-      changedBy: `Store (${storeId || req.user?.storeId || 'Store'})`,
+      changedBy: `Seller (${sellerId || 'Seller'})`,
       changedAt: new Date().toISOString(),
       note: `Items updated to "${status}"${courierName ? ` via ${courierName}` : ''}${trackingNumber ? ` (Tracking: ${trackingNumber})` : ''}`,
     });
@@ -785,4 +788,9 @@ export async function storeUpdateItemStatus(req: Request, res: Response, next: N
     next(err);
   }
 }
+
+// Backward compatibility exports
+export const storeListOrders = sellerListOrders;
+export const storeGetOrderDetails = sellerGetOrderDetails;
+export const storeUpdateItemStatus = sellerUpdateItemStatus;
 

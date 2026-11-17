@@ -1224,7 +1224,14 @@ export default function AccountPage() {
 
                   {/* Email Address (Editable if unverified, permanently locked once verified) */}
                   <Box>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                    <Box
+                      sx={{
+                        display: 'flex',
+                        flexDirection: { xs: 'column', sm: 'row' },
+                        alignItems: { xs: 'stretch', sm: 'center' },
+                        gap: 1.5,
+                      }}
+                    >
                       <TextField
                         label="Email Address"
                         fullWidth
@@ -1290,6 +1297,7 @@ export default function AccountPage() {
                             borderRadius: '10px',
                             px: 3,
                             height: 44,
+                            width: { xs: '100%', sm: 'auto' },
                             whiteSpace: 'nowrap',
                             flexShrink: 0,
                             boxShadow: 'none',
@@ -1439,159 +1447,6 @@ export default function AccountPage() {
                     {updateProfileMutation.isPending ? <CircularProgress size={22} color="inherit" /> : 'Save Profile Changes'}
                   </Button>
                 </Stack>
-              </Paper>
-
-              {/* REFERRAL SHARING CARD - MATCHING IMAGE 1 GREEN BANNER */}
-              <Paper
-                elevation={0}
-                sx={{
-                  p: { xs: 2.5, sm: 3 },
-                  borderRadius: '20px',
-                  background: 'linear-gradient(135deg, #059669 0%, #10B981 100%)',
-                  color: '#FFFFFF',
-                  boxShadow: '0 8px 24px rgba(5, 150, 105, 0.22)',
-                }}
-              >
-                <Box
-                  sx={{
-                    display: 'flex',
-                    flexDirection: { xs: 'column', md: 'row' },
-                    alignItems: { xs: 'flex-start', md: 'center' },
-                    justifyContent: 'space-between',
-                    gap: 2,
-                  }}
-                >
-                  {/* Left: Cart Icon, Refer a Customer, Code Pill, Subtitle */}
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                    <Box
-                      sx={{
-                        width: 48,
-                        height: 48,
-                        borderRadius: '14px',
-                        bgcolor: 'rgba(255, 255, 255, 0.22)',
-                        backdropFilter: 'blur(6px)',
-                        color: '#FFFFFF',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        flexShrink: 0,
-                      }}
-                    >
-                      <ShoppingCartIcon sx={{ fontSize: 26 }} />
-                    </Box>
-                    <Box>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-                        <Typography variant="h6" fontWeight={800} sx={{ color: '#FFFFFF', lineHeight: 1.2 }}>
-                          Refer a Customer
-                        </Typography>
-                        <Chip
-                          label={`Code: ${userCustomerId}`}
-                          size="small"
-                          sx={{
-                            bgcolor: 'rgba(255, 255, 255, 0.25)',
-                            color: '#FFFFFF',
-                            fontWeight: 800,
-                            fontSize: '0.75rem',
-                            height: 24,
-                            borderRadius: '6px',
-                            border: '1px solid rgba(255, 255, 255, 0.4)',
-                          }}
-                        />
-                      </Box>
-                      <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.9)', mt: 0.5, fontSize: '0.85rem' }}>
-                        Share customer referral link to shop on E-shopy & earn rewards
-                      </Typography>
-                    </Box>
-                  </Box>
-
-                  {/* Right: QR Code + Copy Link + Share Buttons */}
-                  <Stack
-                    direction="row"
-                    spacing={1.25}
-                    alignItems="center"
-                    flexWrap="wrap"
-                    sx={{ alignSelf: { xs: 'stretch', sm: 'auto' } }}
-                  >
-                    <Button
-                      variant="contained"
-                      size="medium"
-                      onClick={() => setIsQrDialogOpen(true)}
-                      startIcon={<QrCode2Icon />}
-                      sx={{
-                        bgcolor: '#FFFFFF',
-                        color: '#059669',
-                        fontWeight: 800,
-                        fontSize: '0.82rem',
-                        textTransform: 'none',
-                        borderRadius: '10px',
-                        py: 0.9,
-                        px: 2,
-                        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
-                        flex: { xs: 1, sm: 'initial' },
-                        '&:hover': {
-                          bgcolor: '#F0FDF4',
-                        },
-                      }}
-                    >
-                      QR Code
-                    </Button>
-
-                    <Button
-                      variant="contained"
-                      size="medium"
-                      onClick={handleCopyReferral}
-                      startIcon={copied ? <CheckIcon /> : <CopyIcon />}
-                      sx={{
-                        bgcolor: '#FFFFFF',
-                        color: copied ? '#15803D' : '#059669',
-                        fontWeight: 800,
-                        fontSize: '0.82rem',
-                        textTransform: 'none',
-                        borderRadius: '10px',
-                        py: 0.9,
-                        px: 2,
-                        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
-                        flex: { xs: 1, sm: 'initial' },
-                        '&:hover': {
-                          bgcolor: '#F0FDF4',
-                        },
-                      }}
-                    >
-                      {copied ? 'Link Copied!' : 'Copy Link'}
-                    </Button>
-
-                    <Tooltip title="Share on WhatsApp / Apps">
-                      <IconButton
-                        onClick={handleShareReferral}
-                        sx={{
-                          bgcolor: 'rgba(255, 255, 255, 0.2)',
-                          color: '#FFFFFF',
-                          borderRadius: '10px',
-                          p: 1.1,
-                          '&:hover': {
-                            bgcolor: 'rgba(255, 255, 255, 0.35)',
-                          },
-                        }}
-                      >
-                        <ShareIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-                  </Stack>
-                </Box>
-
-                <Typography
-                  variant="caption"
-                  sx={{
-                    color: 'rgba(255, 255, 255, 0.85)',
-                    display: 'block',
-                    mt: 2,
-                    pt: 1.5,
-                    borderTop: '1px solid rgba(255, 255, 255, 0.2)',
-                    lineHeight: 1.5,
-                  }}
-                >
-                  When someone registers with your referral code or scans your QR code, their purchases contribute to your network margins and token rewards automatically!
-                </Typography>
               </Paper>
             </Stack>
           </Grid>
@@ -1890,6 +1745,167 @@ export default function AccountPage() {
                   </Box>
                 )}
               </Stack>
+            </Paper>
+          </Grid>
+
+          {/* ================= FULL-WIDTH ROW: REFERRAL SHARING CARD ================= */}
+          <Grid item xs={12}>
+            <Paper
+              elevation={0}
+              sx={{
+                p: { xs: 2.5, sm: 3.5 },
+                borderRadius: '20px',
+                background: 'linear-gradient(135deg, #059669 0%, #10B981 100%)',
+                color: '#FFFFFF',
+                boxShadow: '0 8px 24px rgba(5, 150, 105, 0.22)',
+              }}
+            >
+              <Box
+                sx={{
+                  display: 'flex',
+                  flexDirection: { xs: 'column', md: 'row' },
+                  alignItems: { xs: 'flex-start', md: 'center' },
+                  justifyContent: 'space-between',
+                  gap: 2.5,
+                }}
+              >
+                {/* Left: Cart Icon, Refer a Customer, Code Pill, Subtitle */}
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                  <Box
+                    sx={{
+                      width: 52,
+                      height: 52,
+                      borderRadius: '16px',
+                      bgcolor: 'rgba(255, 255, 255, 0.22)',
+                      backdropFilter: 'blur(6px)',
+                      color: '#FFFFFF',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0,
+                    }}
+                  >
+                    <ShoppingCartIcon sx={{ fontSize: 28 }} />
+                  </Box>
+                  <Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, flexWrap: 'wrap' }}>
+                      <Typography variant="h6" fontWeight={800} sx={{ color: '#FFFFFF', lineHeight: 1.2, fontSize: { xs: '1.1rem', sm: '1.25rem' } }}>
+                        Refer a Customer
+                      </Typography>
+                      <Chip
+                        label={`Code: ${userCustomerId}`}
+                        size="small"
+                        sx={{
+                          bgcolor: 'rgba(255, 255, 255, 0.25)',
+                          color: '#FFFFFF',
+                          fontWeight: 800,
+                          fontSize: '0.78rem',
+                          height: 26,
+                          borderRadius: '8px',
+                          border: '1px solid rgba(255, 255, 255, 0.4)',
+                        }}
+                      />
+                    </Box>
+                    <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.92)', mt: 0.5, fontSize: { xs: '0.82rem', sm: '0.875rem' } }}>
+                      Share customer referral link to shop on E-shopy & earn rewards
+                    </Typography>
+                  </Box>
+                </Box>
+
+                {/* Right: QR Code + Copy Link + Share Buttons */}
+                <Stack
+                  direction={{ xs: 'column', sm: 'row' }}
+                  spacing={1.5}
+                  alignItems={{ xs: 'stretch', sm: 'center' }}
+                  sx={{ width: { xs: '100%', md: 'auto' } }}
+                >
+                  <Stack direction="row" spacing={1.5} sx={{ width: { xs: '100%', sm: 'auto' } }}>
+                    <Button
+                      variant="contained"
+                      size="medium"
+                      onClick={() => setIsQrDialogOpen(true)}
+                      startIcon={<QrCode2Icon />}
+                      sx={{
+                        bgcolor: '#FFFFFF',
+                        color: '#059669',
+                        fontWeight: 800,
+                        fontSize: '0.85rem',
+                        textTransform: 'none',
+                        borderRadius: '10px',
+                        py: 1.1,
+                        px: 2.5,
+                        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
+                        flex: { xs: 1, sm: 'initial' },
+                        minHeight: 44,
+                        '&:hover': {
+                          bgcolor: '#F0FDF4',
+                        },
+                      }}
+                    >
+                      QR Code
+                    </Button>
+
+                    <Button
+                      variant="contained"
+                      size="medium"
+                      onClick={handleCopyReferral}
+                      startIcon={copied ? <CheckIcon /> : <CopyIcon />}
+                      sx={{
+                        bgcolor: '#FFFFFF',
+                        color: copied ? '#15803D' : '#059669',
+                        fontWeight: 800,
+                        fontSize: '0.85rem',
+                        textTransform: 'none',
+                        borderRadius: '10px',
+                        py: 1.1,
+                        px: 2.5,
+                        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
+                        flex: { xs: 1, sm: 'initial' },
+                        minHeight: 44,
+                        '&:hover': {
+                          bgcolor: '#F0FDF4',
+                        },
+                      }}
+                    >
+                      {copied ? 'Link Copied!' : 'Copy Link'}
+                    </Button>
+
+                    <Tooltip title="Share on WhatsApp / Apps">
+                      <IconButton
+                        onClick={handleShareReferral}
+                        sx={{
+                          bgcolor: 'rgba(255, 255, 255, 0.2)',
+                          color: '#FFFFFF',
+                          borderRadius: '10px',
+                          p: 1.2,
+                          minWidth: 44,
+                          minHeight: 44,
+                          '&:hover': {
+                            bgcolor: 'rgba(255, 255, 255, 0.35)',
+                          },
+                        }}
+                      >
+                        <ShareIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  </Stack>
+                </Stack>
+              </Box>
+
+              <Typography
+                variant="caption"
+                sx={{
+                  color: 'rgba(255, 255, 255, 0.88)',
+                  display: 'block',
+                  mt: 2,
+                  pt: 1.5,
+                  borderTop: '1px solid rgba(255, 255, 255, 0.2)',
+                  lineHeight: 1.5,
+                  fontSize: '0.8rem',
+                }}
+              >
+                When someone registers with your referral code or scans your QR code, their purchases contribute to your network margins and token rewards automatically!
+              </Typography>
             </Paper>
           </Grid>
         </Grid>

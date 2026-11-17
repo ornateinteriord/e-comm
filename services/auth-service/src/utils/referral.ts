@@ -12,13 +12,15 @@ export interface ReferralLookupResult {
   message?: string;
 }
 
-export interface StoreReferralLookupResult {
+export interface SellerReferralLookupResult {
   valid: boolean;
   referralCode?: string;
   referralName?: string;
-  referralType?: 'vendor' | 'store';
+  referralType?: 'vendor' | 'seller' | 'store';
   message?: string;
 }
+
+export type StoreReferralLookupResult = SellerReferralLookupResult;
 
 function escapeRegex(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -602,7 +604,7 @@ export async function applyReferralRewards(params: {
   return result;
 }
 
-export async function lookupStoreReferralCode(rawCode: string): Promise<StoreReferralLookupResult> {
+export async function lookupSellerReferralCode(rawCode: string): Promise<SellerReferralLookupResult> {
   const code = String(rawCode || '').trim();
   if (!code) {
     return { valid: false, message: 'Referral code is required.' };
@@ -640,36 +642,39 @@ export async function lookupStoreReferralCode(rawCode: string): Promise<StoreRef
       };
     }
   } catch (err) {
-    console.error('Error looking up vendor sponsor for store:', err);
+    console.error('Error looking up vendor sponsor for seller:', err);
   }
 
-  // 2. Search in ornate_auth.stores
+  // 2. Search in ornate_auth.sellers (or stores)
   try {
-    const { Store } = await import('../models/store.model.js');
-    const store = await Store.findOne({
+    const { Seller } = await import('../models/seller.model.js');
+    const seller = await Seller.findOne({
       $or: [
+        { sellerId: new RegExp(`^${escapeRegex(code)}$`, 'i') },
         { storeId: new RegExp(`^${escapeRegex(code)}$`, 'i') },
         { mobileNumber: code.replace(/\D/g, '') },
         { email: code.toLowerCase() },
       ],
     });
-    if (store) {
-      if (store.status === 'suspended' || !store.isActive) {
-        return { valid: false, message: 'Referring store account is inactive or suspended.' };
+    if (seller) {
+      if (seller.status === 'suspended' || !seller.isActive) {
+        return { valid: false, message: 'Referring seller account is inactive or suspended.' };
       }
       return {
         valid: true,
-        referralCode: store.storeId,
-        referralName: store.name,
-        referralType: 'store',
+        referralCode: seller.sellerId || seller.storeId || '',
+        referralName: seller.name,
+        referralType: 'seller',
       };
     }
   } catch (err) {
-    console.error('Error looking up store sponsor for store:', err);
+    console.error('Error looking up seller sponsor for seller:', err);
   }
 
   return {
     valid: false,
-    message: 'Invalid referral code. A store must be referred by an authorized vendor or existing store.',
+    message: 'Invalid referral code. A seller must be referred by an authorized vendor or existing seller.',
   };
 }
+
+export const lookupStoreReferralCode = lookupSellerReferralCode;

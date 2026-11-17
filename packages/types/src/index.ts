@@ -12,12 +12,14 @@ export type UserRole =
   | 'finance_manager'
   | 'admin'
   | 'super_admin'
+  | 'seller'
   | 'store';
 
 export interface JwtPayload {
   userId: string;
   email: string;
   role: UserRole;
+  sellerId?: string;
   storeId?: string;
   categoryId?: string;
   iat: number;
@@ -153,6 +155,8 @@ export interface PublicProduct {
   seoDescription?: string;
   weight?: number;
   dimensions?: { l: number; w: number; h: number };
+  sellerId?: string;
+  sellerName?: string;
   storeId?: string;
   storeName?: string;
   createdAt: string;
@@ -219,6 +223,8 @@ export interface OrderItem {
   image?: string;
   categoryId?: string;
   categoryName?: string;
+  sellerId?: string;
+  sellerName?: string;
   storeId?: string;
   storeName?: string;
   itemStatus?: 'pending' | 'confirmed' | 'packed' | 'dispatched' | 'delivered' | 'cancelled';
@@ -532,14 +538,14 @@ export interface ContactMessage {
   updatedAt: string;
 }
 
-// ---- Store ----
-export interface StoreLocation {
+// ---- Seller ----
+export interface SellerLocation {
   lat: number;
   lng: number;
   formattedAddress?: string;
 }
 
-export interface StoreAddress {
+export interface SellerAddress {
   line1: string;
   line2?: string;
   city: string;
@@ -548,20 +554,20 @@ export interface StoreAddress {
   country: string;
 }
 
-export type StoreStatus = 'active' | 'pending_approval' | 'suspended';
+export type SellerStatus = 'active' | 'pending_approval' | 'suspended';
 
-export type StoreType =
+export type SellerType =
   | 'Basic'
   | 'Standard'
   | 'Advanced'
   | 'Flagship'
   | 'Wholesale';
 
-export interface StoreProfile {
+export interface SellerProfile {
   id: string;
-  storeId: string;
+  sellerId: string;
   name: string;
-  typeOfStore?: string;
+  typeOfSeller?: string;
   ownerName: string;
   email: string;
   mobileNumber: string;
@@ -570,11 +576,21 @@ export interface StoreProfile {
   categorySlug?: string;
   referralCode: string;
   referralName: string;
-  referralType: 'vendor' | 'store';
-  address: StoreAddress;
-  location: StoreLocation;
-  status: StoreStatus;
+  referralType: 'vendor' | 'seller';
+  address: SellerAddress;
+  location: SellerLocation;
+  status: SellerStatus;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+  // Aliases for transition
+  storeId?: string;
+  typeOfStore?: string;
 }
+
+// Backward compatibility aliases
+export type StoreLocation = SellerLocation;
+export type StoreAddress = SellerAddress;
+export type StoreStatus = SellerStatus;
+export type StoreType = SellerType;
+export type StoreProfile = SellerProfile;

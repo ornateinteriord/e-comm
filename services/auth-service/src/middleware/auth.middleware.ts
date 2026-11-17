@@ -21,7 +21,12 @@ export function attachUser(req: Request, _res: Response, next: NextFunction): vo
   if (authHeader?.startsWith('Bearer ')) {
     const token = authHeader.slice(7);
     try {
-      req.user = verifyAccessToken(token);
+      const user = verifyAccessToken(token);
+      if (user) {
+        user.sellerId = user.sellerId || user.storeId;
+        user.storeId = user.sellerId;
+      }
+      req.user = user;
     } catch {
       // invalid/expired token — treat as unauthenticated
     }
@@ -49,6 +54,7 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
  */
 const ROLE_HIERARCHY: Record<UserRole, number> = {
   customer: 0,
+  seller: 1,
   store: 1,
   support: 2,
   catalog_manager: 3,

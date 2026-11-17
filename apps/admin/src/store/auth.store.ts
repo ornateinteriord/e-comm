@@ -14,6 +14,7 @@ interface AuthState {
 
 const ROLE_HIERARCHY: Record<UserRole, number> = {
   customer: 0,
+  seller: 1,
   store: 1,
   support: 2,
   catalog_manager: 3,
