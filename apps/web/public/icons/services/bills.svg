@@ -1,0 +1,21 @@
+<svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="billPaperGrad" x1="14" y1="8" x2="50" y2="56" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFFFFF" />
+      <stop offset="50%" stop-color="#F1F5F9" />
+      <stop offset="100%" stop-color="#CBD5E1" />
+    </linearGradient>
+    <filter id="billShadow" x="-2" y="2" width="68" height="64" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="4" stdDeviation="3" flood-color="#64748B" flood-opacity="0.3" />
+    </filter>
+  </defs>
+  <g filter="url(#billShadow)">
+    <path d="M16 12C16 9.79 17.79 8 20 8H38L48 18V52C48 54.21 46.21 56 44 56H20C17.79 56 16 54.21 16 52V12Z" fill="url(#billPaperGrad)" />
+    <path d="M38 8V16C38 17.1 38.9 18 40 18H48L38 8Z" fill="#94A3B8" />
+    <rect x="22" y="24" width="20" height="3" rx="1.5" fill="#0284C7" />
+    <rect x="22" y="31" width="16" height="2.5" rx="1.25" fill="#94A3B8" />
+    <rect x="22" y="37" width="18" height="2.5" rx="1.25" fill="#94A3B8" />
+    <circle cx="38" cy="46" r="6" fill="#10B981" />
+    <path d="M35 46L37 48L41 44" stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+  </g>
+</svg>

@@ -1,0 +1,26 @@
+<svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="hotelBedGrad" x1="8" y1="16" x2="56" y2="56" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#E879F9" />
+      <stop offset="45%" stop-color="#C026D3" />
+      <stop offset="100%" stop-color="#7E22CE" />
+    </linearGradient>
+    <linearGradient id="duvetGrad" x1="20" y1="30" x2="56" y2="46" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#F5D0FE" />
+      <stop offset="100%" stop-color="#E879F9" />
+    </linearGradient>
+    <filter id="hotelShadow" x="-2" y="2" width="68" height="64" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="4" stdDeviation="3" flood-color="#9333EA" flood-opacity="0.32" />
+    </filter>
+  </defs>
+  <g filter="url(#hotelShadow)">
+    <rect x="8" y="16" width="7" height="36" rx="3.5" fill="url(#hotelBedGrad)" />
+    <rect x="51" y="28" width="6" height="24" rx="3" fill="url(#hotelBedGrad)" />
+    <path d="M12 40H54C55.1 40 56 40.9 56 42V45C56 46.1 55.1 47 54 47H12C10.9 47 10 46.1 10 45V42C10 40.9 10.9 40 12 40Z" fill="#581C87" />
+    <rect x="15" y="30" width="37" height="11" rx="4" fill="url(#duvetGrad)" />
+    <rect x="27" y="30" width="25" height="11" rx="3" fill="url(#hotelBedGrad)" />
+    <rect x="17" y="26" width="10" height="7" rx="3" fill="#FFFFFF" />
+    <circle cx="22" cy="22" r="4" fill="url(#hotelBedGrad)" />
+    <path d="M43 16L44 18.5L46.5 19.5L44 20.5L43 23L42 20.5L39.5 19.5L42 18.5L43 16Z" fill="#FDE047" />
+  </g>
+</svg>

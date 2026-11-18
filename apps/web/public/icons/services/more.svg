@@ -1,0 +1,19 @@
+<svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="moreBgGrad" x1="10" y1="10" x2="54" y2="54" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFFFFF" />
+      <stop offset="50%" stop-color="#F8FAFC" />
+      <stop offset="100%" stop-color="#E2E8F0" />
+    </linearGradient>
+    <filter id="moreShadow" x="-2" y="2" width="68" height="64" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="4" stdDeviation="3" flood-color="#64748B" flood-opacity="0.25" />
+    </filter>
+  </defs>
+  <g filter="url(#moreShadow)">
+    <circle cx="32" cy="32" r="22" fill="url(#moreBgGrad)" stroke="#CBD5E1" stroke-width="1.5" />
+    <path d="M18 24C21 18 28 14 36 14C38 14 41 15 43 16C39 15 34 14.5 30 16C24 18 20 21 18 24Z" fill="#FFFFFF" opacity="0.8" />
+    <circle cx="21" cy="32" r="3.5" fill="#1E3A8A" />
+    <circle cx="32" cy="32" r="3.5" fill="#2563EB" />
+    <circle cx="43" cy="32" r="3.5" fill="#3B82F6" />
+  </g>
+</svg>

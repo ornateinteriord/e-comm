@@ -1,0 +1,23 @@
+<svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="phoneBodyGrad" x1="14" y1="8" x2="50" y2="56" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#3B82F6" />
+      <stop offset="50%" stop-color="#2563EB" />
+      <stop offset="100%" stop-color="#1D4ED8" />
+    </linearGradient>
+    <linearGradient id="phoneScreenGrad" x1="20" y1="16" x2="44" y2="46" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#60A5FA" />
+      <stop offset="100%" stop-color="#1E40AF" />
+    </linearGradient>
+    <filter id="phoneShadow" x="-2" y="2" width="68" height="64" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="4" stdDeviation="3" flood-color="#2563EB" flood-opacity="0.32" />
+    </filter>
+  </defs>
+  <g filter="url(#phoneShadow)">
+    <rect x="16" y="8" width="32" height="48" rx="8" fill="url(#phoneBodyGrad)" />
+    <rect x="19" y="13" width="26" height="38" rx="5" fill="url(#phoneScreenGrad)" />
+    <path d="M21 15L35 15L23 39H20L21 15Z" fill="#FFFFFF" opacity="0.25" />
+    <path d="M33 22L26 31H31L29 40L38 29H32L34 22H33Z" fill="#FACC15" filter="drop-shadow(0 2px 4px rgba(250, 204, 21, 0.45))" />
+    <rect x="29" y="10.5" width="6" height="1.5" rx="0.75" fill="#93C5FD" />
+  </g>
+</svg>

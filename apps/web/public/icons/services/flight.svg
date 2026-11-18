@@ -1,0 +1,61 @@
+<svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <filter id="flightDropShadow" x="-4" y="0" width="72" height="68" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="3.5" stdDeviation="3" flood-color="#1E3A5F" flood-opacity="0.22" />
+    </filter>
+    <linearGradient id="flightWingGrad" x1="16" y1="12" x2="32" y2="48" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#67B6E9" />
+      <stop offset="100%" stop-color="#4A9CE0" />
+    </linearGradient>
+  </defs>
+
+  <g filter="url(#flightDropShadow)">
+    <!-- Top Wing (Upper / Far Side) -->
+    <path
+      d="M27 23.5L18.2 14.5C17.4 13.7 18 12.2 19.2 12.2L28 15.5L34 20L27 23.5Z"
+      fill="url(#flightWingGrad)"
+      stroke="#1E3A5F"
+      stroke-width="3.2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    />
+
+    <!-- Fuselage & Integrated Tail Fin -->
+    <path
+      d="M51 17C52.8 18.6 52.2 21.2 49.5 22.8L37.5 28.5L20 36C17 37.2 12.5 36.2 8.5 32L6 29C4.8 27.8 5.6 25.8 7.2 26.2L14.5 27.5L21 24.5L35 18L46.5 13.5C48.8 12.6 49.8 14.8 51 17Z"
+      fill="#EDF6FD"
+      stroke="#1E3A5F"
+      stroke-width="3.4"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    />
+
+    <!-- Tail Inner Contour Highlight -->
+    <path
+      d="M10.5 27.5L17.5 30.5L14 34.5"
+      stroke="#C8E1F7"
+      stroke-width="1.8"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    />
+
+    <!-- Bottom Wing (Lower / Near Side) -->
+    <path
+      d="M34.5 25.5L24.8 48C24.2 49.4 22.4 49.6 21.4 48.4L20.8 47.8C20 46.8 20.4 45.2 21.6 44.2L29 31L34.5 25.5Z"
+      fill="url(#flightWingGrad)"
+      stroke="#1E3A5F"
+      stroke-width="3.2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    />
+
+    <!-- Wing Leading Edge Specular Shine -->
+    <path
+      d="M33 26.5L24 46.5"
+      stroke="#BAE6FD"
+      stroke-width="1.2"
+      stroke-linecap="round"
+      opacity="0.85"
+    />
+  </g>
+</svg>

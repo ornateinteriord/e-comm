@@ -5,6 +5,7 @@ import { Customer, generateNextCustomerId } from '../models/customer.model.js';
 import { Admin } from '../models/admin.model.js';
 import { AuditLog } from '../models/audit-log.model.js';
 import { lookupReferralCode, applyReferralRewards } from '../utils/referral.js';
+import { triggerCustomerWelcomeNotification } from '../utils/welcome-notification.js';
 import {
   signAccessToken,
   signRefreshToken,
@@ -255,6 +256,9 @@ export async function register(req: Request, res: Response, next: NextFunction):
       ip: req.ip,
       userAgent: req.headers['user-agent'],
     });
+
+    // Fire welcome email & WhatsApp notification (non-blocking)
+    triggerCustomerWelcomeNotification(customer);
 
     res.status(201).json({
       success: true,

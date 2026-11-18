@@ -1,0 +1,26 @@
+<svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="shopBagGrad" x1="12" y1="18" x2="52" y2="58" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFA726" />
+      <stop offset="45%" stop-color="#FF7043" />
+      <stop offset="100%" stop-color="#E64A19" />
+    </linearGradient>
+    <linearGradient id="shopHandleGrad" x1="22" y1="6" x2="42" y2="24" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFCC80" />
+      <stop offset="100%" stop-color="#FB8C00" />
+    </linearGradient>
+    <linearGradient id="shopShine" x1="16" y1="20" x2="30" y2="50" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.45" />
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0" />
+    </linearGradient>
+    <filter id="shopShadow" x="-2" y="2" width="68" height="64" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="4" stdDeviation="3" flood-color="#EA580C" flood-opacity="0.32" />
+    </filter>
+  </defs>
+  <path d="M24 22V14C24 9.58 27.58 6 32 6C36.42 6 40 9.58 40 14V22" stroke="url(#shopHandleGrad)" stroke-width="4.5" stroke-linecap="round" />
+  <path d="M14 21C14 19.34 15.34 18 17 18H47C48.66 18 50 19.34 50 21L53.5 51.5C53.5 54.54 51.04 57 48 57H16C12.96 57 10.5 54.54 10.5 51.5L14 21Z" fill="url(#shopBagGrad)" filter="url(#shopShadow)" />
+  <path d="M14 21L18 56H46L50 21H14Z" fill="url(#shopShine)" />
+  <path d="M24 20V14C24 9.58 27.58 6 32 6C36.42 6 40 9.58 40 14V20" stroke="#FFFFFF" stroke-width="1.5" stroke-linecap="round" opacity="0.6" />
+  <circle cx="32" cy="37" r="4.5" fill="#FFFFFF" opacity="0.95" />
+  <path d="M30 37L31.5 38.5L34.5 35.5" stroke="#E64A19" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+</svg>

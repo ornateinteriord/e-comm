@@ -23,6 +23,7 @@ import {
 import api from "../api/client";
 import ProductCard from "../components/ProductCard";
 import MobilePromoFeed from "../components/MobilePromoFeed";
+import QuickServicesGrid from "../components/QuickServicesGrid";
 import type { PublicProduct } from "@ornate/types";
 
 
@@ -136,70 +137,8 @@ export default function HomePage() {
 
   return (
     <Box sx={{ pb: { xs: 6, md: 10 } }}>
-      {/* Mobile Category Scroll Strip */}
-      <Box
-        sx={{
-          display: { xs: "flex", md: "none" },
-          overflowX: "auto",
-          py: 2,
-          px: 2,
-          gap: 2,
-          bgcolor: "background.paper",
-          borderBottom: `1px solid ${isLight ? "#E5E7EB" : "rgba(255, 255, 255, 0.08)"}`,
-          scrollbarWidth: "none",
-          "&::-webkit-scrollbar": { display: "none" },
-        }}
-      >
-        {finalCategories?.map((cat) => {
-          const meta = CATEGORY_META[cat.slug] || DEFAULT_CATEGORY_META;
-          return (
-            <Box
-              key={cat.id}
-              component={RouterLink}
-              to={`/categories/${cat.slug}`}
-              sx={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                textDecoration: "none",
-                color: "text.primary",
-                minWidth: 68,
-              }}
-            >
-              <Avatar
-                src={meta.image}
-                alt={cat.name}
-                sx={{
-                  width: 56,
-                  height: 56,
-                  bgcolor: isLight ? "#F5F6F7" : "#1E293B",
-                  color: isLight ? "#172B30" : "#FFFFFF",
-                  fontWeight: 800,
-                  fontSize: "1rem",
-                  border: "2px solid #FF7900",
-                  boxShadow: "0 2px 8px rgba(255, 121, 0, 0.2)",
-                  mb: 0.75,
-                  "& img": { objectFit: "cover" },
-                }}
-              >
-                {cat.name.charAt(0)}
-              </Avatar>
-              <Typography
-                variant="caption"
-                fontWeight={700}
-                sx={{
-                  fontSize: "0.72rem",
-                  textAlign: "center",
-                  lineHeight: 1.2,
-                  color: isLight ? "#172B30" : "#F8FAFC",
-                }}
-              >
-                {cat.name.split(" ")[0]}
-              </Typography>
-            </Box>
-          );
-        })}
-      </Box>
+      {/* Quick Services Navigation Icons (Replaced Category Circles) */}
+      <QuickServicesGrid />
 
       {/* Mobile Promotional Feed (product banners + 2-column deals) */}
       <MobilePromoFeed products={promoProducts} isLoading={isLoading} />
@@ -703,48 +642,6 @@ export default function HomePage() {
           })}
         </Grid>
       </Container>
-
-      {/* Promotional Deals */}
-      {dealProducts.length > 0 && (
-        <Container maxWidth="lg" sx={{ mt: { xs: 5, md: 10 }, display: { xs: "none", md: "block" } }}>
-          <Box
-            sx={{
-              p: { xs: 2.5, md: 3.5 },
-              borderRadius: '8px',
-              bgcolor: isLight ? "#172B30" : "#111827",
-              border: `1px solid ${isLight ? "transparent" : "rgba(255, 255, 255, 0.08)"}`,
-              color: "white",
-              mb: 3.5,
-            }}
-          >
-            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 2 }}>
-              <Box>
-                <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.5 }}>
-                  <BoltIcon sx={{ color: "#FF7900", fontSize: 18 }} />
-                  <Typography variant="caption" fontWeight={800} sx={{ color: "#FFA04D", letterSpacing: "0.08em" }}>
-                    PROMOTIONAL PRICING
-                  </Typography>
-                </Stack>
-                <Typography variant="h5" fontWeight={800} letterSpacing="-0.02em">
-                  Current Deals
-                </Typography>
-              </Box>
-              <Chip
-                label="Manufacturer Discount"
-                size="small"
-                sx={{ bgcolor: "rgba(255,255,255,0.12)", color: "#FFFFFF", fontWeight: 600, borderRadius: 1 }}
-              />
-            </Box>
-          </Box>
-          <Grid container spacing={{ xs: 2, sm: 3 }}>
-            {dealProducts.slice(0, 4).map((product) => (
-              <Grid item xs={6} md={3} key={product.id}>
-                <ProductCard product={product} />
-              </Grid>
-            ))}
-          </Grid>
-        </Container>
-      )}
 
       {/* All Products */}
       <Container maxWidth="lg" sx={{ mt: { xs: 6, md: 10 } }}>
