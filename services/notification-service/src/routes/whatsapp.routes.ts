@@ -2,6 +2,7 @@ import { Router } from 'express';
 import {
   sendWhatsApp,
   getWhatsAppConfig,
+  reloadWhatsAppConfig,
   getWhatsAppLogs,
   verifyWhatsAppWebhook,
   receiveWhatsAppWebhook,
@@ -12,6 +13,7 @@ const router: Router = Router();
 // Test & Admin endpoints
 router.post('/send', sendWhatsApp);
 router.get('/config', getWhatsAppConfig);
+router.post('/reload', reloadWhatsAppConfig);
 router.get('/logs', getWhatsAppLogs);
 
 // Meta Webhook endpoints (GET for challenge verification, POST for events)

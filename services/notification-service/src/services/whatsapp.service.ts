@@ -1,3 +1,6 @@
+import fs from 'fs';
+import path from 'path';
+import dotenv from 'dotenv';
 import axios, { AxiosError } from 'axios';
 import { createLogger } from '@ornate/logger';
 
@@ -46,19 +49,44 @@ export class WhatsAppService {
   }
 
   public reloadConfig(): void {
+    const candidatePaths = [
+      path.resolve(process.cwd(), '../../.env'),
+      path.resolve(process.cwd(), '.env'),
+      path.resolve(process.cwd(), 'services/notification-service/.env'),
+    ];
+    for (const p of candidatePaths) {
+      if (fs.existsSync(p)) {
+        dotenv.config({ path: p, override: true });
+      }
+    }
     this.config = this.loadConfig();
+    log.info({ configured: this.isConfigured(), phoneNumberId: this.config.phoneNumberId }, 'WhatsApp config reloaded');
   }
 
   private loadConfig(): WhatsAppConfig {
+    if (!process.env.WHATSAPP_TOKEN) {
+      const candidatePaths = [
+        path.resolve(process.cwd(), '../../.env'),
+        path.resolve(process.cwd(), '.env'),
+        path.resolve(process.cwd(), 'services/notification-service/.env'),
+      ];
+      for (const p of candidatePaths) {
+        if (fs.existsSync(p)) {
+          dotenv.config({ path: p, override: true });
+        }
+      }
+    }
+
     return {
-      token: process.env.WHATSAPP_TOKEN || process.env.WHATSAPP_ACCESS_TOKEN,
-      phoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID || '1490530494134515',
-      appId: process.env.WHATSAPP_APP_ID || '2719957848437443',
-      businessAccountId:
+      token: (process.env.WHATSAPP_TOKEN || process.env.WHATSAPP_ACCESS_TOKEN || '').trim(),
+      phoneNumberId: (process.env.WHATSAPP_PHONE_NUMBER_ID || '1490530494134515').trim(),
+      appId: (process.env.WHATSAPP_APP_ID || '2719957848437443').trim(),
+      businessAccountId: (
         process.env.WHATSAPP_BUSINESS_ACCOUNT_ID ||
         process.env.WHATSAPP_MESSAGING_ACCOUNT_ID ||
-        '1861063598359054',
-      apiVersion: process.env.WHATSAPP_API_VERSION || 'v21.0',
+        '1861063598359054'
+      ).trim(),
+      apiVersion: (process.env.WHATSAPP_API_VERSION || 'v21.0').trim(),
     };
   }
 
@@ -144,7 +172,7 @@ export class WhatsAppService {
       to: recipient,
       type: 'text',
       text: {
-        preview_url: Boolean(options.previewUrl),
+        preview_url: Boolean(options.previewUrl ?? true),
         body: options.message,
       },
     };
@@ -201,6 +229,192 @@ export class WhatsAppService {
     return this.dispatchMetaRequest(recipient, payload, 'template');
   }
 
+  /**
+   * 1. Send Welcome WhatsApp Message
+   */
+  public async sendWelcomeWhatsApp(data: {
+    to: string;
+    name: string;
+    customerId?: string;
+    loginUrl?: string;
+  }): Promise<WhatsAppSendResult> {
+    const safeName = data.name || 'Shopper';
+    const loginUrl = data.loginUrl || 'https://eshopy.biz/login';
+
+    const message = [
+      `🎉 *Welcome to E-Shopy, ${safeName}!*`,
+      '',
+      `Thank you for creating your account with us. We are delighted to have you as part of our shopping community!`,
+      '',
+      data.customerId ? `🆔 *Customer ID:* ${data.customerId}` : null,
+      `🌐 *Shop / Login Online:* ${loginUrl}`,
+      '',
+      `Explore thousands of verified products with fast doorstep delivery and unbeatable prices across India.`,
+      '',
+      `Need assistance?`,
+      `📞 Helpline: +91 7676518566`,
+      `✉️ Email: 77411011100sandeep@gmail.com`,
+      '',
+      `_Team E-Shopy • www.eshopy.biz_`,
+    ]
+      .filter((line) => line !== null)
+      .join('\n');
+
+    return this.sendTextMessage({
+      to: data.to,
+      message,
+      previewUrl: true,
+    });
+  }
+
+  /**
+   * 2. Send Order Confirmed & Paid WhatsApp Message
+   */
+  public async sendOrderConfirmedWhatsApp(data: {
+    to: string;
+    name: string;
+    orderNumber: string;
+    grandTotal: number; // in paise
+    itemCount?: number;
+    paymentMethod?: string;
+  }): Promise<WhatsAppSendResult> {
+    const safeName = data.name || 'Valued Customer';
+    const totalRupees = ((data.grandTotal || 0) / 100).toFixed(2);
+    const orderNum = data.orderNumber;
+    const paymentMethodText = data.paymentMethod ? ` (${data.paymentMethod.toUpperCase()})` : '';
+
+    const message = [
+      `🛍️ *Order Confirmed!*`,
+      '',
+      `Dear ${safeName}, your order *#${orderNum}* has been successfully placed and payment is verified! ✓`,
+      '',
+      `📦 *Items:* ${data.itemCount ?? 1} item(s)`,
+      `💰 *Total Amount:* ₹${totalRupees}${paymentMethodText}`,
+      `📑 *Tax Invoice:* We have generated your GST tax invoice and sent a copy to your registered email.`,
+      '',
+      `Track your order status live anytime:`,
+      `👉 https://eshopy.biz/account/orders`,
+      '',
+      `We are preparing your package for dispatch. You will receive courier tracking details once your shipment leaves our warehouse.`,
+      '',
+      `Support: +91 7676518566 | 77411011100sandeep@gmail.com`,
+      `_E-Shopy Retail (Pvt Ltd)_`,
+    ].join('\n');
+
+    return this.sendTextMessage({
+      to: data.to,
+      message,
+      previewUrl: true,
+    });
+  }
+
+  /**
+   * 3. Send Order Dispatched WhatsApp Message
+   */
+  public async sendOrderDispatchedWhatsApp(data: {
+    to: string;
+    name: string;
+    orderNumber: string;
+    courierName?: string;
+    trackingNumber?: string;
+    trackingUrl?: string;
+  }): Promise<WhatsAppSendResult> {
+    const safeName = data.name || 'Customer';
+    const courier = data.courierName || 'Our Trusted Courier Partner';
+    const tracking = data.trackingNumber ? `AWB: ${data.trackingNumber}` : 'Tracking active';
+
+    const message = [
+      `🚚 *Your Order is on the Way!*`,
+      '',
+      `Dear ${safeName}, great news! Order *#${data.orderNumber}* has been dispatched from our facility.`,
+      '',
+      `📦 *Courier Partner:* ${courier}`,
+      data.trackingNumber ? `🔢 *Tracking (AWB):* ${data.trackingNumber}` : null,
+      data.trackingUrl ? `🔗 *Track Live:* ${data.trackingUrl}` : `🔗 *Track Live:* https://eshopy.biz/account/orders`,
+      '',
+      `Please ensure someone is available at the delivery address to receive the parcel.`,
+      '',
+      `Helpline: +91 7676518566 | help@eshopy.biz`,
+      `_E-Shopy Fast Fulfillment_`,
+    ]
+      .filter((line) => line !== null)
+      .join('\n');
+
+    return this.sendTextMessage({
+      to: data.to,
+      message,
+      previewUrl: true,
+    });
+  }
+
+  /**
+   * 4. Send Order Delivered WhatsApp Message
+   */
+  public async sendOrderDeliveredWhatsApp(data: {
+    to: string;
+    name: string;
+    orderNumber: string;
+  }): Promise<WhatsAppSendResult> {
+    const safeName = data.name || 'Customer';
+
+    const message = [
+      `📦 *Order Delivered Successfully!*`,
+      '',
+      `Dear ${safeName}, your order *#${data.orderNumber}* has been delivered.`,
+      '',
+      `We hope you love your purchase! If you have any feedback or concerns, our customer support is always here for you.`,
+      '',
+      `Rate your experience:`,
+      `👉 https://eshopy.biz/account/orders`,
+      '',
+      `Thank you for shopping with E-Shopy! ✨`,
+      `Support: +91 7676518566 | 77411011100sandeep@gmail.com`,
+    ].join('\n');
+
+    return this.sendTextMessage({
+      to: data.to,
+      message,
+      previewUrl: true,
+    });
+  }
+
+  /**
+   * 5. Send Order Cancelled WhatsApp Message
+   */
+  public async sendOrderCancelledWhatsApp(data: {
+    to: string;
+    name: string;
+    orderNumber: string;
+    refundRupees?: string | number;
+    reason?: string;
+  }): Promise<WhatsAppSendResult> {
+    const safeName = data.name || 'Customer';
+
+    const message = [
+      `⚠️ *Order Cancelled - #${data.orderNumber}*`,
+      '',
+      `Dear ${safeName}, your order *#${data.orderNumber}* has been cancelled.`,
+      data.reason ? `📝 *Reason:* ${data.reason}` : null,
+      data.refundRupees
+        ? `💳 *Refund Amount:* ₹${data.refundRupees} (processed to your original payment method / E-Shopy Wallet)`
+        : null,
+      '',
+      `For any queries or assistance regarding refunds, please reach out to our support team:`,
+      `📞 +91 7676518566 / +91 7411011100`,
+      `✉️ 77411011100sandeep@gmail.com`,
+      '',
+      `_E-Shopy Customer Support_`,
+    ]
+      .filter((line) => line !== null)
+      .join('\n');
+
+    return this.sendTextMessage({
+      to: data.to,
+      message,
+      previewUrl: false,
+    });
+  }
+
   private async dispatchMetaRequest(
     recipient: string,
     payload: any,
@@ -246,13 +460,18 @@ export class WhatsAppService {
         'WhatsApp dispatch failed',
       );
 
-      const friendlyMessage =
+      let friendlyMessage =
         metaError?.message ||
         (axiosErr.response?.status === 401
           ? 'Invalid or expired WhatsApp Access Token.'
           : axiosErr.response?.status === 400
             ? 'Bad Request: Check recipient phone number or message format.'
             : axiosErr.message || 'Failed to dispatch WhatsApp message.');
+
+      if (metaError?.code === 190 || axiosErr.response?.status === 401) {
+        friendlyMessage =
+          `Authentication Error (Code 190): WhatsApp token is expired, invalid, or unauthorized for Phone Number ID ${this.config.phoneNumberId}. Ensure the token is updated in .env and the service reloaded.`;
+      }
 
       return {
         success: false,

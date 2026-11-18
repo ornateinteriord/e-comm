@@ -4,6 +4,12 @@ import { Order, IOrder } from '../models/order.model.js';
 import { createLogger } from '@ornate/logger';
 import { distributeOrderCommissions } from '../utils/commission.js';
 import {
+  triggerOrderConfirmedNotification,
+  triggerOrderDispatchedNotification,
+  triggerOrderDeliveredNotification,
+  triggerOrderCancelledNotification,
+} from '../utils/notification.client.js';
+import {
   canCustomerCancel,
   canTransitionOrder,
   canTransitionItem,
@@ -251,6 +257,7 @@ export async function createCheckoutOrder(req: Request, res: Response, next: Nex
       distributeOrderCommissions(order).catch((err) => {
         log.error({ err, orderId: order._id, orderNumber: order.orderNumber }, 'Failed to distribute commission on 100% wallet payment');
       });
+      triggerOrderConfirmedNotification(order);
     }
 
     res.status(201).json({
@@ -353,6 +360,8 @@ export async function cancelOrder(req: Request, res: Response, next: NextFunctio
       note: req.body.reason || 'Cancelled by customer.',
     });
     await order.save();
+
+    triggerOrderCancelledNotification(order, { reason: req.body.reason });
 
     res.json({ success: true, data: order, message: 'Order cancelled successfully.' });
   } catch (err) {
@@ -477,6 +486,19 @@ export async function adminUpdateOrderStatus(req: Request, res: Response, next: 
       });
     }
 
+    // Trigger lifecycle notifications
+    if (fulfilmentStatus === 'dispatched' || fulfilmentStatus === 'shipped') {
+      triggerOrderDispatchedNotification(order, { courierName: shippingProvider, trackingNumber });
+    } else if (fulfilmentStatus === 'delivered') {
+      triggerOrderDeliveredNotification(order);
+    } else if (fulfilmentStatus === 'cancelled') {
+      triggerOrderCancelledNotification(order, { reason: note });
+    }
+
+    if (paymentStatus === 'paid') {
+      triggerOrderConfirmedNotification(order);
+    }
+
     res.json({ success: true, data: order, message: 'Order updated successfully' });
   } catch (err) {
     next(err);
@@ -559,6 +581,7 @@ export async function confirmOrderPayment(req: Request, res: Response, next: Nex
       distributeOrderCommissions(order).catch((err) => {
         log.error({ err, orderId: order._id, orderNumber: order.orderNumber }, 'Failed to distribute commission on payment confirmation');
       });
+      triggerOrderConfirmedNotification(order);
     }
 
     res.json({ success: true, data: order });
@@ -778,6 +801,12 @@ export async function sellerUpdateItemStatus(req: Request, res: Response, next: 
     });
 
     await order.save();
+
+    if (status === 'dispatched') {
+      triggerOrderDispatchedNotification(order, { courierName, trackingNumber });
+    } else if (status === 'delivered') {
+      triggerOrderDeliveredNotification(order);
+    }
 
     res.json({
       success: true,

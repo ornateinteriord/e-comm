@@ -1,0 +1,26 @@
+<svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="giftBoxGrad" x1="12" y1="18" x2="52" y2="56" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FB7185" />
+      <stop offset="50%" stop-color="#E11D48" />
+      <stop offset="100%" stop-color="#BE123C" />
+    </linearGradient>
+    <linearGradient id="giftRibbonGrad" x1="26" y1="8" x2="38" y2="56" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FEF08A" />
+      <stop offset="50%" stop-color="#FACC15" />
+      <stop offset="100%" stop-color="#CA8A04" />
+    </linearGradient>
+    <filter id="giftShadow" x="-2" y="2" width="68" height="64" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="4" stdDeviation="3" flood-color="#E11D48" flood-opacity="0.32" />
+    </filter>
+  </defs>
+  <g filter="url(#giftShadow)">
+    <rect x="14" y="28" width="36" height="26" rx="4" fill="url(#giftBoxGrad)" />
+    <rect x="11" y="22" width="42" height="9" rx="3" fill="#F43F5E" />
+    <rect x="28" y="22" width="8" height="32" fill="url(#giftRibbonGrad)" />
+    <rect x="11" y="25" width="42" height="3" fill="url(#giftRibbonGrad)" opacity="0.9" />
+    <path d="M31 22C31 22 23 20 22 15C21 10 27 11 30 17L31 22Z" fill="url(#giftRibbonGrad)" />
+    <path d="M33 22C33 22 41 20 42 15C43 10 37 11 34 17L33 22Z" fill="url(#giftRibbonGrad)" />
+    <circle cx="32" cy="21" r="3" fill="#FEF08A" />
+  </g>
+</svg>

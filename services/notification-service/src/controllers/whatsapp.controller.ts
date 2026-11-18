@@ -102,6 +102,20 @@ export async function getWhatsAppConfig(_req: Request, res: Response, next: Next
   }
 }
 
+export async function reloadWhatsAppConfig(_req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    whatsappService.reloadConfig();
+    const config = whatsappService.getPublicConfig();
+    res.json({
+      success: true,
+      message: 'WhatsApp configuration reloaded from .env successfully',
+      data: config,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
 export async function getWhatsAppLogs(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const limit = Math.min(50, Math.max(1, Number(req.query.limit ?? 20)));
