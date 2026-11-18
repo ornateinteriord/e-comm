@@ -1,5 +1,14 @@
 import mongoose, { Schema, Document } from 'mongoose';
-import type { PaymentStatus, FulfilmentStatus, OrderAddress, OrderPricing, OrderItem, StatusHistoryEntry } from '@ornate/types';
+import type {
+  PaymentStatus,
+  FulfilmentStatus,
+  OrderAddress,
+  OrderPricing,
+  OrderItem,
+  StatusHistoryEntry,
+  SellerAcceptanceStatus,
+  ShadowfaxDetails,
+} from '@ornate/types';
 import { ITEM_STATUSES, ORDER_FULFILMENT_STATUSES, PAYMENT_STATUSES } from '../domain/order-lifecycle.js';
 
 export interface IOrder extends Document {
@@ -14,6 +23,11 @@ export interface IOrder extends Document {
   couponCode?: string | null;
   paymentStatus: PaymentStatus;
   fulfilmentStatus: FulfilmentStatus;
+  sellerAcceptanceStatus?: SellerAcceptanceStatus;
+  sellerRejectionReason?: string;
+  sellerAcceptedAt?: Date;
+  sellerRejectedAt?: Date;
+  shadowfaxDetails?: ShadowfaxDetails;
   paymentMethod?: string;
   paymentReference?: string;
   cashfreeOrderId?: string;
@@ -71,6 +85,15 @@ const orderItemSchema = new Schema<OrderItem>(
       default: 'pending',
       index: true,
     },
+    sellerAcceptanceStatus: {
+      type: String,
+      enum: ['pending', 'accepted', 'rejected'],
+      default: 'pending',
+      index: true,
+    },
+    sellerRejectionReason: { type: String, default: null },
+    sellerAcceptedAt: { type: Date, default: null },
+    sellerRejectedAt: { type: Date, default: null },
     courierName: { type: String },
     trackingNumber: { type: String },
     dispatchedAt: { type: Date },
@@ -118,6 +141,16 @@ const orderSchema = new Schema<IOrder>(
       default: 'pending',
       index: true,
     },
+    sellerAcceptanceStatus: {
+      type: String,
+      enum: ['pending', 'accepted', 'rejected'],
+      default: 'pending',
+      index: true,
+    },
+    sellerRejectionReason: { type: String, default: null },
+    sellerAcceptedAt: { type: Date, default: null },
+    sellerRejectedAt: { type: Date, default: null },
+    shadowfaxDetails: { type: Schema.Types.Mixed, default: null },
     paymentMethod: { type: String, default: 'Cashfree' },
     paymentReference: { type: String, default: null },
     cashfreeOrderId: { type: String, default: null },

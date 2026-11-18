@@ -215,6 +215,34 @@ export type FulfilmentStatus =
   | 'return_requested'
   | 'returned';
 
+export type SellerAcceptanceStatus = 'pending' | 'accepted' | 'rejected';
+
+export interface ShadowfaxTrackingEvent {
+  created?: string;
+  location?: string;
+  status_id?: string;
+  status?: string;
+  remarks?: string;
+  awb_number?: string;
+}
+
+export interface ShadowfaxDetails {
+  awbNumber: string;
+  orderId?: number | string;
+  clientOrderId?: string;
+  status?: string;
+  statusDisplay?: string;
+  destinationHub?: string;
+  sortCode?: string;
+  labelUrl?: string;
+  pickupPincode?: string;
+  deliveryPincode?: string;
+  bookedAt?: string;
+  trackingDetails?: ShadowfaxTrackingEvent[];
+  lastTrackingSync?: string;
+  rawResponse?: any;
+}
+
 export interface OrderItem {
   productId: string;
   variantId?: string | null;
@@ -228,6 +256,10 @@ export interface OrderItem {
   storeId?: string;
   storeName?: string;
   itemStatus?: 'pending' | 'confirmed' | 'packed' | 'dispatched' | 'delivered' | 'cancelled';
+  sellerAcceptanceStatus?: SellerAcceptanceStatus;
+  sellerRejectionReason?: string;
+  sellerAcceptedAt?: string;
+  sellerRejectedAt?: string;
   courierName?: string;
   trackingNumber?: string;
   dispatchedAt?: string;
@@ -302,6 +334,9 @@ export interface Order {
   id: string;
   orderNumber: string;
   userId: string;
+  customerName?: string;
+  customerEmail?: string;
+  customerPhone?: string;
   shippingAddress: OrderAddress;
   billingAddress: OrderAddress;
   items: OrderItem[];
@@ -309,6 +344,11 @@ export interface Order {
   couponCode?: string | null;
   paymentStatus: PaymentStatus;
   fulfilmentStatus: FulfilmentStatus;
+  sellerAcceptanceStatus?: SellerAcceptanceStatus;
+  sellerRejectionReason?: string;
+  sellerAcceptedAt?: string;
+  sellerRejectedAt?: string;
+  shadowfaxDetails?: ShadowfaxDetails;
   paymentMethod?: string;
   paymentReference?: string;
   invoiceId?: string | null;

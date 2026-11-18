@@ -122,6 +122,7 @@ export default function OrdersPage() {
                   <TableCell sx={{ fontWeight: 700, color: '#475569' }}>Customer</TableCell>
                   <TableCell sx={{ fontWeight: 700, color: '#475569' }}>Delivery City</TableCell>
                   <TableCell sx={{ fontWeight: 700, color: '#475569' }}>Your Category Items</TableCell>
+                  <TableCell sx={{ fontWeight: 700, color: '#475569' }}>Seller Review</TableCell>
                   <TableCell sx={{ fontWeight: 700, color: '#475569' }}>Fulfillment Status</TableCell>
                   <TableCell sx={{ fontWeight: 700, color: '#475569' }} align="right">Action</TableCell>
                 </TableRow>
@@ -131,6 +132,7 @@ export default function OrdersPage() {
                   const items = order.items || [];
                   const firstStatus = items[0]?.itemStatus || order.fulfilmentStatus;
                   const statusStyle = getStatusStyle(firstStatus);
+                  const acceptance = order.sellerAcceptanceStatus || items[0]?.sellerAcceptanceStatus || 'pending';
 
                   return (
                     <TableRow key={order._id || order.orderNumber} hover>
@@ -168,6 +170,41 @@ export default function OrdersPage() {
                             )}
                           </Box>
                         ))}
+                      </TableCell>
+                      <TableCell>
+                        <Chip
+                          label={
+                            acceptance === 'accepted'
+                              ? 'Accepted'
+                              : acceptance === 'rejected'
+                              ? 'Rejected'
+                              : 'Pending Review'
+                          }
+                          size="small"
+                          sx={{
+                            fontWeight: 800,
+                            fontSize: '0.72rem',
+                            bgcolor:
+                              acceptance === 'accepted'
+                                ? '#ECFDF5'
+                                : acceptance === 'rejected'
+                                ? '#FEF2F2'
+                                : '#FFFBEB',
+                            color:
+                              acceptance === 'accepted'
+                                ? '#047857'
+                                : acceptance === 'rejected'
+                                ? '#B91C1C'
+                                : '#B45309',
+                            border: `1px solid ${
+                              acceptance === 'accepted'
+                                ? '#A7F3D0'
+                                : acceptance === 'rejected'
+                                ? '#FECACA'
+                                : '#FDE68A'
+                            }`,
+                          }}
+                        />
                       </TableCell>
                       <TableCell>
                         <Chip

@@ -21,6 +21,7 @@ import {
   nextItemStatuses,
   nextOrderFulfilmentStatuses,
 } from '../domain/order-lifecycle.js';
+import { shadowfaxService } from '../services/shadowfax.service.js';
 
 const log = createLogger('order-controller');
 
@@ -70,6 +71,14 @@ export async function createCheckoutOrder(req: Request, res: Response, next: Nex
         name: String(it.name || it.productName || 'Product'),
         sku: String(it.sku || 'SKU'),
         image: it.image || it.productImage || '',
+        categoryId: it.categoryId || null,
+        categoryName: it.categoryName || null,
+        sellerId: it.sellerId || it.storeId || null,
+        sellerName: it.sellerName || it.storeName || null,
+        storeId: it.storeId || it.sellerId || null,
+        storeName: it.storeName || it.sellerName || null,
+        itemStatus: 'pending' as const,
+        sellerAcceptanceStatus: 'pending' as const,
         quantity: qty,
         unitMrp: mrp,
         unitSellingPrice: selling,
@@ -107,15 +116,63 @@ export async function createCheckoutOrder(req: Request, res: Response, next: Nex
             pQuery.unshift({ _id: new mongoose.Types.ObjectId(item.productId) });
           }
           const product = await productDb.collection('products').findOne({ $or: pQuery });
-          if (product && (product.stock ?? 0) < item.quantity) {
-            res.status(400).json({
-              success: false,
-              error: {
-                code: 'OUT_OF_STOCK',
-                message: `Product "${product.name || item.name}" is out of stock (available: ${product.stock ?? 0}).`,
-              },
-            });
-            return;
+          if (product) {
+            if ((product.stock ?? 0) < item.quantity) {
+              res.status(400).json({
+                success: false,
+                error: {
+                  code: 'OUT_OF_STOCK',
+                  message: `Product "${product.name || item.name}" is out of stock (available: ${product.stock ?? 0}).`,
+                },
+              });
+              return;
+            }
+            const rawCatId = product.category || product.categoryId;
+            if (rawCatId) {
+              item.categoryId = String(rawCatId);
+              if (!item.categoryName) {
+                try {
+                  const catDoc = await productDb.collection('categories').findOne({
+                    _id: mongoose.Types.ObjectId.isValid(rawCatId) ? new mongoose.Types.ObjectId(rawCatId) : rawCatId,
+                  });
+                  if (catDoc?.name) item.categoryName = catDoc.name;
+                } catch {}
+              }
+            }
+            if (!item.categoryName && product.categoryName) item.categoryName = product.categoryName;
+
+            // Resolve seller for this item
+            const resolvedSellerId = product.sellerId || product.storeId;
+            if (resolvedSellerId) {
+              item.sellerId = String(resolvedSellerId);
+              item.storeId = String(resolvedSellerId);
+              item.sellerName = product.sellerName || product.storeName || item.sellerName;
+              item.storeName = product.storeName || product.sellerName || item.storeName;
+            } else if (item.categoryId) {
+              // Look up assigned seller for this category in authDb
+              try {
+                const clientObj = typeof (mongoose.connection as any).getClient === 'function'
+                  ? (mongoose.connection as any).getClient()
+                  : (mongoose.connection as any).client;
+                const authDb = clientObj ? clientObj.db('ornate_auth') : null;
+                if (authDb) {
+                  const assignedStore = await authDb.collection('stores').findOne({
+                    categoryId: item.categoryId,
+                    isActive: true,
+                    status: { $ne: 'suspended' },
+                  });
+                  if (assignedStore) {
+                    const storeId = assignedStore.storeId || assignedStore.sellerId || String(assignedStore._id);
+                    item.sellerId = storeId;
+                    item.storeId = storeId;
+                    item.sellerName = assignedStore.name || assignedStore.ownerName;
+                    item.storeName = assignedStore.name || assignedStore.ownerName;
+                  }
+                }
+              } catch (storeLookupErr) {
+                log.warn({ storeLookupErr }, 'Could not look up assigned store for category');
+              }
+            }
           }
         }
       }
@@ -214,6 +271,7 @@ export async function createCheckoutOrder(req: Request, res: Response, next: Nex
       couponCode: couponCode || null,
       paymentStatus: isFullyPaidByWallet ? 'paid' : 'pending',
       fulfilmentStatus: isFullyPaidByWallet ? 'confirmed' : 'pending',
+      sellerAcceptanceStatus: 'pending',
       paymentMethod: effectivePaymentMethod,
       cashfreeOrderId: req.body.cashfreeOrderId || null,
       statusHistory: [
@@ -656,7 +714,9 @@ export async function sellerListOrders(req: Request, res: Response, next: NextFu
 
     if (status) {
       filteredOrders = filteredOrders.filter((o: any) =>
-        o.items.some((it: any) => it.itemStatus === status)
+        status === 'pending'
+          ? o.items.some((it: any) => it.itemStatus === 'pending' || it.itemStatus === 'confirmed')
+          : o.items.some((it: any) => it.itemStatus === status),
       );
     }
 
@@ -822,4 +882,647 @@ export async function sellerUpdateItemStatus(req: Request, res: Response, next: 
 export const storeListOrders = sellerListOrders;
 export const storeGetOrderDetails = sellerGetOrderDetails;
 export const storeUpdateItemStatus = sellerUpdateItemStatus;
+
+/**
+ * Helper to fetch seller pickup address details from database or platform defaults.
+ */
+async function getSellerPickupDetails(sellerId?: string) {
+  let sellerInfo: any = null;
+  if (sellerId) {
+    try {
+      const client =
+        typeof (mongoose.connection as any).getClient === 'function'
+          ? (mongoose.connection as any).getClient()
+          : (mongoose.connection as any).client;
+      const authDb = client ? client.db('ornate_auth') : null;
+      if (authDb) {
+        sellerInfo = await authDb.collection('stores').findOne({
+          $or: [
+            { sellerId },
+            { storeId: sellerId },
+            ...(mongoose.Types.ObjectId.isValid(sellerId) ? [{ _id: new mongoose.Types.ObjectId(sellerId) }] : []),
+          ],
+        });
+      }
+    } catch (err) {
+      log.warn({ err, sellerId }, 'Could not fetch seller details from database');
+    }
+  }
+
+  const name = sellerInfo?.name || sellerInfo?.ownerName || process.env.SELLER_NAME || 'Platform Store Pvt Ltd';
+  const contact = sellerInfo?.mobileNumber || process.env.SELLER_PHONE || '9876543210';
+  const line1 = sellerInfo?.address?.line1 || process.env.SELLER_ADDRESS || '42 Industrial Area, Sector 5';
+  const city = sellerInfo?.address?.city || 'NEW DELHI';
+  const state = sellerInfo?.address?.state || 'Delhi';
+  const pincode = sellerInfo?.address?.pincode || '110001';
+
+  return { name, contact, address_line_1: line1, city, state, pincode };
+}
+
+/**
+ * POST /api/v1/seller/orders/:id/accept
+ * Seller accepts the order for fulfillment.
+ */
+export async function sellerAcceptOrder(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const categoryId = req.user?.categoryId;
+    const sellerId = req.user?.sellerId || req.user?.storeId;
+    const orderId = String(req.params.id || '');
+
+    const order = await Order.findOne({
+      $or: [
+        { orderNumber: orderId },
+        ...(mongoose.Types.ObjectId.isValid(orderId) ? [{ _id: new mongoose.Types.ObjectId(orderId) }] : []),
+      ],
+    });
+
+    if (!order) {
+      res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Order not found.' } });
+      return;
+    }
+
+    const matchedItems = order.items.filter(
+      (it) =>
+        ((sellerId && (it.sellerId === sellerId || it.storeId === sellerId)) || (categoryId && it.categoryId === categoryId)) ||
+        (!sellerId && !categoryId), // If single-seller / admin
+    );
+
+    if (matchedItems.length === 0 && (sellerId || categoryId)) {
+      res.status(403).json({
+        success: false,
+        error: { code: 'UNAUTHORIZED', message: 'No items in this order match your seller profile.' },
+      });
+      return;
+    }
+
+    const now = new Date();
+    for (const it of matchedItems) {
+      it.sellerAcceptanceStatus = 'accepted';
+      it.sellerAcceptedAt = now.toISOString();
+      if (it.itemStatus === 'pending') {
+        it.itemStatus = 'confirmed';
+      }
+    }
+
+    order.sellerAcceptanceStatus = 'accepted';
+    order.sellerAcceptedAt = now;
+    if (order.fulfilmentStatus === 'pending') {
+      order.fulfilmentStatus = 'confirmed';
+    }
+
+    order.statusHistory.push({
+      status: order.fulfilmentStatus,
+      changedBy: req.user?.email || `Seller (${sellerId || 'Seller'})`,
+      changedAt: now.toISOString(),
+      note: 'Order accepted by seller for fulfillment.',
+    });
+
+    await order.save();
+
+    res.json({
+      success: true,
+      data: order,
+      message: 'Order accepted successfully.',
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * POST /api/v1/seller/orders/:id/reject
+ * Seller rejects the order with a mandatory reason.
+ */
+export async function sellerRejectOrder(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const categoryId = req.user?.categoryId;
+    const sellerId = req.user?.sellerId || req.user?.storeId;
+    const orderId = String(req.params.id || '');
+    const reason = typeof req.body.reason === 'string' ? req.body.reason.trim() : '';
+
+    if (!reason) {
+      res.status(400).json({
+        success: false,
+        error: { code: 'INVALID_INPUT', message: 'A rejection reason is required.' },
+      });
+      return;
+    }
+
+    const order = await Order.findOne({
+      $or: [
+        { orderNumber: orderId },
+        ...(mongoose.Types.ObjectId.isValid(orderId) ? [{ _id: new mongoose.Types.ObjectId(orderId) }] : []),
+      ],
+    });
+
+    if (!order) {
+      res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Order not found.' } });
+      return;
+    }
+
+    const matchedItems = order.items.filter(
+      (it) =>
+        ((sellerId && (it.sellerId === sellerId || it.storeId === sellerId)) || (categoryId && it.categoryId === categoryId)) ||
+        (!sellerId && !categoryId),
+    );
+
+    if (matchedItems.length === 0 && (sellerId || categoryId)) {
+      res.status(403).json({
+        success: false,
+        error: { code: 'UNAUTHORIZED', message: 'No items in this order match your seller profile.' },
+      });
+      return;
+    }
+
+    const now = new Date();
+    for (const it of matchedItems) {
+      it.sellerAcceptanceStatus = 'rejected';
+      it.sellerRejectionReason = reason;
+      it.sellerRejectedAt = now.toISOString();
+      it.itemStatus = 'cancelled';
+    }
+
+    order.sellerAcceptanceStatus = 'rejected';
+    order.sellerRejectionReason = reason;
+    order.sellerRejectedAt = now;
+    order.fulfilmentStatus = 'cancelled';
+
+    order.statusHistory.push({
+      status: 'cancelled',
+      changedBy: req.user?.email || `Seller (${sellerId || 'Seller'})`,
+      changedAt: now.toISOString(),
+      note: `Order rejected by seller. Reason: ${reason}`,
+    });
+
+    await order.save();
+
+    triggerOrderCancelledNotification(order, { reason });
+
+    res.json({
+      success: true,
+      data: order,
+      message: 'Order rejected and marked as cancelled.',
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * GET /api/v1/admin/orders/:id/shadowfax/quote
+ * Pre-check serviceability and shipping quote before booking.
+ */
+export async function adminGetShadowfaxQuote(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const orderId = String(req.params.id || '');
+    const order = await Order.findOne({
+      $or: [
+        { orderNumber: orderId },
+        ...(mongoose.Types.ObjectId.isValid(orderId) ? [{ _id: new mongoose.Types.ObjectId(orderId) }] : []),
+      ],
+    });
+
+    if (!order) {
+      res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Order not found.' } });
+      return;
+    }
+
+    const firstSellerId = order.items.find((it) => it.sellerId || it.storeId)?.sellerId || order.items[0]?.storeId;
+    const pickupDetails = await getSellerPickupDetails(firstSellerId);
+    const destPincode = order.shippingAddress.pincode;
+
+    const [deliveryService, pickupService, rateEstimate] = await Promise.all([
+      shadowfaxService.checkServiceability(destPincode, 'customer_delivery'),
+      shadowfaxService.checkServiceability(pickupDetails.pincode, 'seller_pickup'),
+      shadowfaxService.calculateRate(pickupDetails.pincode, destPincode, 1.0),
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        pickup: {
+          ...pickupDetails,
+          serviceable: pickupService.serviceable,
+          services: pickupService.services,
+        },
+        delivery: {
+          pincode: destPincode,
+          city: order.shippingAddress.city,
+          state: order.shippingAddress.state,
+          serviceable: deliveryService.serviceable,
+          services: deliveryService.services,
+        },
+        rate: rateEstimate,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * POST /api/v1/admin/orders/:id/shadowfax/create
+ * Admin triggers Shadowfax Forward Logistics API to book delivery and generate AWB.
+ */
+export async function adminCreateShadowfaxShipment(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const orderId = String(req.params.id || '');
+    const order = await Order.findOne({
+      $or: [
+        { orderNumber: orderId },
+        ...(mongoose.Types.ObjectId.isValid(orderId) ? [{ _id: new mongoose.Types.ObjectId(orderId) }] : []),
+      ],
+    });
+
+    if (!order) {
+      res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Order not found.' } });
+      return;
+    }
+
+    // Validation: Seller Acceptance Status
+    if (order.sellerAcceptanceStatus === 'rejected') {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'SELLER_REJECTED',
+          message: `Cannot dispatch: Order was rejected by the seller (${order.sellerRejectionReason || 'No reason specified'}).`,
+        },
+      });
+      return;
+    }
+
+    if (order.sellerAcceptanceStatus !== 'accepted') {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'SELLER_NOT_ACCEPTED',
+          message: 'Cannot dispatch: The seller must accept the order before delivery can be booked with Shadowfax.',
+        },
+      });
+      return;
+    }
+
+    // Prevent duplicate AWB booking
+    if (order.shadowfaxDetails?.awbNumber) {
+      res.status(409).json({
+        success: false,
+        error: {
+          code: 'ALREADY_BOOKED',
+          message: `Order already has an active Shadowfax shipment (AWB: ${order.shadowfaxDetails.awbNumber}).`,
+          details: order.shadowfaxDetails,
+        },
+      });
+      return;
+    }
+
+    const firstSellerId = order.items.find((it) => it.sellerId || it.storeId)?.sellerId || order.items[0]?.storeId;
+    const pickupDetails = await getSellerPickupDetails(firstSellerId);
+
+    const productValue = Math.max(1, Number(order.pricing.grandTotal ? (order.pricing.grandTotal / 100).toFixed(2) : 100));
+    const isPrepaid = order.paymentStatus === 'paid' || order.paymentMethod !== 'COD';
+
+    const shadowfaxPayload = {
+      client_order_id: order.orderNumber,
+      product_value: productValue,
+      payment_mode: (isPrepaid ? 'prepaid' : 'cod') as 'prepaid' | 'cod',
+      cod_amount: isPrepaid ? 0 : productValue,
+      order_service: 'Regular',
+      customer_details: {
+        name: order.shippingAddress.name || (order.shippingAddress as any).fullName || order.customerName || 'Customer',
+        contact: order.shippingAddress.phone || (order.shippingAddress as any).phoneNumber || '9876543210',
+        address_line_1: order.shippingAddress.line1 || (order.shippingAddress as any).addressLine1 || 'Main Street',
+        address_line_2: order.shippingAddress.line2 || (order.shippingAddress as any).addressLine2 || undefined,
+        city: order.shippingAddress.city,
+        state: order.shippingAddress.state,
+        pincode: order.shippingAddress.pincode,
+      },
+      pickup_details: pickupDetails,
+      return_details: pickupDetails,
+      product_details: order.items.map((it) => ({
+        sku_name: it.name,
+        sku_id: it.sku || it.productId,
+        price: Math.max(1, Number((it.unitApplicablePrice / 100).toFixed(2))),
+        category: it.categoryName || 'General',
+      })),
+    };
+
+    // 1. Place order on Shadowfax
+    const sfxRes = await shadowfaxService.placeForwardOrder(shadowfaxPayload);
+    const sfxData = sfxRes.data;
+    const awbNumber = sfxData?.awb_number;
+
+    if (!awbNumber) {
+      res.status(502).json({
+        success: false,
+        error: { code: 'SHADOWFAX_ERROR', message: 'No AWB number returned by Shadowfax.' },
+      });
+      return;
+    }
+
+    // 2. Fetch shipping label PDF
+    let labelUrl: string | undefined;
+    try {
+      const labelRes = await shadowfaxService.generateShippingLabel(awbNumber);
+      labelUrl = labelRes.labelUrl;
+    } catch (labelErr: any) {
+      log.warn({ labelErr: labelErr?.message, awbNumber }, 'Shipping label generation deferred');
+    }
+
+    // 3. Update order
+    order.fulfilmentStatus = 'shipped';
+    order.shippingProvider = 'Shadowfax';
+    order.trackingNumber = awbNumber;
+
+    for (const it of order.items) {
+      it.itemStatus = 'dispatched';
+      it.courierName = 'Shadowfax';
+      it.trackingNumber = awbNumber;
+      it.dispatchedAt = new Date().toISOString();
+    }
+
+    order.shadowfaxDetails = {
+      awbNumber,
+      orderId: sfxData?.id,
+      clientOrderId: sfxData?.client_order_id || order.orderNumber,
+      status: sfxData?.status || 'new',
+      statusDisplay: sfxData?.status_display || 'New',
+      destinationHub: sfxData?.destination_hub,
+      sortCode: sfxData?.sort_code,
+      labelUrl,
+      pickupPincode: String(pickupDetails.pincode),
+      deliveryPincode: String(order.shippingAddress.pincode),
+      bookedAt: new Date().toISOString(),
+      rawResponse: sfxData,
+    };
+
+    order.statusHistory.push({
+      status: 'shipped',
+      changedBy: req.user?.email || 'Admin',
+      changedAt: new Date().toISOString(),
+      note: `Shadowfax forward delivery booked. AWB: ${awbNumber}, Hub: ${sfxData?.destination_hub || 'N/A'}${
+        labelUrl ? ' (Label ready)' : ''
+      }`,
+    });
+
+    await order.save();
+
+    // 4. Trigger Email & WhatsApp dispatch notifications
+    triggerOrderDispatchedNotification(order, {
+      courierName: 'Shadowfax',
+      trackingNumber: awbNumber,
+      trackingUrl: `https://dale.staging.shadowfax.in/api/v4/clients/orders/${awbNumber}/track/`,
+    });
+
+    res.json({
+      success: true,
+      message: `Shadowfax delivery successfully booked with AWB ${awbNumber}.`,
+      data: {
+        order,
+        awbNumber,
+        labelUrl,
+        destinationHub: sfxData?.destination_hub,
+        sortCode: sfxData?.sort_code,
+      },
+    });
+  } catch (err: any) {
+    next(err);
+  }
+}
+
+/**
+ * GET /api/v1/admin/orders/:id/shadowfax/track
+ * Fetch real-time tracking details from Shadowfax.
+ */
+export async function adminTrackShadowfaxOrder(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const orderId = String(req.params.id || '');
+    const order = await Order.findOne({
+      $or: [
+        { orderNumber: orderId },
+        ...(mongoose.Types.ObjectId.isValid(orderId) ? [{ _id: new mongoose.Types.ObjectId(orderId) }] : []),
+      ],
+    });
+
+    if (!order) {
+      res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Order not found.' } });
+      return;
+    }
+
+    const awbNumber = order.shadowfaxDetails?.awbNumber || order.trackingNumber;
+    if (!awbNumber) {
+      res.status(400).json({
+        success: false,
+        error: { code: 'NO_AWB', message: 'This order does not have an AWB / Shadowfax tracking number.' },
+      });
+      return;
+    }
+
+    const tracking = await shadowfaxService.trackOrder(awbNumber);
+
+    if (order.shadowfaxDetails) {
+      order.shadowfaxDetails.status = tracking.orderDetails?.status || order.shadowfaxDetails.status;
+      order.shadowfaxDetails.statusDisplay = tracking.orderDetails?.status_display || order.shadowfaxDetails.statusDisplay;
+      order.shadowfaxDetails.trackingDetails = tracking.trackingDetails;
+      order.shadowfaxDetails.lastTrackingSync = new Date().toISOString();
+      await order.save();
+    }
+
+    res.json({
+      success: true,
+      data: {
+        awbNumber,
+        orderDetails: tracking.orderDetails,
+        trackingDetails: tracking.trackingDetails,
+      },
+    });
+  } catch (err: any) {
+    next(err);
+  }
+}
+
+/**
+ * GET /api/v1/admin/orders/:id/shadowfax/label
+ * Retrieve or generate shipping label PDF.
+ */
+export async function adminGetShadowfaxLabel(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const orderId = String(req.params.id || '');
+    const order = await Order.findOne({
+      $or: [
+        { orderNumber: orderId },
+        ...(mongoose.Types.ObjectId.isValid(orderId) ? [{ _id: new mongoose.Types.ObjectId(orderId) }] : []),
+      ],
+    });
+
+    if (!order) {
+      res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Order not found.' } });
+      return;
+    }
+
+    const awbNumber = order.shadowfaxDetails?.awbNumber || order.trackingNumber;
+    if (!awbNumber) {
+      res.status(400).json({ success: false, error: { code: 'NO_AWB', message: 'No AWB number found on this order.' } });
+      return;
+    }
+
+    const label = await shadowfaxService.generateShippingLabel(awbNumber);
+
+    if (order.shadowfaxDetails) {
+      order.shadowfaxDetails.labelUrl = label.labelUrl;
+      await order.save();
+    }
+
+    res.json({
+      success: true,
+      data: {
+        awbNumber,
+        labelUrl: label.labelUrl,
+      },
+    });
+  } catch (err: any) {
+    next(err);
+  }
+}
+
+/**
+ * POST /api/v1/admin/orders/:id/shadowfax/cancel
+ * Cancel a booked Shadowfax shipment before pickup.
+ */
+export async function adminCancelShadowfaxShipment(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const orderId = String(req.params.id || '');
+    const reason = req.body.reason || 'Admin cancelled shipment';
+
+    const order = await Order.findOne({
+      $or: [
+        { orderNumber: orderId },
+        ...(mongoose.Types.ObjectId.isValid(orderId) ? [{ _id: new mongoose.Types.ObjectId(orderId) }] : []),
+      ],
+    });
+
+    if (!order) {
+      res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Order not found.' } });
+      return;
+    }
+
+    const awbNumber = order.shadowfaxDetails?.awbNumber || order.trackingNumber;
+    if (!awbNumber) {
+      res.status(400).json({ success: false, error: { code: 'NO_AWB', message: 'No Shadowfax shipment exists on this order.' } });
+      return;
+    }
+
+    const cancelRes = await shadowfaxService.cancelForwardOrder(awbNumber, reason);
+
+    if (order.shadowfaxDetails) {
+      order.shadowfaxDetails.status = 'cancelled';
+      order.shadowfaxDetails.statusDisplay = 'Cancelled';
+    }
+
+    order.statusHistory.push({
+      status: order.fulfilmentStatus,
+      changedBy: req.user?.email || 'Admin',
+      changedAt: new Date().toISOString(),
+      note: `Shadowfax shipment cancelled. AWB: ${awbNumber}. Reason: ${reason}`,
+    });
+
+    await order.save();
+
+    res.json({
+      success: true,
+      message: cancelRes.message,
+      data: order,
+    });
+  } catch (err: any) {
+    next(err);
+  }
+}
+
+/**
+ * POST /api/v1/orders/webhook/shadowfax
+ * Receives webhook callbacks from Shadowfax on status transitions.
+ */
+export async function shadowfaxWebhook(req: Request, res: Response): Promise<void> {
+  try {
+    const payload = req.body || {};
+    const awbNumber = payload.awb_number || payload.awbNumber;
+    const clientOrderId = payload.client_order_id || payload.clientOrderId;
+    const statusId = payload.status_id || payload.statusId || '';
+    const status = payload.status || '';
+    const remarks = payload.remarks || '';
+    const currentLocation = payload.current_location || payload.currentLocation || '';
+
+    log.info({ awbNumber, clientOrderId, statusId, status }, 'Received Shadowfax webhook callback');
+
+    if (!awbNumber && !clientOrderId) {
+      res.status(200).json({ message: 'Callback received without identifiers' });
+      return;
+    }
+
+    const query: any = {
+      $or: [
+        ...(awbNumber ? [{ 'shadowfaxDetails.awbNumber': awbNumber }, { trackingNumber: awbNumber }] : []),
+        ...(clientOrderId ? [{ orderNumber: clientOrderId }] : []),
+      ],
+    };
+
+    const order = await Order.findOne(query);
+    if (!order) {
+      log.warn({ awbNumber, clientOrderId }, 'Webhook received for unknown order');
+      res.status(200).json({ message: 'Order not found' });
+      return;
+    }
+
+    if (order.shadowfaxDetails) {
+      order.shadowfaxDetails.status = statusId || order.shadowfaxDetails.status;
+      order.shadowfaxDetails.statusDisplay = status || order.shadowfaxDetails.statusDisplay;
+      if (!order.shadowfaxDetails.trackingDetails) order.shadowfaxDetails.trackingDetails = [];
+      order.shadowfaxDetails.trackingDetails.push({
+        created: new Date().toISOString(),
+        location: currentLocation,
+        status_id: statusId,
+        status,
+        remarks,
+        awb_number: awbNumber,
+      });
+      order.shadowfaxDetails.lastTrackingSync = new Date().toISOString();
+    }
+
+    // Map statusId to fulfillmentStatus
+    if (statusId === 'delivered') {
+      order.fulfilmentStatus = 'delivered';
+      for (const it of order.items) {
+        it.itemStatus = 'delivered';
+        it.deliveredAt = new Date().toISOString();
+      }
+      triggerOrderDeliveredNotification(order);
+    } else if (statusId === 'picked' || statusId === 'recd_at_fwd_hub' || statusId === 'ofd') {
+      if (order.fulfilmentStatus !== 'delivered') {
+        order.fulfilmentStatus = 'shipped';
+      }
+    } else if (statusId === 'cancelled') {
+      order.fulfilmentStatus = 'cancelled';
+      for (const it of order.items) {
+        it.itemStatus = 'cancelled';
+      }
+    } else if (statusId === 'rts' || statusId === 'rto' || statusId === 'rts_d' || statusId === 'rto_d') {
+      order.fulfilmentStatus = 'returned';
+    }
+
+    order.statusHistory.push({
+      status: order.fulfilmentStatus,
+      changedBy: 'Shadowfax Webhook',
+      changedAt: new Date().toISOString(),
+      note: `Shadowfax: ${status || statusId}${remarks ? ` - ${remarks}` : ''}${
+        currentLocation ? ` (${currentLocation})` : ''
+      }`,
+    });
+
+    await order.save();
+    res.status(200).json({ message: 'Webhook processed successfully' });
+  } catch (err: any) {
+    log.error({ err: err?.message }, 'Error processing Shadowfax webhook');
+    res.status(200).json({ message: 'Error processed' });
+  }
+}
+
 
