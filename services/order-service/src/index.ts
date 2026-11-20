@@ -5,7 +5,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import rateLimit from 'express-rate-limit';
-import { connectDB } from '@ornate/db';
+import { connectDB, mongoose } from '@ornate/db';
 import { createLogger } from '@ornate/logger';
 import orderRoutes from './routes/order.routes.js';
 import cartRoutes from './routes/cart.routes.js';
@@ -158,6 +158,24 @@ app.get('/', (_req: Request, res: Response) => {
 
 app.get('/health', (_req: Request, res: Response) => {
   res.json({ status: 'ok', service: 'order-service', timestamp: new Date().toISOString() });
+});
+
+// Ensure MongoDB connection is active before processing data routes
+app.use(async (req: Request, _res: Response, next: NextFunction) => {
+  if (req.path === '/health' || req.path === '/') return next();
+  try {
+    if (mongoose.connection.readyState !== 1) {
+      await connectDB(
+        process.env.MONGODB_URI || process.env.MONGODB_URI_PROD || '',
+        process.env.ORDER_DB_NAME ?? 'ornate_orders',
+        { exitOnError: false, maxRetries: 3, serverSelectionTimeoutMS: 5000, connectTimeoutMS: 5000 },
+      );
+    }
+    next();
+  } catch (err: any) {
+    log.error({ err: err?.message, path: req.url }, 'Failed to establish MongoDB connection for request');
+    next(err);
+  }
 });
 
 // Mounted paths

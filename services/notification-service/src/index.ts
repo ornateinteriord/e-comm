@@ -4,7 +4,7 @@ import express, { Express, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
-import { connectDB } from '@ornate/db';
+import { connectDB, mongoose } from '@ornate/db';
 import { createLogger } from '@ornate/logger';
 import notificationRoutes from './routes/notification.routes.js';
 
@@ -136,6 +136,24 @@ app.get('/', (_req: Request, res: Response) => {
 
 app.get('/health', (_req: Request, res: Response) => {
   res.json({ status: 'ok', service: 'notification-service', timestamp: new Date().toISOString() });
+});
+
+// Ensure MongoDB connection is active before processing data routes
+app.use(async (req: Request, _res: Response, next: NextFunction) => {
+  if (req.path === '/health' || req.path === '/' || req.path.includes('/webhook')) return next();
+  try {
+    if (mongoose.connection.readyState !== 1) {
+      await connectDB(
+        process.env.MONGODB_URI || process.env.MONGODB_URI_PROD || '',
+        process.env.NOTIFICATION_DB_NAME ?? 'ornate_notifications',
+        { exitOnError: false, maxRetries: 3, serverSelectionTimeoutMS: 5000, connectTimeoutMS: 5000 },
+      );
+    }
+    next();
+  } catch (err: any) {
+    log.error({ err: err?.message, path: req.url }, 'Failed to establish MongoDB connection for request');
+    next(err);
+  }
 });
 
 // Mounted paths

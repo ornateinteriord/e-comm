@@ -5,11 +5,11 @@ import axios from 'axios';
 const ORDER_SERVICE_URL = process.env.ORDER_SERVICE_URL ?? 'http://localhost:4006';
 
 const DEFAULT_SELLER = {
-  name: process.env.SELLER_NAME ?? 'Ornate Seller Pvt Ltd',
-  address: process.env.SELLER_ADDRESS ?? '42 Tech Hub, Outer Ring Road, Bengaluru, Karnataka, 560103',
-  gstin: process.env.SELLER_GSTIN ?? '29ABCDE1234F1Z5',
-  email: process.env.SELLER_EMAIL ?? 'seller@ornate.dev',
-  phone: process.env.SELLER_PHONE ?? '+91-9876543210',
+  name: 'BLUSKY MICRO SERVICES FOUNDATION',
+  address: 'L-29 Ground Floor, Block L Mohan Garden, Uttam Nagar, West Delhi, New Delhi, Delhi, 110059',
+  gstin: '07ABCDE1234F1Z5',
+  email: 'eshopy650@gmail.com',
+  phone: '+91-7676518566',
 };
 
 export async function generateInvoice(req: Request, res: Response, next: NextFunction): Promise<void> {

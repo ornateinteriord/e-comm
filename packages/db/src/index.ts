@@ -5,6 +5,7 @@ const log = createLogger('db');
 
 let isConnected = false;
 let listenersAttached = false;
+let connectionPromise: Promise<void> | null = null;
 
 export interface ConnectDBOptions {
   maxRetries?: number;
@@ -63,6 +64,11 @@ function setupListeners(): void {
     log.warn('MongoDB disconnected');
   });
 
+  mongoose.connection.on('connected', () => {
+    isConnected = true;
+    log.info('MongoDB connected');
+  });
+
   mongoose.connection.on('reconnected', () => {
     isConnected = true;
     log.info('MongoDB reconnected');
@@ -87,98 +93,142 @@ export async function connectDB(
   dbName: string,
   options?: ConnectDBOptions,
 ): Promise<void> {
-  if (isConnected) return;
+  // If already connected and ready, return immediately
+  if (mongoose.connection.readyState === 1) {
+    isConnected = true;
+    return;
+  }
 
-  const isVercel = process.env.VERCEL === '1';
-  const uri = prepareUri(rawUri);
-  const maxRetries = options?.maxRetries ?? (isVercel ? 2 : Number(process.env.MONGODB_MAX_RETRIES ?? 3));
-  const serverSelectionTimeoutMS =
-    options?.serverSelectionTimeoutMS ??
-    (isVercel ? 5000 : Number(process.env.MONGODB_SERVER_SELECTION_TIMEOUT_MS ?? 15000));
-  const connectTimeoutMS =
-    options?.connectTimeoutMS ?? (isVercel ? 5000 : Number(process.env.MONGODB_CONNECT_TIMEOUT_MS ?? 15000));
-  const socketTimeoutMS =
-    options?.socketTimeoutMS ?? Number(process.env.MONGODB_SOCKET_TIMEOUT_MS ?? 20000);
-  const maxPoolSize = options?.maxPoolSize ?? Number(process.env.MONGODB_MAX_POOL_SIZE ?? 10);
-  const minPoolSize = options?.minPoolSize ?? Number(process.env.MONGODB_MIN_POOL_SIZE ?? 1);
-  const exitOnError = options?.exitOnError ?? (process.env.NODE_ENV !== 'test' && !isVercel);
+  // If a connection attempt is already in flight, share that promise
+  if (connectionPromise) {
+    return connectionPromise;
+  }
 
-  let lastError: unknown = null;
+  connectionPromise = (async () => {
+    const isVercel = process.env.VERCEL === '1';
+    const effectiveUri =
+      (rawUri && rawUri.trim()) ||
+      process.env.MONGODB_URI ||
+      process.env.MONGODB_URI_PROD ||
+      '';
 
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      if (attempt > 1) {
-        log.info({ dbName, attempt, maxRetries }, 'Retrying MongoDB connection...');
-      }
-
-      await mongoose.connect(uri, {
-        dbName,
-        maxPoolSize,
-        minPoolSize,
-        serverSelectionTimeoutMS,
-        connectTimeoutMS,
-        socketTimeoutMS,
-        retryWrites: true,
-        w: 'majority',
-      });
-
-      isConnected = true;
-      log.info({ dbName, attempt }, 'MongoDB connected successfully');
-      setupListeners();
+    if (!effectiveUri) {
+      log.error({ dbName }, 'MongoDB connection URI is missing in environment variables');
       return;
-    } catch (err: unknown) {
-      lastError = err;
-      const isLastAttempt = attempt >= maxRetries;
-      const isWhitelistOrNet = isNetworkOrWhitelistError(err);
+    }
 
-      if (!isLastAttempt) {
-        const delayMs = Math.min(2000 * Math.pow(1.5, attempt - 1), 10000);
-        log.warn(
-          {
-            dbName,
-            attempt,
-            maxRetries,
-            nextRetryInMs: delayMs,
-            isWhitelistOrNet,
-            err: err instanceof Error ? err.message : String(err),
-          },
-          `MongoDB connection attempt ${attempt}/${maxRetries} failed. Retrying in ${delayMs}ms...`,
-        );
-        await new Promise((resolve) => setTimeout(resolve, delayMs));
+    const uri = prepareUri(effectiveUri);
+    const maxRetries = options?.maxRetries ?? (isVercel ? 2 : Number(process.env.MONGODB_MAX_RETRIES ?? 3));
+    const serverSelectionTimeoutMS =
+      options?.serverSelectionTimeoutMS ??
+      (isVercel ? 5000 : Number(process.env.MONGODB_SERVER_SELECTION_TIMEOUT_MS ?? 15000));
+    const connectTimeoutMS =
+      options?.connectTimeoutMS ?? (isVercel ? 5000 : Number(process.env.MONGODB_CONNECT_TIMEOUT_MS ?? 15000));
+    const socketTimeoutMS =
+      options?.socketTimeoutMS ?? Number(process.env.MONGODB_SOCKET_TIMEOUT_MS ?? 20000);
+    const maxPoolSize = options?.maxPoolSize ?? Number(process.env.MONGODB_MAX_POOL_SIZE ?? 10);
+    const minPoolSize = options?.minPoolSize ?? Number(process.env.MONGODB_MIN_POOL_SIZE ?? 1);
+    const exitOnError = options?.exitOnError ?? (process.env.NODE_ENV !== 'test' && !isVercel);
+
+    let lastError: unknown = null;
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        if (attempt > 1) {
+          log.info({ dbName, attempt, maxRetries }, 'Retrying MongoDB connection...');
+        }
+
+        await mongoose.connect(uri, {
+          dbName,
+          maxPoolSize,
+          minPoolSize,
+          serverSelectionTimeoutMS,
+          connectTimeoutMS,
+          socketTimeoutMS,
+          retryWrites: true,
+          w: 'majority',
+        });
+
+        isConnected = true;
+        log.info({ dbName, attempt }, 'MongoDB connected successfully');
+        setupListeners();
+        return;
+      } catch (err: unknown) {
+        lastError = err;
+        const isLastAttempt = attempt >= maxRetries;
+        const isWhitelistOrNet = isNetworkOrWhitelistError(err);
+
+        if (!isLastAttempt) {
+          const delayMs = Math.min(2000 * Math.pow(1.5, attempt - 1), 10000);
+          log.warn(
+            {
+              dbName,
+              attempt,
+              maxRetries,
+              nextRetryInMs: delayMs,
+              isWhitelistOrNet,
+              err: err instanceof Error ? err.message : String(err),
+            },
+            `MongoDB connection attempt ${attempt}/${maxRetries} failed. Retrying in ${delayMs}ms...`,
+          );
+          await new Promise((resolve) => setTimeout(resolve, delayMs));
+        }
       }
     }
-  }
 
-  // Optional fallback connection
-  const fallbackUri = process.env.MONGODB_FALLBACK_URI;
-  if (fallbackUri && fallbackUri !== rawUri) {
-    try {
-      log.warn({ fallbackUri, dbName }, 'Primary MongoDB connection failed. Trying MONGODB_FALLBACK_URI...');
-      await mongoose.connect(prepareUri(fallbackUri), {
-        dbName,
-        maxPoolSize,
-        minPoolSize,
-        serverSelectionTimeoutMS: 5000,
-        connectTimeoutMS: 5000,
-      });
-      isConnected = true;
-      log.info({ dbName }, 'MongoDB connected successfully via fallback URI');
-      setupListeners();
-      return;
-    } catch (fallbackErr) {
-      log.error({ fallbackErr }, 'Fallback MongoDB connection also failed');
+    // Optional fallback connection to MONGODB_FALLBACK_URI or MONGODB_URI_PROD
+    const fallbackUri = process.env.MONGODB_FALLBACK_URI || process.env.MONGODB_URI_PROD;
+    if (fallbackUri && prepareUri(fallbackUri) !== uri) {
+      try {
+        log.warn({ dbName }, 'Primary MongoDB connection failed. Trying fallback URI...');
+        await mongoose.connect(prepareUri(fallbackUri), {
+          dbName,
+          maxPoolSize,
+          minPoolSize,
+          serverSelectionTimeoutMS: 5000,
+          connectTimeoutMS: 5000,
+          retryWrites: true,
+          w: 'majority',
+        });
+        isConnected = true;
+        log.info({ dbName }, 'MongoDB connected successfully via fallback URI');
+        setupListeners();
+        return;
+      } catch (fallbackErr) {
+        log.error({ fallbackErr }, 'Fallback MongoDB connection also failed');
+      }
     }
-  }
 
-  // All attempts exhausted
-  printAtlasDiagnosticBox(dbName, uri, lastError);
-  log.error({ err: lastError, dbName, maxRetries }, 'MongoDB connection failed after all retries');
+    // All attempts exhausted
+    printAtlasDiagnosticBox(dbName, uri, lastError);
+    log.error({ err: lastError, dbName, maxRetries }, 'MongoDB connection failed after all retries');
 
-  if (exitOnError) {
-    process.exit(1);
-  } else {
-    throw lastError;
+    if (exitOnError) {
+      process.exit(1);
+    } else {
+      throw lastError;
+    }
+  })();
+
+  try {
+    await connectionPromise;
+  } finally {
+    connectionPromise = null;
   }
+}
+
+export async function ensureDbConnected(
+  dbName: string = process.env.PRODUCT_DB_NAME ?? 'ornate_products',
+  uri?: string,
+): Promise<void> {
+  if (mongoose.connection.readyState === 1) return;
+  const targetUri = uri || process.env.MONGODB_URI || process.env.MONGODB_URI_PROD || '';
+  await connectDB(targetUri, dbName, {
+    exitOnError: false,
+    maxRetries: 2,
+    serverSelectionTimeoutMS: 5000,
+    connectTimeoutMS: 5000,
+  });
 }
 
 export async function disconnectDB(): Promise<void> {

@@ -20,7 +20,6 @@ import {
 import {
   Email as EmailIcon,
   Phone as PhoneIcon,
-  LocationOn as LocationIcon,
   Send as SendIcon,
   CheckCircleOutline as CheckCircleIcon,
   SupportAgent as SupportAgentIcon,
@@ -154,7 +153,7 @@ export default function ContactPage() {
         {/* Quick Contact Cards */}
         <Grid container spacing={2.5} sx={{ mb: 5 }}>
           {/* Card 1: Email */}
-          <Grid item xs={12} sm={6} lg={3}>
+          <Grid item xs={12} sm={6} md={4}>
             <Paper
               elevation={0}
               sx={{
@@ -228,7 +227,7 @@ export default function ContactPage() {
           </Grid>
 
           {/* Card 2: Phone / Mobile */}
-          <Grid item xs={12} sm={6} lg={3}>
+          <Grid item xs={12} sm={6} md={4}>
             <Paper
               elevation={0}
               sx={{
@@ -266,127 +265,82 @@ export default function ContactPage() {
                   <Link
                     href="tel:+917676518566"
                     sx={{
-                      color: 'text.primary',
-                      textDecoration: 'none',
-                      fontWeight: 800,
-                      fontSize: '0.92rem',
-                      '&:hover': { color: '#FF7900' },
-                      transition: 'color 0.15s ease',
-                    }}
-                  >
-                    +91 7676518566
-                  </Link>
-                  <Link
-                    href="tel:+917411011100"
-                    sx={{
-                      color: 'text.primary',
-                      textDecoration: 'none',
-                      fontWeight: 800,
-                      fontSize: '0.92rem',
-                      '&:hover': { color: '#FF7900' },
-                      transition: 'color 0.15s ease',
-                    }}
-                  >
-                    +91 7411011100
-                  </Link>
-                </Box>
-                <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.75 }}>
-                  <AccessTimeIcon sx={{ fontSize: 13 }} /> Mon - Sat, 9 AM - 7 PM
-                </Typography>
+                    color: 'text.primary',
+                    textDecoration: 'none',
+                    fontWeight: 800,
+                    fontSize: '0.92rem',
+                    '&:hover': { color: '#FF7900' },
+                    transition: 'color 0.15s ease',
+                  }}
+                >
+                  +91 7676518566
+                </Link>
+                <Link
+                  href="tel:+917411011100"
+                  sx={{
+                    color: 'text.primary',
+                    textDecoration: 'none',
+                    fontWeight: 800,
+                    fontSize: '0.92rem',
+                    '&:hover': { color: '#FF7900' },
+                    transition: 'color 0.15s ease',
+                  }}
+                >
+                  +91 7411011100
+                </Link>
               </Box>
-            </Paper>
-          </Grid>
-
-          {/* Card 3: Administrative Office */}
-          <Grid item xs={12} sm={6} lg={3}>
-            <Paper
-              elevation={0}
-              sx={{
-                p: 2.5,
-                borderRadius: '12px',
-                border: '1px solid',
-                borderColor: isLight ? '#e2e8f0' : 'rgba(255, 255, 255, 0.1)',
-                bgcolor: isLight ? '#ffffff' : '#111827',
-                display: 'flex',
-                alignItems: 'flex-start',
-                gap: 2,
-                boxShadow: '0 4px 14px rgba(0,0,0,0.04)',
-                height: '100%',
-              }}
-            >
-              <Box
-                sx={{
-                  p: 1.25,
-                  borderRadius: '10px',
-                  bgcolor: 'rgba(255, 121, 0, 0.1)',
-                  color: '#FF7900',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flexShrink: 0,
-                }}
-              >
-                <LocationIcon fontSize="medium" />
-              </Box>
-              <Box sx={{ minWidth: 0, flex: 1 }}>
-                <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                  Administrative Office
-                </Typography>
-                <Typography variant="body2" fontWeight={800} sx={{ color: 'text.primary', mt: 0.25, lineHeight: 1.35 }}>
-                  Shop No. G2, Asha Chandra Trade Center, Court Road
-                </Typography>
-                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5, lineHeight: 1.3 }}>
-                  Udupi, Karnataka, India - 576101
-                </Typography>
-              </Box>
-            </Paper>
-          </Grid>
-
-          {/* Card 4: Registered Office */}
-          <Grid item xs={12} sm={6} lg={3}>
-            <Paper
-              elevation={0}
-              sx={{
-                p: 2.5,
-                borderRadius: '12px',
-                border: '1px solid',
-                borderColor: isLight ? '#e2e8f0' : 'rgba(255, 255, 255, 0.1)',
-                bgcolor: isLight ? '#ffffff' : '#111827',
-                display: 'flex',
-                alignItems: 'flex-start',
-                gap: 2,
-                boxShadow: '0 4px 14px rgba(0,0,0,0.04)',
-                height: '100%',
-              }}
-            >
-              <Box
-                sx={{
-                  p: 1.25,
-                  borderRadius: '10px',
-                  bgcolor: 'rgba(255, 121, 0, 0.1)',
-                  color: '#FF7900',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flexShrink: 0,
-                }}
-              >
-                <CorporateFareIcon fontSize="medium" />
-              </Box>
-              <Box sx={{ minWidth: 0, flex: 1 }}>
-                <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                  Registered Office
-                </Typography>
-                <Typography variant="body2" fontWeight={800} sx={{ color: 'text.primary', mt: 0.25, lineHeight: 1.35 }}>
-                  L-29 Ground Floor, Block L Mohan Garden, Uttam Nagar
-                </Typography>
-                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5, lineHeight: 1.3 }}>
-                  West Delhi, New Delhi, India - 110059
-                </Typography>
-              </Box>
-            </Paper>
-          </Grid>
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.75 }}>
+                <AccessTimeIcon sx={{ fontSize: 13 }} /> Mon - Sat, 9 AM - 7 PM
+              </Typography>
+            </Box>
+          </Paper>
         </Grid>
+
+        {/* Card 3: Registered Office */}
+        <Grid item xs={12} sm={12} md={4}>
+          <Paper
+            elevation={0}
+            sx={{
+              p: 2.5,
+              borderRadius: '12px',
+              border: '1px solid',
+              borderColor: isLight ? '#e2e8f0' : 'rgba(255, 255, 255, 0.1)',
+              bgcolor: isLight ? '#ffffff' : '#111827',
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: 2,
+              boxShadow: '0 4px 14px rgba(0,0,0,0.04)',
+              height: '100%',
+            }}
+          >
+            <Box
+              sx={{
+                p: 1.25,
+                borderRadius: '10px',
+                bgcolor: 'rgba(255, 121, 0, 0.1)',
+                color: '#FF7900',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+              }}
+            >
+              <CorporateFareIcon fontSize="medium" />
+            </Box>
+            <Box sx={{ minWidth: 0, flex: 1 }}>
+              <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                Registered Office
+              </Typography>
+              <Typography variant="body2" fontWeight={800} sx={{ color: 'text.primary', mt: 0.25, lineHeight: 1.35 }}>
+                L-29 Ground Floor, Block L Mohan Garden, Uttam Nagar
+              </Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5, lineHeight: 1.3 }}>
+                West Delhi, New Delhi, India - 110059
+              </Typography>
+            </Box>
+          </Paper>
+        </Grid>
+      </Grid>
 
         {/* Form and FAQ Section */}
         <Grid container spacing={4}>
@@ -577,15 +531,6 @@ export default function ContactPage() {
                     </Typography>
                     <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25, lineHeight: 1.6 }}>
                       W/o VIKAS KUMAR JHA, L-29 Ground Floor, Block L Mohan Garden, Uttam Nagar, West Delhi, New Delhi, Delhi, India, 110059
-                    </Typography>
-                  </Box>
-
-                  <Box>
-                    <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 700, textTransform: 'uppercase' }}>
-                      Administrative Office
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25, lineHeight: 1.6 }}>
-                      SHOP NO. G2, ASHA CHANDRA TRADE CENTER, COURT ROAD, UDUPI, TALUK & DISTRICT, Udupi, Karnataka, India, 576101
                     </Typography>
                   </Box>
 

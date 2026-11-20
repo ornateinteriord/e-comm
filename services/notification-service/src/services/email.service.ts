@@ -145,8 +145,7 @@ export class EmailService {
                 E-Shopy Retail (Pvt Ltd) • www.eshopy.biz
               </p>
               <p style="margin: 0 0 10px 0; font-size: 11px; color: #94A3B8; line-height: 1.5;">
-                Admin: Shop No. G2, Asha Chandra Trade Center, Court Road, Udupi, Karnataka - 576101<br/>
-                Regd: L-29 Block L Mohan Garden, Uttam Nagar, New Delhi - 110059
+                Registered Office: L-29 Ground Floor, Block L Mohan Garden, Uttam Nagar, West Delhi, New Delhi - 110059
               </p>
               <p style="margin: 0; font-size: 11.5px; color: #64748B;">
                 Need help? Contact <a href="mailto:77411011100sandeep@gmail.com" style="color: #FF7900; text-decoration: none; font-weight: 700;">77411011100sandeep@gmail.com</a> or call <strong style="color: #0F172A;">+91 7676518566</strong>

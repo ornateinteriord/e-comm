@@ -259,12 +259,11 @@ export async function generateInvoicePdfBuffer(data: InvoiceData): Promise<Buffe
       const sY = y + 24;
       doc.fontSize(8.5).font('Helvetica-Bold').fillColor('#0F172A').text('E-Shopy Retail (Pvt Ltd)', leftMargin + 8, sY);
       doc.fontSize(7.5).font('Helvetica').fillColor('#475569');
-      doc.text('Admin Office: Shop No. G2, Asha Chandra Trade Center, Court Road', leftMargin + 8, sY + 11);
-      doc.text('Udupi, Karnataka, India - 576101', leftMargin + 8, sY + 20);
-      doc.text('Registered: L-29 Ground Floor, Block L Mohan Garden, Uttam Nagar', leftMargin + 8, sY + 29);
-      doc.text('West Delhi, New Delhi, India - 110059', leftMargin + 8, sY + 38);
-      doc.font('Helvetica-Bold').fillColor('#0F172A').text('GSTIN: 29ABCDE1234F1Z5  |  State: Karnataka (29)', leftMargin + 8, sY + 49);
-      doc.font('Helvetica').fillColor('#475569').text('Care: 77411011100sandeep@gmail.com | +91 7676518566', leftMargin + 8, sY + 59);
+      doc.text('Registered Office: L-29 Ground Floor, Block L Mohan Garden,', leftMargin + 8, sY + 12);
+      doc.text('Uttam Nagar, West Delhi, New Delhi, Delhi, India - 110059', leftMargin + 8, sY + 22);
+      doc.font('Helvetica-Bold').fillColor('#0F172A').text('GSTIN: 07ABCDE1234F1Z5  |  State: Delhi (07)', leftMargin + 8, sY + 36);
+      doc.font('Helvetica').fillColor('#475569').text('Helpline: +91 7676518566 | +91 7411011100', leftMargin + 8, sY + 48);
+      doc.font('Helvetica').fillColor('#475569').text('Care: eshopy650@gmail.com | 77411011100sandeep@gmail.com', leftMargin + 8, sY + 58);
 
       // Box 2: Customer (Billed & Shipped To)
       const cLeft = leftMargin + boxWidth + 10;
@@ -453,7 +452,7 @@ export async function generateInvoicePdfBuffer(data: InvoiceData): Promise<Buffe
       // Bottom Bar
       doc.rect(leftMargin, doc.page.height - 24, pageWidth, 12).fill('#F8FAFC');
       doc.fontSize(6.5).font('Helvetica').fillColor('#94A3B8').text(
-        'E-Shopy Retail | Shop No. G2, Asha Chandra Trade Center, Court Road, Udupi, Karnataka, India - 576101 | www.eshopy.biz',
+        'E-Shopy Retail | L-29 Ground Floor, Block L Mohan Garden, Uttam Nagar, West Delhi, New Delhi - 110059 | www.eshopy.biz',
         leftMargin,
         doc.page.height - 21,
         { width: pageWidth, align: 'center' },

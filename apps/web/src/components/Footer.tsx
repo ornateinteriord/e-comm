@@ -94,15 +94,15 @@ export default function Footer() {
             </Typography>
 
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              {/* Office Address */}
+              {/* Registered Office Address */}
               <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
                 <LocationIcon sx={{ fontSize: 20, color: '#FF7900', mt: 0.25, flexShrink: 0 }} />
                 <Box>
                   <Typography variant="body2" sx={{ color: '#E2E8F0', fontWeight: 600, fontSize: '0.85rem', lineHeight: 1.45 }}>
-                    Shop No. G2, Asha Chandra Trade Center, Court Road
+                    L-29 Ground Floor, Block L Mohan Garden, Uttam Nagar
                   </Typography>
                   <Typography variant="caption" sx={{ color: '#94A3B8', display: 'block', mt: 0.25 }}>
-                    Udupi, Karnataka, India - 576101
+                    West Delhi, New Delhi, India - 110059
                   </Typography>
                 </Box>
               </Box>
