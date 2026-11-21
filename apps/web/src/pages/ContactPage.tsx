@@ -188,22 +188,6 @@ export default function ContactPage() {
                   Email Support
                 </Typography>
                 <Link
-                  href="mailto:77411011100sandeep@gmail.com"
-                  sx={{
-                    color: 'text.primary',
-                    textDecoration: 'none',
-                    fontWeight: 800,
-                    fontSize: '0.92rem',
-                    display: 'block',
-                    mt: 0.25,
-                    wordBreak: 'break-all',
-                    '&:hover': { color: '#FF7900' },
-                    transition: 'color 0.15s ease',
-                  }}
-                >
-                  77411011100sandeep@gmail.com
-                </Link>
-                <Link
                   href="mailto:eshopy650@gmail.com"
                   sx={{
                     color: 'text.primary',
@@ -265,82 +249,69 @@ export default function ContactPage() {
                   <Link
                     href="tel:+917676518566"
                     sx={{
-                    color: 'text.primary',
-                    textDecoration: 'none',
-                    fontWeight: 800,
-                    fontSize: '0.92rem',
-                    '&:hover': { color: '#FF7900' },
-                    transition: 'color 0.15s ease',
-                  }}
-                >
-                  +91 7676518566
-                </Link>
-                <Link
-                  href="tel:+917411011100"
-                  sx={{
-                    color: 'text.primary',
-                    textDecoration: 'none',
-                    fontWeight: 800,
-                    fontSize: '0.92rem',
-                    '&:hover': { color: '#FF7900' },
-                    transition: 'color 0.15s ease',
-                  }}
-                >
-                  +91 7411011100
-                </Link>
+                      color: 'text.primary',
+                      textDecoration: 'none',
+                      fontWeight: 800,
+                      fontSize: '0.92rem',
+                      '&:hover': { color: '#FF7900' },
+                      transition: 'color 0.15s ease',
+                    }}
+                  >
+                    +91 7676518566
+                  </Link>
+                </Box>
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.75 }}>
+                  <AccessTimeIcon sx={{ fontSize: 13 }} /> Mon - Sat, 9 AM - 7 PM
+                </Typography>
               </Box>
-              <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.75 }}>
-                <AccessTimeIcon sx={{ fontSize: 13 }} /> Mon - Sat, 9 AM - 7 PM
-              </Typography>
-            </Box>
-          </Paper>
-        </Grid>
+            </Paper>
+          </Grid>
 
-        {/* Card 3: Registered Office */}
-        <Grid item xs={12} sm={12} md={4}>
-          <Paper
-            elevation={0}
-            sx={{
-              p: 2.5,
-              borderRadius: '12px',
-              border: '1px solid',
-              borderColor: isLight ? '#e2e8f0' : 'rgba(255, 255, 255, 0.1)',
-              bgcolor: isLight ? '#ffffff' : '#111827',
-              display: 'flex',
-              alignItems: 'flex-start',
-              gap: 2,
-              boxShadow: '0 4px 14px rgba(0,0,0,0.04)',
-              height: '100%',
-            }}
-          >
-            <Box
+          {/* Card 3: Registered Office */}
+          <Grid item xs={12} sm={12} md={4}>
+            <Paper
+              elevation={0}
               sx={{
-                p: 1.25,
-                borderRadius: '10px',
-                bgcolor: 'rgba(255, 121, 0, 0.1)',
-                color: '#FF7900',
+                p: 2.5,
+                borderRadius: '12px',
+                border: '1px solid',
+                borderColor: isLight ? '#e2e8f0' : 'rgba(255, 255, 255, 0.1)',
+                bgcolor: isLight ? '#ffffff' : '#111827',
                 display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0,
+                alignItems: 'flex-start',
+                gap: 2,
+                boxShadow: '0 4px 14px rgba(0,0,0,0.04)',
+                height: '100%',
               }}
             >
-              <CorporateFareIcon fontSize="medium" />
-            </Box>
-            <Box sx={{ minWidth: 0, flex: 1 }}>
-              <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                Registered Office
-              </Typography>
-              <Typography variant="body2" fontWeight={800} sx={{ color: 'text.primary', mt: 0.25, lineHeight: 1.35 }}>
-                L-29 Ground Floor, Block L Mohan Garden, Uttam Nagar
-              </Typography>
-              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5, lineHeight: 1.3 }}>
-                West Delhi, New Delhi, India - 110059
-              </Typography>
-            </Box>
-          </Paper>
+              <Box
+                sx={{
+                  p: 1.25,
+                  borderRadius: '10px',
+                  bgcolor: 'rgba(255, 121, 0, 0.1)',
+                  color: '#FF7900',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                }}
+              >
+                <CorporateFareIcon fontSize="medium" />
+              </Box>
+              <Box sx={{ minWidth: 0, flex: 1 }}>
+                <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  Registered Office
+                </Typography>
+                <Typography variant="body2" fontWeight={800} sx={{ color: 'text.primary', mt: 0.25, lineHeight: 1.35 }}>
+                  L-29 Ground Floor, Block L Mohan Garden, Uttam Nagar
+                </Typography>
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5, lineHeight: 1.3 }}>
+                  West Delhi, New Delhi, India - 110059
+                </Typography>
+              </Box>
+            </Paper>
+          </Grid>
         </Grid>
-      </Grid>
 
         {/* Form and FAQ Section */}
         <Grid container spacing={4}>
@@ -551,10 +522,6 @@ export default function ContactPage() {
                       <Link href="tel:+917676518566" sx={{ color: '#FF7900', textDecoration: 'none', fontWeight: 700 }}>
                         +91 7676518566
                       </Link>
-                      {', '}
-                      <Link href="tel:+917411011100" sx={{ color: '#FF7900', textDecoration: 'none', fontWeight: 700 }}>
-                        +91 7411011100
-                      </Link>
                     </Typography>
                   </Box>
                 </Stack>
@@ -634,10 +601,6 @@ export default function ContactPage() {
                     Call our helpline directly at{' '}
                     <Link href="tel:+917676518566" sx={{ color: '#FF7900', fontWeight: 700, textDecoration: 'none' }}>
                       +91 7676518566
-                    </Link>{' '}
-                    or{' '}
-                    <Link href="tel:+917411011100" sx={{ color: '#FF7900', fontWeight: 700, textDecoration: 'none' }}>
-                      +91 7411011100
                     </Link>{' '}
                     for priority escalations during working hours.
                   </Typography>

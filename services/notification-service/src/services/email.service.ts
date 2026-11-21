@@ -120,11 +120,10 @@ export class EmailService {
           <!-- Header Bar -->
           <tr>
             <td style="background-color: #FFFFFF; padding: 28px 24px 20px 24px; text-align: center; border-bottom: 3.5px solid #FF7900;">
-              ${
-                logoFile
-                  ? `<img src="cid:eshopylogo" alt="E-Shopy" style="height: 52px; max-height: 52px; width: auto; max-width: 240px; object-fit: contain; display: block; margin: 0 auto 8px auto;" />`
-                  : `<div style="font-size: 28px; font-weight: 900; letter-spacing: -0.5px; color: #0F172A; margin: 0 0 6px 0;">E-<span style="color: #FF7900;">Shopy</span></div>`
-              }
+              ${logoFile
+        ? `<img src="cid:eshopylogo" alt="E-Shopy" style="height: 52px; max-height: 52px; width: auto; max-width: 240px; object-fit: contain; display: block; margin: 0 auto 8px auto;" />`
+        : `<div style="font-size: 28px; font-weight: 900; letter-spacing: -0.5px; color: #0F172A; margin: 0 0 6px 0;">E-<span style="color: #FF7900;">Shopy</span></div>`
+      }
               <div style="font-size: 11.5px; color: #64748B; margin-top: 4px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase;">
                 Your Trusted Online Marketplace
               </div>
@@ -148,7 +147,7 @@ export class EmailService {
                 Registered Office: L-29 Ground Floor, Block L Mohan Garden, Uttam Nagar, West Delhi, New Delhi - 110059
               </p>
               <p style="margin: 0; font-size: 11.5px; color: #64748B;">
-                Need help? Contact <a href="mailto:77411011100sandeep@gmail.com" style="color: #FF7900; text-decoration: none; font-weight: 700;">77411011100sandeep@gmail.com</a> or call <strong style="color: #0F172A;">+91 7676518566</strong>
+                Need help? Contact <a href="mailto:eshopy650@gmail.com" style="color: #FF7900; text-decoration: none; font-weight: eshopy650ndeep@gmail.com</a> or call <strong style="color: #0F172A;">+91 7676518566</strong>
               </p>
             </td>
           </tr>
@@ -182,9 +181,8 @@ export class EmailService {
         We are thrilled to welcome you to the E-Shopy family. Your account has been registered successfully.
       </p>
 
-      ${
-        data.customerId
-          ? `
+      ${data.customerId
+        ? `
       <div style="background-color: #F8FAFC; border: 1.5px dashed #CBD5E1; border-radius: 12px; padding: 16px 20px; margin: 20px 0;">
         <span style="font-size: 12px; font-weight: 700; color: #64748B; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 4px;">
           Your Customer ID
@@ -193,7 +191,7 @@ export class EmailService {
           ${data.customerId}
         </span>
       </div>`
-          : ''
+        : ''
       }
 
       <p style="font-size: 14.5px; line-height: 1.6; color: #475569; margin: 0 0 24px 0;">
@@ -293,9 +291,8 @@ export class EmailService {
         </tfoot>
       </table>
 
-      ${
-        data.shippingAddress
-          ? `
+      ${data.shippingAddress
+        ? `
       <div style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 14px 18px; margin: 20px 0;">
         <span style="font-size: 12px; font-weight: 800; color: #475569; text-transform: uppercase; display: block; margin-bottom: 6px;">
           Delivery Address
@@ -307,7 +304,7 @@ export class EmailService {
           Mobile: ${data.shippingAddress.phone || 'N/A'}
         </div>
       </div>`
-          : ''
+        : ''
       }
 
       <div style="background-color: #FFF7ED; border: 1px solid #FFEDD5; border-radius: 8px; padding: 12px 16px; margin: 20px 0;">
@@ -329,12 +326,12 @@ export class EmailService {
     const html = this.buildBaseTemplate(`Order Confirmed - #${data.orderNumber}`, body);
     const attachments = data.pdfBuffer
       ? [
-          {
-            filename: `Invoice_${data.orderNumber}.pdf`,
-            content: data.pdfBuffer,
-            contentType: 'application/pdf',
-          },
-        ]
+        {
+          filename: `Invoice_${data.orderNumber}.pdf`,
+          content: data.pdfBuffer,
+          contentType: 'application/pdf',
+        },
+      ]
       : [];
 
     return this.sendMail({
@@ -443,7 +440,7 @@ export class EmailService {
       </p>
 
       <p style="font-size: 14px; color: #64748B; line-height: 1.5; margin: 0 0 24px 0;">
-        If you have any questions, return requests, or warranty claims, our concierge team is always here for you at <strong style="color: #0F172A;">77411011100sandeep@gmail.com</strong>.
+        If you have any questions, return requests, or warranty claims, our concierge team is always here for you at <strong style="color: #0F172A;">eshopy650@gmail.com</strong>.
       </p>
 
       <div style="text-align: center; margin: 26px 0 10px 0;">
@@ -492,9 +489,8 @@ export class EmailService {
         ${data.reason ? `<br/>Reason: <em>${data.reason}</em>` : ''}
       </p>
 
-      ${
-        refundRupees
-          ? `
+      ${refundRupees
+        ? `
       <div style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 16px 20px; margin: 20px 0;">
         <span style="font-size: 12px; font-weight: 800; color: #64748B; text-transform: uppercase; display: block; margin-bottom: 4px;">
           Refund Status
@@ -506,7 +502,7 @@ export class EmailService {
           Amount will be credited back to your original payment method or wallet within 3-5 business days.
         </span>
       </div>`
-          : ''
+        : ''
       }
     `;
 

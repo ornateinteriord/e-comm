@@ -97,7 +97,7 @@ export default function PrivacyPolicyPage() {
               <br />
               <strong>Email:</strong> eshopy650@gmail.com
               <br />
-              <strong>Mobile / Helpline:</strong> +91 7676518566, +91 7411011100
+              <strong>Mobile / Helpline:</strong> +91 7676518566
             </Typography>
           </Box>
         </Box>

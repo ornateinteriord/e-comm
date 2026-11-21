@@ -253,7 +253,7 @@ export class WhatsAppService {
       '',
       `Need assistance?`,
       `📞 Helpline: +91 7676518566`,
-      `✉️ Email: 77411011100sandeep@gmail.com`,
+      `✉️ Email: eshopy650@gmail.com`,
       '',
       `_Team E-Shopy • www.eshopy.biz_`,
     ]
@@ -297,7 +297,7 @@ export class WhatsAppService {
       '',
       `We are preparing your package for dispatch. You will receive courier tracking details once your shipment leaves our warehouse.`,
       '',
-      `Support: +91 7676518566 | 77411011100sandeep@gmail.com`,
+      `Support: +91 7676518566 | eshopy650@gmail.com`,
       `_E-Shopy Retail (Pvt Ltd)_`,
     ].join('\n');
 
@@ -368,7 +368,7 @@ export class WhatsAppService {
       `👉 https://eshopy.biz/account/orders`,
       '',
       `Thank you for shopping with E-Shopy! ✨`,
-      `Support: +91 7676518566 | 77411011100sandeep@gmail.com`,
+      `Support: +91 7676518566 | eshopy650@gmail.com`,
     ].join('\n');
 
     return this.sendTextMessage({
@@ -400,8 +400,8 @@ export class WhatsAppService {
         : null,
       '',
       `For any queries or assistance regarding refunds, please reach out to our support team:`,
-      `📞 +91 7676518566 / +91 7411011100`,
-      `✉️ 77411011100sandeep@gmail.com`,
+      `📞 +91 7676518566`,
+      `✉️ eshopy650@gmail.com`,
       '',
       `_E-Shopy Customer Support_`,
     ]
