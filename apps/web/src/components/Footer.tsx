@@ -124,19 +124,6 @@ export default function Footer() {
                   >
                     +91 7676518566
                   </Link>
-                  <Link
-                    href="tel:+917411011100"
-                    sx={{
-                      color: '#94A3B8',
-                      textDecoration: 'none',
-                      fontSize: '0.85rem',
-                      fontWeight: 600,
-                      '&:hover': { color: '#FF7900' },
-                      transition: 'color 0.15s ease',
-                    }}
-                  >
-                    +91 7411011100
-                  </Link>
                 </Box>
               </Box>
 
@@ -157,20 +144,6 @@ export default function Footer() {
                     }}
                   >
                     eshopy650@gmail.com
-                  </Link>
-                  <Link
-                    href="mailto:77411011100sandeep@gmail.com"
-                    sx={{
-                      color: '#94A3B8',
-                      textDecoration: 'none',
-                      fontSize: '0.82rem',
-                      fontWeight: 600,
-                      wordBreak: 'break-all',
-                      '&:hover': { color: '#FF7900' },
-                      transition: 'color 0.15s ease',
-                    }}
-                  >
-                    77411011100sandeep@gmail.com
                   </Link>
                 </Box>
               </Box>
