@@ -14,6 +14,7 @@ import {
 } from '@mui/icons-material';
 import api from '../api/client';
 import ProductCard from '../components/ProductCard';
+import MobileSplitStorefront from '../components/MobileSplitHome';
 import type { SearchResult } from '@ornate/types';
 
 
@@ -179,6 +180,16 @@ export default function SearchPage() {
       </Stack>
     </Box>
   );
+
+  if (isMobile) {
+    return (
+      <MobileSplitStorefront
+        initialQuery={queryParam}
+        initialCategory={categoryParam}
+        autoFocusSearch={!queryParam}
+      />
+    );
+  }
 
   return (
     <Container maxWidth="lg" sx={{ py: { xs: 3, md: 5 }, pb: { xs: 12, md: 8 } }}>

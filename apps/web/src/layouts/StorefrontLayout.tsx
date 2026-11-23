@@ -152,6 +152,7 @@ export default function StorefrontLayout() {
   };
 
   const getBottomNavValue = () => {
+    if (location.pathname === '/' && location.search.includes('tab=categories')) return 1;
     if (location.pathname === '/') return 0;
     if (location.pathname.startsWith('/categories')) return 1;
     if (location.pathname.startsWith('/search')) return 2;
@@ -618,36 +619,6 @@ export default function StorefrontLayout() {
                 </IconButton>
               </Stack>
             </Toolbar>
-
-            {/* Mobile Touch-friendly Search Bar */}
-            <Box sx={{ px: 2, pb: 1.5 }}>
-              <Box
-                component="form"
-                onSubmit={handleSearch}
-                sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  bgcolor: isLight ? '#F5F6F7' : 'rgba(255, 255, 255, 0.1)',
-                  borderRadius: 2.5,
-                  px: 1.5,
-                  py: 0.6,
-                  border: `1px solid ${isLight ? '#E5E7EB' : 'transparent'}`,
-                }}
-              >
-                <SearchIcon sx={{ color: isLight ? '#9CA3AF' : 'rgba(255,255,255,0.6)', mr: 1, fontSize: 18 }} />
-                <InputBase
-                  placeholder="Search products…"
-                  value={searchValue}
-                  onChange={(e) => setSearchValue(e.target.value)}
-                  fullWidth
-                  sx={{
-                    color: isLight ? '#172B30' : 'white',
-                    fontSize: '0.85rem',
-                    '& input::placeholder': { color: isLight ? '#9CA3AF' : 'rgba(255,255,255,0.6)' },
-                  }}
-                />
-              </Box>
-            </Box>
           </AppBar>
         </Box>
       )}
@@ -1124,12 +1095,19 @@ export default function StorefrontLayout() {
       </Menu>
 
       {/* Main Page Outlet */}
-      <Box component="main" sx={{ flex: 1, pb: isMobile ? '80px' : 0 }}>
+      <Box
+        component="main"
+        sx={{
+          flex: 1,
+          pb: (isMobile && (location.pathname === '/' || location.pathname === '/search')) ? 0 : (isMobile ? '80px' : 0),
+          overflow: (isMobile && (location.pathname === '/' || location.pathname === '/search')) ? 'hidden' : 'visible',
+        }}
+      >
         <Outlet />
       </Box>
 
-      {/* Global Footer */}
-      <Footer />
+      {/* Global Footer (hidden on mobile split pages to keep full-height split view) */}
+      {(!isMobile || (location.pathname !== '/' && location.pathname !== '/search')) && <Footer />}
 
       {/* ---- Mobile Native Bottom App Bar (Android / iOS feel) ---- */}
       {isMobile && (
@@ -1178,7 +1156,8 @@ export default function StorefrontLayout() {
             <BottomNavigationAction
               label="Categories"
               icon={<CategoryIcon />}
-              onClick={() => setDrawerOpen(true)}
+              component={RouterLink}
+              to="/?tab=categories"
             />
             <BottomNavigationAction
               label="Search"

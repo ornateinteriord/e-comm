@@ -28,11 +28,26 @@ export async function listCategories(req: Request, res: Response, next: NextFunc
     else if (parentId) filter.parent = parentId;
 
     const categories = await Category.find(filter).sort({ order: 1, name: 1 });
-    const formatted = categories.map((cat) => ({
+
+    // Aggregate active products per category to attach productCount
+    const categoryIds = categories.map((cat) => cat._id);
+    const counts = await Product.aggregate([
+      { $match: { category: { $in: categoryIds }, status: 'active', isPublished: true } },
+      { $group: { _id: '$category', count: { $sum: 1 } } },
+    ]);
+    const countMap = new Map<string, number>(counts.map((c: any) => [c._id.toString(), c.count]));
+
+    let formatted = categories.map((cat) => ({
       ...cat.toObject(),
       id: cat._id.toString(),
       _id: cat._id.toString(),
+      productCount: countMap.get(cat._id.toString()) || 0,
     }));
+
+    if (req.query.hasProducts === 'true') {
+      formatted = formatted.filter((cat) => (cat.productCount ?? 0) > 0);
+    }
+
     res.json({ success: true, data: formatted });
   } catch (err) {
     next(err);

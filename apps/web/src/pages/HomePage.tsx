@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link as RouterLink, useNavigate } from "react-router";
 import {
   Box, Container, Typography, Button, Grid, Chip,
-  CircularProgress, Stack, Paper, Avatar, useTheme, Skeleton,
+  CircularProgress, Stack, Paper, Avatar, useTheme, Skeleton, useMediaQuery,
 } from "@mui/material";
 import {
   LocalShipping as ShippingIcon,
@@ -24,6 +24,7 @@ import api from "../api/client";
 import ProductCard from "../components/ProductCard";
 import MobilePromoFeed from "../components/MobilePromoFeed";
 import QuickServicesGrid from "../components/QuickServicesGrid";
+import MobileSplitStorefront from "../components/MobileSplitHome";
 import type { PublicProduct } from "@ornate/types";
 
 
@@ -133,6 +134,12 @@ export default function HomePage() {
     if (product && !promoProducts.some((p) => p.id === product.id)) {
       promoProducts.push(product);
     }
+  }
+
+  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
+
+  if (isMobile) {
+    return <MobileSplitStorefront />;
   }
 
   return (
@@ -343,14 +350,14 @@ export default function HomePage() {
                     transition: "transform 0.25s ease, box-shadow 0.25s ease",
                     "&:hover": sponsorProduct?.slug
                       ? {
-                          transform: "translateY(-4px)",
-                          boxShadow: isLight
-                            ? "0 24px 48px -15px rgba(255, 121, 0, 0.25)"
-                            : "0 30px 60px -12px rgba(255, 121, 0, 0.35)",
-                          "& .hero-sponsor-img": {
-                            transform: "scale(1.04)",
-                          },
-                        }
+                        transform: "translateY(-4px)",
+                        boxShadow: isLight
+                          ? "0 24px 48px -15px rgba(255, 121, 0, 0.25)"
+                          : "0 30px 60px -12px rgba(255, 121, 0, 0.35)",
+                        "& .hero-sponsor-img": {
+                          transform: "scale(1.04)",
+                        },
+                      }
                       : {},
                   }}
                 >
@@ -397,11 +404,10 @@ export default function HomePage() {
                     </Typography>
                     <Typography variant="body2" sx={{ color: "#CBD5E1", mt: 0.5 }}>
                       {sponsorProduct?.pricing
-                        ? `Special Deal: Rs. ${(sponsorProduct.pricing.applicablePrice / 100).toLocaleString("en-IN")}${
-                            sponsorProduct.pricing.savingsAmount > 0
-                              ? ` (Save Rs. ${(sponsorProduct.pricing.savingsAmount / 100).toLocaleString("en-IN")})`
-                              : ""
-                          }`
+                        ? `Special Deal: Rs. ${(sponsorProduct.pricing.applicablePrice / 100).toLocaleString("en-IN")}${sponsorProduct.pricing.savingsAmount > 0
+                          ? ` (Save Rs. ${(sponsorProduct.pricing.savingsAmount / 100).toLocaleString("en-IN")})`
+                          : ""
+                        }`
                         : "Special Deal: Rs. 25,990 (Save Rs. 9,000)"}
                     </Typography>
                   </Box>
