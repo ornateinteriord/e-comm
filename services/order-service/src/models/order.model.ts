@@ -31,6 +31,7 @@ export interface IOrder extends Document {
   paymentMethod?: string;
   paymentReference?: string;
   cashfreeOrderId?: string;
+  gatewayOrderId?: string;
   invoiceId?: string | null;
   trackingNumber?: string;
   shippingProvider?: string;
@@ -154,6 +155,7 @@ const orderSchema = new Schema<IOrder>(
     paymentMethod: { type: String, default: 'Cashfree' },
     paymentReference: { type: String, default: null },
     cashfreeOrderId: { type: String, default: null },
+    gatewayOrderId: { type: String, default: null },
     invoiceId: { type: String, default: null },
     trackingNumber: { type: String, default: null },
     shippingProvider: { type: String, default: null },

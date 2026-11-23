@@ -483,7 +483,20 @@ export async function cashfreeWebhook(req: Request, res: Response): Promise<void
       return;
     }
 
-    const event = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
+    let event = req.body;
+    if ((!event || Object.keys(event).length === 0) && rawBody) {
+      try {
+        event = JSON.parse(rawBody.toString('utf8'));
+      } catch {
+        // ignore parse error
+      }
+    } else if (typeof event === 'string') {
+      try {
+        event = JSON.parse(event);
+      } catch {
+        // ignore parse error
+      }
+    }
     const eventType: string = String(event?.type ?? event?.event ?? '');
     const paymentData = event?.data?.payment ?? event?.payment ?? event ?? {};
     const orderData = event?.data?.order ?? event?.order ?? event ?? {};

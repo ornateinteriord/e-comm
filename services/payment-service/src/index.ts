@@ -29,6 +29,17 @@ import {
   verifyCashfreePayment,
   cashfreeWebhook,
 } from './controllers/cashfree.controller.js';
+import {
+  getPaymentGatewayConfig,
+} from './controllers/gateway-config.controller.js';
+import {
+  createUnifiedPaymentOrder,
+  verifyUnifiedPayment,
+  razorpayWebhook,
+} from './controllers/unified-payment.controller.js';
+import {
+  paytmWebhook,
+} from './controllers/paytm.controller.js';
 import { attachUser, requireAuth, requireRole } from './middleware/auth.middleware.js';
 
 const log = createLogger('payment-service');
@@ -140,17 +151,13 @@ const paymentCors = cors({
 
 app.use(paymentCors);
 app.options('*', paymentCors);
-// Capture raw body for Cashfree webhook HMAC verification (must come before JSON parser)
-app.use((req, _res, next) => {
-  if (req.path === '/api/v1/webhooks/cashfree') {
-    let rawData = Buffer.alloc(0);
-    req.on('data', (chunk: Buffer) => { rawData = Buffer.concat([rawData, chunk]); });
-    req.on('end', () => { (req as any).rawBody = rawData; next(); });
-  } else {
-    next();
-  }
-});
-app.use(express.json({ limit: '1mb' }));
+// Built-in raw body capture for webhook HMAC verification
+app.use(express.json({
+  limit: '2mb',
+  verify: (req: any, _res, buf) => {
+    req.rawBody = buf;
+  },
+}));
 app.use(express.urlencoded({ extended: true }));
 
 const globalLimiter = rateLimit({
@@ -199,20 +206,39 @@ app.use('/api/v1', invoiceRoutes);
 app.use('/api/v1/invoices', invoiceRoutes);
 app.use('/invoices', invoiceRoutes);
 
-// Cashfree webhook — must be registered BEFORE attachUser to avoid body re-parsing
+// Webhook endpoints — must be registered BEFORE attachUser to preserve rawBody and avoid auth overhead
 app.post('/api/v1/webhooks/cashfree', cashfreeWebhook);
+app.post('/webhooks/cashfree', cashfreeWebhook);
+app.post('/api/v1/webhooks/razorpay', razorpayWebhook);
+app.post('/webhooks/razorpay', razorpayWebhook);
+app.post('/api/v1/webhooks/paytm', paytmWebhook);
+app.post('/webhooks/paytm', paytmWebhook);
+
+// Public Gateway Config (before attachUser)
+app.get('/api/v1/payments/config', getPaymentGatewayConfig);
+app.get('/payments/config', getPaymentGatewayConfig);
 
 // Direct mapping for gateway forwarded subpaths
 app.use(attachUser);
 
+// Dynamic unified payment routes
+app.post('/api/v1/payments/create-order', createUnifiedPaymentOrder);
+app.post('/payments/create-order', createUnifiedPaymentOrder);
+app.post('/api/v1/payments/verify', verifyUnifiedPayment);
+app.post('/payments/verify', verifyUnifiedPayment);
+
 // Cashfree payment routes (primary gateway)
 app.post('/api/v1/payments/cashfree/create-order', createCashfreeOrder);
+app.post('/payments/cashfree/create-order', createCashfreeOrder);
 app.post('/api/v1/payments/cashfree/verify', verifyCashfreePayment);
+app.post('/payments/cashfree/verify', verifyCashfreePayment);
 
 // Legacy Razorpay routes (kept for compatibility)
 app.post('/api/v1/payments/create-intent', createPaymentIntent);
+app.post('/payments/create-intent', createPaymentIntent);
 app.post('/api/v1/payments/intent', createPaymentIntent);
-app.post('/api/v1/payments/verify', verifyPayment);
+app.post('/payments/intent', createPaymentIntent);
+app.post('/api/v1/payments/verify-legacy', verifyPayment);
 app.get('/api/v1/admin/payments', requireAuth, requireRole('finance_manager', 'admin', 'super_admin'), adminListPayments);
 
 // Invoices direct mapping

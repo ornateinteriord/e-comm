@@ -36,10 +36,40 @@ export default function PaymentReturnPage() {
 
   const orderId = searchParams.get('order_id') || '';
   const cfOrderId = searchParams.get('cf_order_id') || searchParams.get('order_token') || '';
+  const razorpayPaymentId =
+    searchParams.get('razorpay_payment_id') || searchParams.get('payment_id') || '';
+  const razorpayOrderId = searchParams.get('razorpay_order_id') || '';
+  const razorpaySignature = searchParams.get('razorpay_signature') || '';
+  const urlGateway = (searchParams.get('gateway') || '').toLowerCase();
+  const urlPaymentStatus = (searchParams.get('payment_status') || '').toUpperCase();
+  const paidBy = searchParams.get('paid_by') || '';
+  const urlError = searchParams.get('error') || '';
+
+  // Determine active gateway
+  const detectedGateway =
+    urlGateway ||
+    (paidBy === 'wallet'
+      ? 'wallet'
+      : razorpayPaymentId || razorpayOrderId
+      ? 'razorpay'
+      : cfOrderId
+      ? 'cashfree'
+      : 'razorpay');
+
+  const gatewayDisplayName =
+    detectedGateway === 'razorpay'
+      ? 'Razorpay'
+      : detectedGateway === 'paytm'
+      ? 'Paytm'
+      : detectedGateway === 'wallet'
+      ? 'Wallet'
+      : 'Cashfree';
 
   const [status, setStatus] = useState<PaymentState>('verifying');
   const [paymentDetails, setPaymentDetails] = useState<{
+    paymentReference?: string;
     cfPaymentId?: string;
+    gateway?: string;
     orderId?: string;
     message?: string;
   }>({});
@@ -48,83 +78,138 @@ export default function PaymentReturnPage() {
 
   const hasClearedCart = useRef(false);
 
-  const verifyPayment = useCallback(async (currentAttempt = 1) => {
-    if (!orderId && !cfOrderId) {
-      setStatus('failed');
-      setErrorMessage('Missing order information in return URL.');
-      return;
-    }
-
-    try {
-      const res = await api.post('/payments/cashfree/verify', {
-        orderId: orderId || undefined,
-        cf_order_id: cfOrderId || undefined,
-      });
-
-      const data = res.data?.data;
-      const paymentStatus = (data?.status || '').toUpperCase();
-
-      if (paymentStatus === 'PAID' || paymentStatus === 'SUCCESS') {
+  const verifyPayment = useCallback(
+    async (currentAttempt = 1) => {
+      // 1. If paid by wallet, immediate success
+      if (paidBy === 'wallet' && orderId) {
         setStatus('success');
         setPaymentDetails({
-          cfPaymentId: data?.cfPaymentId,
-          orderId: data?.orderId || orderId,
+          orderId,
+          gateway: 'Wallet',
+          paymentReference: 'Wallet Balance',
+          message: 'Order paid in full using your E-Shopy wallet balance!',
         });
-
         if (!hasClearedCart.current) {
           clearCart();
           hasClearedCart.current = true;
-          // Trigger non-blocking invoice generation
-          api.post('/invoices/generate', { orderId: data?.orderId || orderId }).catch(() => {});
+          api.post('/invoices/generate', { orderId }).catch(() => {});
         }
-      } else if (paymentStatus === 'USER_DROPPED') {
-        setStatus('user_dropped');
-        setErrorMessage(data?.message || 'You cancelled the payment or closed the checkout window.');
-      } else if (paymentStatus === 'FAILED' || paymentStatus === 'CANCELLED') {
-        setStatus('failed');
-        setErrorMessage(data?.message || 'Payment was not successful. Please try again.');
-      } else if (paymentStatus === 'PENDING') {
-        if (currentAttempt >= MAX_ATTEMPTS) {
-          setStatus('pending_timeout');
-        } else {
-          setAttempt(currentAttempt + 1);
-        }
-      } else {
-        setStatus('failed');
-        setErrorMessage(data?.message || 'Payment was not successful. Please try again.');
+        return;
       }
-    } catch (err: any) {
-      const apiErr = err.response?.data?.error?.message;
-      if (err.response?.status === 402) {
+
+      // 2. If pre-verified from client modal (e.g. Razorpay modal handler already verified)
+      if (urlPaymentStatus === 'SUCCESS' && orderId) {
+        setStatus('success');
+        setPaymentDetails({
+          orderId,
+          gateway: gatewayDisplayName,
+          paymentReference: razorpayPaymentId || 'Verified',
+        });
+        if (!hasClearedCart.current) {
+          clearCart();
+          hasClearedCart.current = true;
+          api.post('/invoices/generate', { orderId }).catch(() => {});
+        }
+        return;
+      }
+
+      // 3. If pre-marked failed from client modal
+      if (urlPaymentStatus === 'FAILED') {
         setStatus('failed');
-        setErrorMessage(apiErr || 'Payment failed or expired.');
-      } else {
-        if (currentAttempt >= MAX_ATTEMPTS) {
-          setStatus('pending_timeout');
+        setErrorMessage(urlError || 'Payment was not successful. Please try again.');
+        return;
+      }
+
+      // 4. Verification required via unified endpoint POST /payments/verify
+      if (!orderId && !cfOrderId && !razorpayPaymentId) {
+        setStatus('failed');
+        setErrorMessage('Missing order information in return URL.');
+        return;
+      }
+
+      try {
+        const res = await api.post('/payments/verify', {
+          gateway: detectedGateway !== 'wallet' ? detectedGateway : undefined,
+          orderId: orderId || undefined,
+          cf_order_id: cfOrderId || undefined,
+          razorpay_order_id: razorpayOrderId || undefined,
+          razorpay_payment_id: razorpayPaymentId || undefined,
+          razorpay_signature: razorpaySignature || undefined,
+        });
+
+        const data = res.data?.data;
+        const paymentStatus = (data?.status || '').toUpperCase();
+
+        if (paymentStatus === 'PAID' || paymentStatus === 'SUCCESS') {
+          setStatus('success');
+          setPaymentDetails({
+            paymentReference:
+              data?.paymentReference ||
+              data?.cfPaymentId ||
+              data?.razorpayPaymentId ||
+              razorpayPaymentId,
+            cfPaymentId: data?.cfPaymentId,
+            gateway: data?.gateway || gatewayDisplayName,
+            orderId: data?.orderId || orderId,
+          });
+
+          if (!hasClearedCart.current) {
+            clearCart();
+            hasClearedCart.current = true;
+            // Trigger non-blocking invoice generation
+            api.post('/invoices/generate', { orderId: data?.orderId || orderId }).catch(() => {});
+          }
+        } else if (paymentStatus === 'USER_DROPPED') {
+          setStatus('user_dropped');
+          setErrorMessage(
+            data?.message || 'You cancelled the payment or closed the checkout window.'
+          );
+        } else if (paymentStatus === 'FAILED' || paymentStatus === 'CANCELLED') {
+          setStatus('failed');
+          setErrorMessage(data?.message || 'Payment was not successful. Please try again.');
+        } else if (paymentStatus === 'PENDING') {
+          if (currentAttempt >= MAX_ATTEMPTS) {
+            setStatus('pending_timeout');
+          } else {
+            setAttempt(currentAttempt + 1);
+          }
         } else {
-          setAttempt(currentAttempt + 1);
+          setStatus('failed');
+          setErrorMessage(data?.message || 'Payment was not successful. Please try again.');
+        }
+      } catch (err: any) {
+        const apiErr = err.response?.data?.error?.message;
+        if (err.response?.status === 402) {
+          setStatus('failed');
+          setErrorMessage(apiErr || 'Payment failed or expired.');
+        } else {
+          if (currentAttempt >= MAX_ATTEMPTS) {
+            setStatus('pending_timeout');
+          } else {
+            setAttempt(currentAttempt + 1);
+          }
         }
       }
-    }
-  }, [orderId, cfOrderId, clearCart]);
+    },
+    [
+      orderId,
+      cfOrderId,
+      razorpayPaymentId,
+      razorpayOrderId,
+      razorpaySignature,
+      detectedGateway,
+      gatewayDisplayName,
+      urlPaymentStatus,
+      paidBy,
+      urlError,
+      clearCart,
+    ]
+  );
 
   // Initial call on mount
   useEffect(() => {
-    if (searchParams.get('paid_by') === 'wallet' && orderId) {
-      setStatus('success');
-      setPaymentDetails({
-        orderId,
-        message: 'Order paid in full using your E-Shopy wallet balance!',
-      });
-      if (!hasClearedCart.current) {
-        clearCart();
-        hasClearedCart.current = true;
-        api.post('/invoices/generate', { orderId }).catch(() => {});
-      }
-      return;
-    }
     verifyPayment(1);
-  }, [verifyPayment, orderId, searchParams, clearCart]);
+  }, [verifyPayment]);
 
   // Polling loop when status is 'verifying' and attempt is between 2 and MAX_ATTEMPTS
   useEffect(() => {
@@ -158,7 +243,7 @@ export default function PaymentReturnPage() {
               Verifying Payment
             </Typography>
             <Typography variant="body1" color="text.secondary" sx={{ mb: 2 }}>
-              Please wait while we confirm your payment securely with Cashfree and your bank...
+              Please wait while we confirm your payment securely with {gatewayDisplayName} and your bank...
             </Typography>
             <Typography variant="caption" color="text.secondary">
               Do not refresh or close this tab (Attempt {Math.min(attempt, MAX_ATTEMPTS)}/{MAX_ATTEMPTS})
@@ -209,10 +294,14 @@ export default function PaymentReturnPage() {
                     <Typography variant="body2" fontWeight={700}>{orderId}</Typography>
                   </Box>
                 )}
-                {paymentDetails.cfPaymentId && (
+                {(paymentDetails.paymentReference || paymentDetails.cfPaymentId) && (
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Typography variant="body2" color="text.secondary">Cashfree Ref:</Typography>
-                    <Typography variant="body2" fontWeight={600}>{paymentDetails.cfPaymentId}</Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      {paymentDetails.gateway || gatewayDisplayName} Ref:
+                    </Typography>
+                    <Typography variant="body2" fontWeight={600}>
+                      {paymentDetails.paymentReference || paymentDetails.cfPaymentId}
+                    </Typography>
                   </Box>
                 )}
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -376,8 +465,8 @@ export default function PaymentReturnPage() {
                 Did money get deducted from your account?
               </Typography>
               <Typography variant="caption" color="text.secondary" display="block">
-                Don&apos;t worry! Our automated webhook will mark your order as confirmed as soon as
-                Cashfree transmits the settlement signal. If the transaction was not completed, your
+                Don&apos;t worry! Our automated webhook will mark your order as confirmed as soon as{' '}
+                {gatewayDisplayName} transmits the settlement signal. If the transaction was not completed, your
                 bank will reverse the amount automatically within 5-7 business days.
               </Typography>
             </Alert>

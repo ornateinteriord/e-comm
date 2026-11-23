@@ -25,6 +25,15 @@ import { shadowfaxService } from '../services/shadowfax.service.js';
 
 const log = createLogger('order-controller');
 
+export function formatGatewayName(rawGateway?: string): string {
+  const candidate = (rawGateway || process.env.PAYMENT_GATEWAY || 'Razorpay').trim();
+  const lower = candidate.toLowerCase();
+  if (lower === 'razorpay' || lower.startsWith('razorpay')) return 'Razorpay';
+  if (lower === 'cashfree' || lower.startsWith('cashfree')) return 'Cashfree';
+  if (lower === 'paytm' || lower.startsWith('paytm')) return 'Paytm';
+  return candidate.charAt(0).toUpperCase() + candidate.slice(1);
+}
+
 export async function createCheckoutOrder(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const userId = req.user?.userId || 'guest_user';
@@ -253,11 +262,16 @@ export async function createCheckoutOrder(req: Request, res: Response, next: Nex
     orderPricing.walletAmountPaid = walletAmountPaid;
     orderPricing.gatewayAmount = Math.max(0, orderPricing.grandTotal - walletAmountPaid);
 
+    const rawGatewayInput = req.body.gateway || paymentMethod || process.env.PAYMENT_GATEWAY || 'Razorpay';
+    const gatewayDisplayName = formatGatewayName(rawGatewayInput);
+
     const effectivePaymentMethod = isFullyPaidByWallet
       ? 'Wallet'
       : walletAmountPaid > 0
-      ? 'Cashfree + Wallet'
-      : paymentMethod || 'Cashfree';
+      ? `${gatewayDisplayName} + Wallet`
+      : gatewayDisplayName;
+
+    const gatewayOrderId = req.body.gatewayOrderId || req.body.razorpayOrderId || req.body.cashfreeOrderId || null;
 
     const order = await Order.create({
       orderNumber,
@@ -273,7 +287,8 @@ export async function createCheckoutOrder(req: Request, res: Response, next: Nex
       fulfilmentStatus: isFullyPaidByWallet ? 'confirmed' : 'pending',
       sellerAcceptanceStatus: 'pending',
       paymentMethod: effectivePaymentMethod,
-      cashfreeOrderId: req.body.cashfreeOrderId || null,
+      cashfreeOrderId: req.body.cashfreeOrderId || gatewayOrderId,
+      gatewayOrderId: gatewayOrderId,
       statusHistory: [
         {
           status: isFullyPaidByWallet ? 'confirmed' : 'pending',
@@ -282,7 +297,7 @@ export async function createCheckoutOrder(req: Request, res: Response, next: Nex
           note: isFullyPaidByWallet
             ? `Order paid in full using customer wallet balance (₹${(walletAmountPaid / 100).toFixed(2)}).`
             : walletAmountPaid > 0
-            ? `Order placed. Paid ₹${(walletAmountPaid / 100).toFixed(2)} from wallet, remaining ₹${(orderPricing.gatewayAmount / 100).toFixed(2)} pending via Cashfree.`
+            ? `Order placed. Paid ₹${(walletAmountPaid / 100).toFixed(2)} from wallet, remaining ₹${(orderPricing.gatewayAmount / 100).toFixed(2)} pending via ${gatewayDisplayName}.`
             : 'Order placed by customer.',
         },
       ],
@@ -594,7 +609,7 @@ export async function adminGetDashboardMetrics(_req: Request, res: Response, nex
 
 export async function confirmOrderPayment(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const { paymentStatus = 'paid', fulfilmentStatus = 'confirmed', note, paymentReference } = req.body;
+    const { paymentStatus = 'paid', fulfilmentStatus = 'confirmed', note, paymentReference, paymentMethod } = req.body;
     const order = await Order.findOne(getOrderQuery(req.params.id));
     if (!order) {
       res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Order not found.' } });
@@ -627,6 +642,17 @@ export async function confirmOrderPayment(req: Request, res: Response, next: Nex
       order.fulfilmentStatus = fulfilmentStatus;
     }
     if (paymentReference) order.paymentReference = paymentReference;
+    if (paymentMethod) {
+      const hasWalletSplit = Boolean((order.pricing?.walletAmountPaid && order.pricing.walletAmountPaid > 0) || order.paymentMethod?.includes('Wallet'));
+      if (hasWalletSplit && !paymentMethod.includes('Wallet')) {
+        order.paymentMethod = `${formatGatewayName(paymentMethod)} + Wallet`;
+      } else {
+        order.paymentMethod = paymentMethod;
+      }
+    }
+    if (req.body.gatewayOrderId) order.gatewayOrderId = req.body.gatewayOrderId;
+    if (req.body.razorpayOrderId) order.gatewayOrderId = req.body.razorpayOrderId;
+    if (req.body.cashfreeOrderId) order.cashfreeOrderId = req.body.cashfreeOrderId;
     order.statusHistory.push({
       status: order.fulfilmentStatus,
       changedBy: 'Payment Gateway',

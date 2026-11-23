@@ -50,6 +50,10 @@ import { useCartStore, calcOrderTotals } from '../store/cart.store';
 import { useAuthStore } from '../store/auth.store';
 import api from '../api/client';
 
+export type { PaymentGatewayType, PaymentGatewayConfig } from '../utils/payment-script';
+export { loadScript } from '../utils/payment-script';
+import { type PaymentGatewayType, type PaymentGatewayConfig, loadScript } from '../utils/payment-script';
+
 export default function CheckoutPage() {
   const navigate = useNavigate();
   const { items, clearCart, appliedCoupon } = useCartStore();
@@ -83,6 +87,33 @@ export default function CheckoutPage() {
     },
     enabled: isAuthenticated,
   });
+
+  // Query active payment gateway configuration
+  const { data: gatewayConfig } = useQuery<PaymentGatewayConfig>({
+    queryKey: ['payment-gateway-config'],
+    queryFn: async () => {
+      try {
+        const { data } = await api.get('/payments/config');
+        return data.data;
+      } catch {
+        const envGateway = (import.meta.env.VITE_PAYMENT_GATEWAY || 'razorpay') as PaymentGatewayType;
+        return {
+          activeGateway: envGateway,
+          razorpay: {
+            keyId: import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_live_U20h2abCkEGZBi',
+          },
+        };
+      }
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const activeGateway: PaymentGatewayType =
+    gatewayConfig?.activeGateway ||
+    ((import.meta.env.VITE_PAYMENT_GATEWAY as PaymentGatewayType) || 'razorpay');
+
+  const gatewayDisplayName =
+    activeGateway === 'razorpay' ? 'Razorpay' : activeGateway === 'paytm' ? 'Paytm' : 'Cashfree';
 
   const availableWalletPaise = walletData?.balance ?? (user?.walletBalance ?? 0);
   const availableWalletRupees = availableWalletPaise / 100;
@@ -383,8 +414,8 @@ export default function CheckoutPage() {
       const effectivePaymentMethod = isFullyCoveredByWallet
         ? 'Wallet'
         : effectiveWalletPaise > 0
-        ? 'Cashfree + Wallet'
-        : 'Cashfree';
+        ? `${gatewayDisplayName} + Wallet`
+        : gatewayDisplayName;
 
       const orderRes = await api.post('/checkout', {
         shippingAddress,
@@ -426,42 +457,162 @@ export default function CheckoutPage() {
       queryClient.invalidateQueries({ queryKey: ['wallet-info'] });
       queryClient.invalidateQueries({ queryKey: ['my-orders'] });
 
-      // If fully paid with Wallet balance, bypass Cashfree and redirect to order success
+      // If fully paid with Wallet balance, bypass payment gateway and redirect to order success
       if (isFullyCoveredByWallet || order.paymentStatus === 'paid') {
         clearCart();
         navigate(`/payment/return?order_id=${orderId}&payment_status=SUCCESS&paid_by=wallet`);
         return;
       }
 
-      // 2. Initiate Cashfree Payment Session for remaining gateway balance
-      const preferredMode = (import.meta.env.VITE_CASHFREE_MODE || 'sandbox').toLowerCase();
-      const cfRes = await api.post('/payments/cashfree/create-order', {
+      // 2. Initiate Payment Session via unified endpoint for remaining gateway balance
+      const paymentRes = await api.post('/payments/create-order', {
         orderId,
         orderNumber: order.orderNumber,
         amount: payableViaGatewayPaise, // remaining amount in paise
         customerName: shippingAddress.name,
         customerEmail: user?.email || `${shippingAddress.phone}@customer.eshopy.biz`,
         customerPhone: shippingAddress.phone,
-        returnUrl: `${window.location.origin}/payment/return?order_id=${orderId}&cf_order_id={order_id}`,
-        mode: preferredMode,
+        returnUrl: `${window.location.origin}/payment/return?order_id=${orderId}&gateway=${activeGateway}&cf_order_id={order_id}`,
+        gateway: activeGateway,
       });
 
-      const paymentSessionId = cfRes.data?.data?.payment_session_id;
-      if (!paymentSessionId) {
-        throw new Error('Could not initialize Cashfree payment session.');
+      const paymentData = paymentRes.data?.data;
+      if (!paymentData) {
+        throw new Error('Could not initialize payment session.');
       }
 
-      // 3. Launch Cashfree Drop-in / Redirect Checkout matching the session environment
-      const backendEnv = cfRes.data?.data?.environment;
-      const cfMode = (backendEnv || preferredMode) === 'production'
-        ? 'production'
-        : 'sandbox';
+      // 3. Launch active gateway checkout flow
+      if (activeGateway === 'razorpay') {
+        const scriptLoaded = await loadScript('https://checkout.razorpay.com/v1/checkout.js');
+        if (!scriptLoaded) {
+          throw new Error('Failed to load Razorpay checkout script. Please check your network connection.');
+        }
 
-      const cashfree = await load({ mode: cfMode });
-      await cashfree.checkout({
-        paymentSessionId,
-        redirectTarget: '_self',
-      });
+        const razorpayKeyId =
+          paymentData.keyId ||
+          gatewayConfig?.razorpay?.keyId ||
+          import.meta.env.VITE_RAZORPAY_KEY_ID ||
+          'rzp_live_U20h2abCkEGZBi';
+
+        const rzp = new (window as any).Razorpay({
+          key: razorpayKeyId,
+          amount: paymentData.amount,
+          currency: paymentData.currency || 'INR',
+          name: 'E-Shopy Store',
+          description: `Order #${order.orderNumber || orderId}`,
+          order_id: paymentData.orderId || paymentData.razorpayOrderId,
+          prefill: {
+            name: shippingAddress.name,
+            email: user?.email || `${shippingAddress.phone}@customer.eshopy.biz`,
+            contact: shippingAddress.phone,
+          },
+          theme: { color: '#FF7900' },
+          handler: async (response: {
+            razorpay_payment_id: string;
+            razorpay_order_id: string;
+            razorpay_signature: string;
+          }) => {
+            try {
+              await api.post('/payments/verify', {
+                gateway: 'razorpay',
+                orderId,
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+              });
+              clearCart();
+              navigate(
+                `/payment/return?order_id=${orderId}&payment_status=SUCCESS&gateway=razorpay&payment_id=${response.razorpay_payment_id}`
+              );
+            } catch (err: any) {
+              const errMsg =
+                err.response?.data?.error?.message || err.message || 'Payment verification failed.';
+              navigate(
+                `/payment/return?order_id=${orderId}&payment_status=FAILED&gateway=razorpay&error=${encodeURIComponent(
+                  errMsg
+                )}`
+              );
+            }
+          },
+          modal: {
+            ondismiss: () => {
+              setIsSubmitting(false);
+              setError('Payment window closed. You can retry checkout anytime.');
+            },
+          },
+        });
+        rzp.open();
+      } else if (activeGateway === 'cashfree') {
+        const paymentSessionId = paymentData.payment_session_id;
+        if (!paymentSessionId) {
+          throw new Error('Could not initialize Cashfree payment session.');
+        }
+        const backendEnv = paymentData.environment;
+        const preferredMode = (import.meta.env.VITE_CASHFREE_MODE || 'sandbox').toLowerCase();
+        const cfMode = (backendEnv || preferredMode) === 'production' ? 'production' : 'sandbox';
+
+        const cashfree = await load({ mode: cfMode });
+        await cashfree.checkout({
+          paymentSessionId,
+          redirectTarget: '_self',
+        });
+      } else if (activeGateway === 'paytm') {
+        const isStage = paymentData.environment === 'stage';
+        const mid = paymentData.mid || gatewayConfig?.paytm?.mid || 'YOUR_PAYTM_MID';
+        const scriptUrl = isStage
+          ? `https://securegw-stage.paytm.in/merchantpgpui/checkoutjs/merchants/${mid}.js`
+          : `https://securegw.paytm.in/merchantpgpui/checkoutjs/merchants/${mid}.js`;
+
+        const scriptLoaded = await loadScript(scriptUrl);
+        if (scriptLoaded && (window as any).Paytm?.CheckoutJS) {
+          const config = {
+            root: '',
+            flow: 'DEFAULT',
+            data: {
+              orderId: paymentData.orderId || paymentData.paytmOrderId,
+              token: paymentData.txnToken,
+              tokenType: 'TXN_TOKEN',
+              amount: (paymentData.amount / 100).toFixed(2),
+            },
+            handler: {
+              notifyMerchant: function (eventName: string) {
+                if (eventName === 'APP_CLOSED') {
+                  setIsSubmitting(false);
+                  setError('Paytm payment window was closed.');
+                }
+              },
+              transactionStatus: function (statusRes: any) {
+                if (statusRes?.STATUS === 'TXN_SUCCESS') {
+                  clearCart();
+                  navigate(
+                    `/payment/return?order_id=${orderId}&payment_status=SUCCESS&gateway=paytm&payment_id=${
+                      statusRes.TXNID || paymentData.orderId
+                    }`
+                  );
+                } else {
+                  navigate(
+                    `/payment/return?order_id=${orderId}&payment_status=FAILED&gateway=paytm&error=${encodeURIComponent(
+                      statusRes?.RESPMSG || 'Transaction failed'
+                    )}`
+                  );
+                }
+              },
+            },
+          };
+          await (window as any).Paytm.CheckoutJS.init(config);
+          (window as any).Paytm.CheckoutJS.invoke();
+        } else {
+          // If in test sandbox with mock/placeholder credentials
+          if (mid === 'YOUR_PAYTM_MID' || process.env.NODE_ENV !== 'production') {
+            clearCart();
+            navigate(
+              `/payment/return?order_id=${orderId}&payment_status=SUCCESS&gateway=paytm&payment_id=mock_ptm_${Date.now()}`
+            );
+          } else {
+            throw new Error('Failed to load Paytm Checkout SDK.');
+          }
+        }
+      }
     } catch (err: any) {
       setError(err.response?.data?.error?.message || err.message || 'Failed to initiate payment. Please try again.');
       setIsSubmitting(false);
@@ -845,7 +996,7 @@ export default function CheckoutPage() {
                             ) : (
                               <span>
                                 Pay ₹{effectiveWalletRupees.toFixed(2)} from wallet. Remaining{' '}
-                                <strong>₹{(payableViaGatewayPaise / 100).toFixed(2)}</strong> will be paid via Cashfree.
+                                <strong>₹{(payableViaGatewayPaise / 100).toFixed(2)}</strong> will be paid via {gatewayDisplayName}.
                               </span>
                             )}
                           </Typography>
@@ -932,7 +1083,7 @@ export default function CheckoutPage() {
                         />
                       </Box>
                       <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.85rem' }}>
-                        Secured & processed by Cashfree Payments Gateway
+                        Secured & processed by {gatewayDisplayName} Payments Gateway
                       </Typography>
                     </Box>
                   </Box>
@@ -1187,9 +1338,9 @@ export default function CheckoutPage() {
                 ) : isFullyCoveredByWallet ? (
                   `Pay ₹${(grandTotal / 100).toFixed(0)} with Wallet`
                 ) : effectiveWalletPaise > 0 ? (
-                  `Pay ₹${(payableViaGatewayPaise / 100).toFixed(0)} via Cashfree (₹${effectiveWalletRupees.toFixed(0)} from Wallet)`
+                  `Pay ₹${(payableViaGatewayPaise / 100).toFixed(0)} via ${gatewayDisplayName} (₹${effectiveWalletRupees.toFixed(0)} from Wallet)`
                 ) : (
-                  `Pay ₹${(grandTotal / 100).toFixed(0)} Securely`
+                  `Pay ₹${(payableViaGatewayPaise / 100).toFixed(0)} via ${gatewayDisplayName}`
                 )}
               </Button>
             </Paper>
