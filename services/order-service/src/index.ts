@@ -20,6 +20,7 @@ import {
   adminGetDashboardMetrics,
   confirmOrderPayment,
   adminTriggerOrderCommission,
+  shadowfaxWebhook,
 } from './controllers/order.controller.js';
 import {
   adminListCoupons,
@@ -177,6 +178,12 @@ app.use(async (req: Request, _res: Response, next: NextFunction) => {
     next(err);
   }
 });
+
+// Public Shadowfax Webhook endpoints (for status callbacks from Shadowfax)
+app.post('/webhooks/shadowfax', shadowfaxWebhook);
+app.post('/orders/webhook/shadowfax', shadowfaxWebhook);
+app.post('/api/v1/webhooks/shadowfax', shadowfaxWebhook);
+app.post('/api/v1/orders/webhook/shadowfax', shadowfaxWebhook);
 
 // Mounted paths
 app.use('/api/v1', orderRoutes);

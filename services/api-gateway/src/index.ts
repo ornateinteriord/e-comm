@@ -322,6 +322,7 @@ const serviceRoutes: Array<{ path: string; target: string }> = [
   { path: '/api/v1/cart', target: orderTarget },
   { path: '/api/v1/checkout', target: orderTarget },
   { path: '/api/v1/orders', target: orderTarget },
+  { path: '/api/v1/webhooks/shadowfax', target: orderTarget },
   { path: '/api/v1/admin/orders', target: orderTarget },
   { path: '/api/v1/admin/dashboard', target: orderTarget },
   { path: '/api/v1/admin/coupons', target: orderTarget },
