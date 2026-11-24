@@ -1,4 +1,5 @@
-import { Container, Typography, Paper, Box, Divider, Stack } from '@mui/material';
+import { Container, Typography, Paper, Box, Divider, Stack, Link } from '@mui/material';
+import { Link as RouterLink } from 'react-router';
 import { Shield as ShieldIcon } from '@mui/icons-material';
 
 export default function PrivacyPolicyPage() {
@@ -80,7 +81,11 @@ export default function PrivacyPolicyPage() {
               5. Data Retention & User Rights
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.8 }}>
-              Account data is maintained as long as your account remains active. Financial and taxation records (invoices, audit logs) are archived for seven (7) years to comply with statutory taxation requirements under Indian law. Registered customers may request account deletion, review held information, or update contact coordinates at any time via their account portal or by contacting privacy@ornate.dev.
+              Account data is maintained as long as your account remains active. Financial and taxation records (invoices, audit logs) are archived for seven (7) years to comply with statutory taxation requirements under Indian law. Registered customers may request account deletion and personal data erasure by following our{' '}
+              <Link component={RouterLink} to="/data-deletion-requests" sx={{ color: '#FF7900', fontWeight: 700, textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}>
+                User Data Deletion Instructions
+              </Link>{' '}
+              or by contacting eshopy650@gmail.com.
             </Typography>
           </Box>
 

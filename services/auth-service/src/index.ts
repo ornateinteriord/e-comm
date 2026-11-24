@@ -13,6 +13,7 @@ import contactRoutes from './routes/contact.routes.js';
 import walletRoutes from './routes/wallet.routes.js';
 import sellerRoutes from './routes/seller.routes.js';
 import storeRoutes from './routes/store.routes.js';
+import privacyRoutes from './routes/privacy.routes.js';
 import { requireAuth, requireRole } from './middleware/auth.middleware.js';
 import {
   getProfile,
@@ -207,6 +208,10 @@ app.use('/api/v1/wallet', walletRoutes);
 
 // Store routes (registration, login, profile, admin stores)
 app.use(storeRoutes);
+
+// DPDP Privacy & Data Deletion routes
+app.use('/api/v1', privacyRoutes);
+app.use(privacyRoutes);
 
 // Admin routes (forwarded by gateway preserving path)
 app.use('/api/v1/admin', authRoutes);

@@ -125,7 +125,7 @@ export default function ProductCard({ product }: ProductCardProps) {
           }}
         />
 
-        {/* Center Out of Stock Banner over Image */}
+        {/* Center Out of Stock Banner over Image - Clean & Subtle */}
         {isOutOfStock && (
           <Box
             sx={{
@@ -134,24 +134,25 @@ export default function ProductCard({ product }: ProductCardProps) {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              bgcolor: 'rgba(15, 23, 42, 0.4)',
-              backdropFilter: 'blur(2px)',
+              bgcolor: 'rgba(15, 23, 42, 0.35)',
+              backdropFilter: 'blur(1.5px)',
               zIndex: 1,
             }}
           >
             <Chip
               label="OUT OF STOCK"
+              size="small"
               sx={{
-                bgcolor: 'rgba(15, 23, 42, 0.9)',
+                bgcolor: 'rgba(15, 23, 42, 0.88)',
                 color: '#ffffff',
                 fontWeight: 900,
-                fontSize: { xs: '0.72rem', sm: '0.8rem' },
-                letterSpacing: '0.06em',
-                py: 0.5,
-                px: 1,
+                fontSize: { xs: '0.62rem', sm: '0.75rem' },
+                letterSpacing: '0.04em',
+                height: { xs: 22, sm: 26 },
+                px: 0.5,
                 borderRadius: '6px',
                 border: '1px solid rgba(255, 255, 255, 0.25)',
-                boxShadow: '0 4px 16px rgba(0, 0, 0, 0.35)',
+                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.25)',
               }}
             />
           </Box>
@@ -160,29 +161,15 @@ export default function ProductCard({ product }: ProductCardProps) {
         {/* Badges Overlay */}
         <Stack
           direction="column"
-          spacing={0.75}
+          spacing={0.5}
           sx={{
             position: 'absolute',
-            top: { xs: 8, sm: 12 },
-            left: { xs: 8, sm: 12 },
+            top: { xs: 6, sm: 10 },
+            left: { xs: 6, sm: 10 },
             zIndex: 2,
           }}
         >
-          {isOutOfStock ? (
-            <Chip
-              label="OUT OF STOCK"
-              size="small"
-              sx={{
-                bgcolor: '#dc2626',
-                color: 'white',
-                fontWeight: 800,
-                fontSize: { xs: '0.65rem', sm: '0.72rem' },
-                height: { xs: 20, sm: 24 },
-                borderRadius: 1,
-                letterSpacing: '0.02em',
-              }}
-            />
-          ) : (
+          {!isOutOfStock && (
             <>
               {hasDiscount && (
                 <Chip
@@ -192,8 +179,8 @@ export default function ProductCard({ product }: ProductCardProps) {
                     bgcolor: '#D92D20', // Discount label #D92D20
                     color: 'white',
                     fontWeight: 800,
-                    fontSize: { xs: '0.65rem', sm: '0.72rem' },
-                    height: { xs: 20, sm: 24 },
+                    fontSize: { xs: '0.62rem', sm: '0.7rem' },
+                    height: { xs: 18, sm: 22 },
                     borderRadius: 1,
                   }}
                 />
@@ -201,14 +188,14 @@ export default function ProductCard({ product }: ProductCardProps) {
 
               {isDeal && (
                 <Chip
-                  label="SPECIAL DEAL"
+                  label="DEAL"
                   size="small"
                   sx={{
                     bgcolor: '#FF7900',
                     color: 'white',
                     fontWeight: 800,
-                    fontSize: '0.65rem',
-                    height: 20,
+                    fontSize: { xs: '0.6rem', sm: '0.68rem' },
+                    height: { xs: 18, sm: 20 },
                     borderRadius: 1,
                   }}
                 />
@@ -222,8 +209,8 @@ export default function ProductCard({ product }: ProductCardProps) {
                     bgcolor: '#fef3c7',
                     color: '#b45309',
                     fontWeight: 800,
-                    fontSize: '0.65rem',
-                    height: 20,
+                    fontSize: { xs: '0.6rem', sm: '0.68rem' },
+                    height: { xs: 18, sm: 20 },
                   }}
                 />
               )}
@@ -231,28 +218,35 @@ export default function ProductCard({ product }: ProductCardProps) {
           )}
         </Stack>
 
-        {/* Wishlist Button */}
+        {/* Compact Wishlist Button */}
         <IconButton
           size="small"
           onClick={handleToggleWishlist}
           sx={{
             position: 'absolute',
-            top: { xs: 8, sm: 12 },
-            right: { xs: 8, sm: 12 },
-            bgcolor: 'rgba(255, 255, 255, 0.9)',
+            top: { xs: 6, sm: 10 },
+            right: { xs: 6, sm: 10 },
+            width: { xs: 28, sm: 34 },
+            height: { xs: 28, sm: 34 },
+            p: 0,
+            bgcolor: 'rgba(255, 255, 255, 0.92)',
             backdropFilter: 'blur(8px)',
             color: isWishlisted ? '#f43f5e' : '#64748b',
             boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
             '&:hover': {
               bgcolor: 'white',
               color: '#f43f5e',
-              transform: 'scale(1.1)',
+              transform: 'scale(1.08)',
             },
             transition: 'all 0.2s',
             zIndex: 2,
           }}
         >
-          {isWishlisted ? <FavoriteFilledIcon fontSize="small" /> : <FavoriteBorderIcon fontSize="small" />}
+          {isWishlisted ? (
+            <FavoriteFilledIcon sx={{ fontSize: { xs: 15, sm: 18 } }} />
+          ) : (
+            <FavoriteBorderIcon sx={{ fontSize: { xs: 15, sm: 18 } }} />
+          )}
         </IconButton>
       </Box>
 
@@ -260,13 +254,14 @@ export default function ProductCard({ product }: ProductCardProps) {
       <CardContent
         sx={{
           flexGrow: 1,
-          p: { xs: 1.5, sm: 2.5 },
+          p: { xs: 1, sm: 2 },
+          '&:last-child': { pb: { xs: 1, sm: 2 } },
           display: 'flex',
           flexDirection: 'column',
         }}
       >
         {/* Brand Row */}
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.35 }}>
           <Typography
             variant="caption"
             sx={{
@@ -274,7 +269,11 @@ export default function ProductCard({ product }: ProductCardProps) {
               fontWeight: 800,
               letterSpacing: '0.04em',
               textTransform: 'uppercase',
-              fontSize: { xs: '0.65rem', sm: '0.72rem' },
+              fontSize: { xs: '0.62rem', sm: '0.7rem' },
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+              maxWidth: '65%',
             }}
           >
             {product.brand || product.categoryName || 'FLAGSHIP'}
@@ -283,9 +282,10 @@ export default function ProductCard({ product }: ProductCardProps) {
           <Typography
             variant="caption"
             sx={{
-              fontSize: '0.72rem',
+              fontSize: { xs: '0.64rem', sm: '0.72rem' },
               fontWeight: 800,
               color: isOutOfStock ? '#dc2626' : '#16a34a',
+              flexShrink: 0,
             }}
           >
             {isOutOfStock ? 'Out of Stock' : 'In Stock'}
@@ -301,14 +301,14 @@ export default function ProductCard({ product }: ProductCardProps) {
             color: isOutOfStock ? 'text.secondary' : 'text.primary',
             textDecoration: 'none',
             fontWeight: 700,
-            fontSize: { xs: '0.85rem', sm: '0.95rem' },
-            lineHeight: 1.35,
-            mb: 1,
+            fontSize: { xs: '0.78rem', sm: '0.92rem' },
+            lineHeight: 1.3,
+            mb: 0.5,
             display: '-webkit-box',
             WebkitLineClamp: 2,
             WebkitBoxOrient: 'vertical',
             overflow: 'hidden',
-            minHeight: { xs: 36, sm: 42 },
+            minHeight: { xs: 32, sm: 38 },
             '&:hover': { color: isOutOfStock ? 'text.secondary' : '#FF7900' },
           }}
         >
@@ -316,14 +316,14 @@ export default function ProductCard({ product }: ProductCardProps) {
         </Typography>
 
         {/* 4-Tier Pricing Showcase */}
-        <Box sx={{ mt: 'auto', pt: 1 }}>
-          <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1, flexWrap: 'wrap' }}>
+        <Box sx={{ mt: 'auto', pt: 0.5 }}>
+          <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.75, flexWrap: 'wrap' }}>
             <Typography
               variant="h6"
               fontWeight={900}
               sx={{
                 color: isOutOfStock ? '#94a3b8' : (isDeal ? '#D92D20' : 'text.primary'),
-                fontSize: { xs: '1rem', sm: '1.25rem' },
+                fontSize: { xs: '0.92rem', sm: '1.2rem' },
                 letterSpacing: '-0.02em',
               }}
             >
@@ -336,7 +336,7 @@ export default function ProductCard({ product }: ProductCardProps) {
                 sx={{
                   color: '#94a3b8',
                   textDecoration: 'line-through',
-                  fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                  fontSize: { xs: '0.7rem', sm: '0.82rem' },
                   fontWeight: 500,
                 }}
               >
@@ -351,8 +351,9 @@ export default function ProductCard({ product }: ProductCardProps) {
               sx={{
                 color: isOutOfStock ? '#94a3b8' : '#10b981',
                 fontWeight: 700,
+                fontSize: { xs: '0.62rem', sm: '0.72rem' },
                 display: 'block',
-                mt: 0.25,
+                mt: 0.2,
               }}
             >
               Save ₹{((mrp - applicablePrice) / 100).toLocaleString('en-IN')}
@@ -367,13 +368,13 @@ export default function ProductCard({ product }: ProductCardProps) {
           size="small"
           disabled={isOutOfStock}
           onClick={handleAddToCart}
-          startIcon={isOutOfStock ? <OutOfStockIcon fontSize="small" /> : (addedAnim ? <CheckIcon fontSize="small" /> : <CartIcon fontSize="small" />)}
+          startIcon={isOutOfStock ? <OutOfStockIcon sx={{ fontSize: '0.9rem' }} /> : (addedAnim ? <CheckIcon sx={{ fontSize: '0.9rem' }} /> : <CartIcon sx={{ fontSize: '0.9rem' }} />)}
           sx={{
-            mt: 2,
-            py: { xs: 0.85, sm: 1 },
+            mt: { xs: 1, sm: 1.5 },
+            py: { xs: 0.6, sm: 0.85 },
             borderRadius: '6px',
             fontWeight: 700,
-            fontSize: { xs: '0.75rem', sm: '0.85rem' },
+            fontSize: { xs: '0.72rem', sm: '0.82rem' },
             bgcolor: isOutOfStock ? '#f1f5f9 !important' : (addedAnim ? '#16a34a' : '#FF7900'),
             color: isOutOfStock ? '#94a3b8 !important' : 'white',
             border: isOutOfStock ? '1px solid #e2e8f0' : 'none',

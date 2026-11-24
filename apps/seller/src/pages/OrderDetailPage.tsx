@@ -241,10 +241,10 @@ export default function OrderDetailPage() {
             </Box>
             <Box>
               <Typography variant="h6" sx={{ fontWeight: 800, color: '#92400E' }}>
-                Order Acceptance Required
+                Ready to Pickup Confirmation (Yes / No)
               </Typography>
               <Typography variant="body2" sx={{ color: '#B45309' }}>
-                Review the items and address. Confirm whether you have stock and can fulfill this delivery.
+                Confirm whether items are packed and ready for courier pickup dispatch.
               </Typography>
             </Box>
           </Box>
@@ -258,7 +258,7 @@ export default function OrderDetailPage() {
               disabled={isAccepting || isRejecting}
               sx={{ fontWeight: 700 }}
             >
-              Reject Order
+              No, Reject Order
             </Button>
             <Button
               variant="contained"
@@ -268,7 +268,7 @@ export default function OrderDetailPage() {
               disabled={isAccepting || isRejecting}
               sx={{ fontWeight: 800, px: 3, bgcolor: '#059669', '&:hover': { bgcolor: '#047857' } }}
             >
-              {isAccepting ? 'Accepting...' : 'Accept Order'}
+              {isAccepting ? 'Confirming...' : 'Yes, Ready to Pickup'}
             </Button>
           </Stack>
         </Paper>
@@ -287,9 +287,9 @@ export default function OrderDetailPage() {
             fontWeight: 600,
           }}
         >
-          <strong>Order Accepted:</strong> You accepted this order on{' '}
+          <strong>Ready to Pickup: Yes</strong> — Confirmed on{' '}
           {order.sellerAcceptedAt ? new Date(order.sellerAcceptedAt).toLocaleString('en-IN') : 'confirmation'}.
-          Please pack the items and set the status to &quot;Packed & Ready&quot; so Admin can book Shadowfax courier delivery.
+          Items are confirmed ready for courier dispatch.
         </Alert>
       )}
 

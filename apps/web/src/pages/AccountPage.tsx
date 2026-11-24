@@ -27,6 +27,8 @@ import {
   DialogActions,
   InputAdornment,
   useTheme,
+  FormControlLabel,
+  Checkbox,
 } from '@mui/material';
 import {
   Person as UserIcon,
@@ -51,6 +53,10 @@ import {
   Info as InfoIcon,
   QrCode2 as QrCode2Icon,
   ShoppingCart as ShoppingCartIcon,
+  Shield as ShieldIcon,
+  PendingActions as PendingActionsIcon,
+  DeleteForever as DeleteForeverIcon,
+  WarningAmber as WarningIcon,
 } from '@mui/icons-material';
 import CustomerReferralQrDialog from '../components/referral/CustomerReferralQrDialog';
 import { useAuthStore } from '../store/auth.store';
@@ -236,6 +242,68 @@ export default function AccountPage() {
     isDefault: false,
   });
   const [showAddAddress, setShowAddAddress] = useState(false);
+
+  // DPDP Act 2023: Customer Personal Data Deletion Request State
+  const [isDeletionDialogOpen, setIsDeletionDialogOpen] = useState(false);
+  const [deletionReasonType, setDeletionReasonType] = useState('privacy');
+  const [customDeletionReason, setCustomDeletionReason] = useState('');
+  const [deletionConfirmed, setDeletionConfirmed] = useState(false);
+  const [deletionSuccess, setDeletionSuccess] = useState<string | null>(null);
+  const [deletionError, setDeletionError] = useState<string | null>(null);
+
+  const { data: deletionRequest, refetch: refetchDeletionRequest } = useQuery({
+    queryKey: ['my-deletion-request'],
+    queryFn: async () => {
+      try {
+        const res = await api.get('/privacy/deletion-request');
+        return res.data?.data;
+      } catch {
+        return null;
+      }
+    },
+    staleTime: 1000 * 30,
+  });
+
+  const submitDeletionMutation = useMutation({
+    mutationFn: async () => {
+      setDeletionError(null);
+      const reasonMap: Record<string, string> = {
+        privacy: 'Privacy concerns & personal data retention preference',
+        not_using: 'No longer using E-Shopy account',
+        duplicate: 'Duplicate or unwanted secondary account',
+        other: customDeletionReason.trim() || 'Customer requested data erasure under DPDP Act',
+      };
+      const finalReason = reasonMap[deletionReasonType] || customDeletionReason.trim();
+      const res = await api.post('/privacy/deletion-request', {
+        reason: finalReason,
+        notes: customDeletionReason.trim() ? customDeletionReason.trim() : undefined,
+      });
+      return res.data;
+    },
+    onSuccess: () => {
+      refetchDeletionRequest();
+      setIsDeletionDialogOpen(false);
+      setDeletionConfirmed(false);
+      setCustomDeletionReason('');
+      setDeletionSuccess('Your data deletion request has been submitted and is under compliance review.');
+      setTimeout(() => setDeletionSuccess(null), 6000);
+    },
+    onError: (err: any) => {
+      setDeletionError(err.response?.data?.error?.message || 'Failed to submit data deletion request.');
+    },
+  });
+
+  const cancelDeletionMutation = useMutation({
+    mutationFn: async () => {
+      const res = await api.delete('/privacy/deletion-request');
+      return res.data;
+    },
+    onSuccess: () => {
+      refetchDeletionRequest();
+      setDeletionSuccess('Your data deletion request has been cancelled.');
+      setTimeout(() => setDeletionSuccess(null), 5000);
+    },
+  });
 
   useEffect(() => {
     if (effectiveUser) {
@@ -1910,6 +1978,191 @@ export default function AccountPage() {
           </Grid>
         </Grid>
 
+        {/* ==================== 4. DPDP PRIVACY & DATA ERASURE SECTION ==================== */}
+        <Paper
+          elevation={0}
+          sx={{
+            p: { xs: 2.5, sm: 3.5 },
+            mt: 3.5,
+            mb: 4,
+            borderRadius: '20px',
+            bgcolor: '#FFFFFF',
+            border: '1.5px solid #E2E8F0',
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.03)',
+            position: 'relative',
+            overflow: 'hidden',
+          }}
+        >
+          {deletionSuccess && (
+            <Alert severity="success" sx={{ mb: 2.5, borderRadius: '10px' }} onClose={() => setDeletionSuccess(null)}>
+              {deletionSuccess}
+            </Alert>
+          )}
+
+          <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 2 }}>
+            <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
+              <Box
+                sx={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: '12px',
+                  bgcolor: 'rgba(255, 121, 0, 0.1)',
+                  color: '#FF7900',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                  mt: 0.25,
+                }}
+              >
+                <ShieldIcon sx={{ fontSize: 24 }} />
+              </Box>
+              <Box>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, flexWrap: 'wrap' }}>
+                  <Typography variant="h6" fontWeight={800} sx={{ color: '#0F172A', lineHeight: 1.3 }}>
+                    Data Privacy & Account Erasure
+                  </Typography>
+                  <Chip
+                    label="DPDP Act 2023 Compliant"
+                    size="small"
+                    sx={{
+                      bgcolor: '#F1F5F9',
+                      color: '#475569',
+                      fontWeight: 700,
+                      fontSize: '0.675rem',
+                      height: 22,
+                      border: '1px solid #CBD5E1',
+                    }}
+                  />
+                </Box>
+                <Typography variant="body2" sx={{ color: '#64748B', mt: 0.5, maxWidth: 780, lineHeight: 1.5 }}>
+                  Under Section 12 of India's Digital Personal Data Protection (DPDP) Act, 2023, you have the right to request the erasure of your personal data held by E-Shopy. Upon execution, your personal identification, saved delivery locations, and wishlists will be permanently removed.
+                </Typography>
+              </Box>
+            </Box>
+
+            {/* If no pending request */}
+            {(!deletionRequest || deletionRequest.status === 'cancelled' || deletionRequest.status === 'rejected') && (
+              <Button
+                variant="outlined"
+                color="error"
+                startIcon={<DeleteForeverIcon />}
+                onClick={() => {
+                  setDeletionError(null);
+                  setDeletionConfirmed(false);
+                  setIsDeletionDialogOpen(true);
+                }}
+                sx={{
+                  textTransform: 'none',
+                  fontWeight: 700,
+                  borderRadius: '10px',
+                  px: 2.5,
+                  py: 1,
+                  fontSize: '0.85rem',
+                  borderColor: '#FECACA',
+                  color: '#DC2626',
+                  bgcolor: '#FEF2F2',
+                  '&:hover': {
+                    bgcolor: '#FEE2E2',
+                    borderColor: '#F87171',
+                  },
+                }}
+              >
+                Request Data Erasure
+              </Button>
+            )}
+          </Box>
+
+          {/* Pending Status Banner */}
+          {deletionRequest?.status === 'pending' && (
+            <Box
+              sx={{
+                mt: 3,
+                p: 2.5,
+                borderRadius: '14px',
+                bgcolor: '#FFFBEB',
+                border: '1.5px solid #FDE68A',
+                display: 'flex',
+                alignItems: { xs: 'flex-start', sm: 'center' },
+                justifyContent: 'space-between',
+                flexDirection: { xs: 'column', sm: 'row' },
+                gap: 2,
+              }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
+                <PendingActionsIcon sx={{ color: '#D97706', fontSize: 26, mt: 0.25 }} />
+                <Box>
+                  <Typography variant="subtitle2" fontWeight={800} sx={{ color: '#92400E' }}>
+                    Data Deletion Request Under Compliance Review
+                  </Typography>
+                  <Typography variant="caption" sx={{ color: '#B45309', display: 'block', mt: 0.25, lineHeight: 1.4 }}>
+                    Submitted on {new Date(deletionRequest.requestedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}. Reason: "{deletionRequest.reason}". Our compliance team is verifying this request.
+                  </Typography>
+                </Box>
+              </Box>
+
+              <Button
+                size="small"
+                variant="outlined"
+                disabled={cancelDeletionMutation.isPending}
+                onClick={() => cancelDeletionMutation.mutate()}
+                sx={{
+                  textTransform: 'none',
+                  fontWeight: 700,
+                  borderRadius: '8px',
+                  borderColor: '#FCD34D',
+                  color: '#92400E',
+                  bgcolor: '#FFFFFF',
+                  whiteSpace: 'nowrap',
+                  '&:hover': { bgcolor: '#FEF3C7', borderColor: '#F59E0B' },
+                }}
+              >
+                {cancelDeletionMutation.isPending ? 'Cancelling…' : 'Cancel Request'}
+              </Button>
+            </Box>
+          )}
+
+          {/* Rejected Status Notice */}
+          {deletionRequest?.status === 'rejected' && (
+            <Box
+              sx={{
+                mt: 3,
+                p: 2,
+                borderRadius: '12px',
+                bgcolor: '#FEF2F2',
+                border: '1px solid #FECACA',
+              }}
+            >
+              <Typography variant="subtitle2" fontWeight={700} sx={{ color: '#991B1B' }}>
+                Previous Deletion Request Notice
+              </Typography>
+              <Typography variant="body2" sx={{ color: '#7F1D1D', fontSize: '0.85rem', mt: 0.25 }}>
+                Your previous deletion request was rejected with the following compliance note: "{deletionRequest.adminNotes || 'Active orders or obligations require settlement before erasure.'}"
+              </Typography>
+            </Box>
+          )}
+
+          {/* Completed Status Notice */}
+          {deletionRequest?.status === 'completed' && (
+            <Box
+              sx={{
+                mt: 3,
+                p: 2,
+                borderRadius: '12px',
+                bgcolor: '#F0FDF4',
+                border: '1px solid #BBF7D0',
+              }}
+            >
+              <Typography variant="subtitle2" fontWeight={700} sx={{ color: '#166534' }}>
+                Personal Data Erased
+              </Typography>
+              <Typography variant="body2" sx={{ color: '#15803D', fontSize: '0.85rem', mt: 0.25 }}>
+                Your personal identifying data has been erased in compliance with Section 12 of the DPDP Act, 2023.
+              </Typography>
+            </Box>
+          )}
+        </Paper>
+
         {/* ================= EMAIL VERIFICATION OTP MODAL (MINIMALIST) ================= */}
         <Dialog
           open={isEmailOtpDialogOpen}
@@ -2148,6 +2401,154 @@ export default function AccountPage() {
           customerAvatar={effectiveUser?.avatar || (effectiveUser as any)?.profilePicture || previewAvatar}
           referralLink={referralLink}
         />
+
+        {/* ================= DPDP DATA ERASURE REQUEST MODAL ================= */}
+        <Dialog
+          open={isDeletionDialogOpen}
+          onClose={() => !submitDeletionMutation.isPending && setIsDeletionDialogOpen(false)}
+          maxWidth="sm"
+          fullWidth
+          PaperProps={{
+            sx: {
+              borderRadius: '20px',
+              p: { xs: 2.5, sm: 3.5 },
+              boxShadow: '0 25px 60px -15px rgba(15, 23, 42, 0.2)',
+            },
+          }}
+        >
+          <DialogTitle sx={{ p: 0, mb: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
+              <Box
+                sx={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: '10px',
+                  bgcolor: '#FEE2E2',
+                  color: '#DC2626',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <WarningIcon />
+              </Box>
+              <Box>
+                <Typography variant="h6" fontWeight={800} sx={{ color: '#0F172A', lineHeight: 1.2 }}>
+                  Request Personal Data Deletion
+                </Typography>
+                <Typography variant="caption" sx={{ color: '#64748B' }}>
+                  Under DPDP Act, 2023 (Section 12 - Right to Erasure)
+                </Typography>
+              </Box>
+            </Box>
+            <IconButton size="small" onClick={() => setIsDeletionDialogOpen(false)}>
+              <CloseIcon fontSize="small" />
+            </IconButton>
+          </DialogTitle>
+
+          <DialogContent sx={{ p: 0 }}>
+            {deletionError && (
+              <Alert severity="error" sx={{ mb: 2, borderRadius: '8px' }}>
+                {deletionError}
+              </Alert>
+            )}
+
+            <Typography variant="body2" sx={{ color: '#334155', mb: 2, lineHeight: 1.5 }}>
+              Submitting this request instructs our compliance officer to permanently erase your personal identifiable data from E-Shopy.
+            </Typography>
+
+            <Box sx={{ bgcolor: '#FEF2F2', border: '1px solid #FECACA', borderRadius: '12px', p: 2, mb: 2.5 }}>
+              <Typography variant="subtitle2" fontWeight={800} sx={{ color: '#991B1B', mb: 1 }}>
+                Important Information Regarding Erasure:
+              </Typography>
+              <ul style={{ margin: 0, paddingLeft: '1.25rem', color: '#7F1D1D', fontSize: '0.85rem', lineHeight: 1.6 }}>
+                <li>Your profile details (full name, email, phone number) will be scrubbed and anonymized.</li>
+                <li>All saved delivery addresses and wishlist items will be permanently erased.</li>
+                <li>Your account will be deactivated and cannot be logged back into.</li>
+                <li>Financial transaction invoices will be retained in anonymized format as mandated by statutory GST and tax laws.</li>
+              </ul>
+            </Box>
+
+            <Stack spacing={2} sx={{ mb: 2.5 }}>
+              <TextField
+                select
+                label="Reason for Data Deletion"
+                fullWidth
+                size="small"
+                value={deletionReasonType}
+                onChange={(e) => setDeletionReasonType(e.target.value)}
+                sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
+              >
+                <MenuItem value="privacy">Privacy concerns & personal data retention preference</MenuItem>
+                <MenuItem value="not_using">No longer using E-Shopy</MenuItem>
+                <MenuItem value="duplicate">Duplicate or unwanted secondary account</MenuItem>
+                <MenuItem value="other">Other reason</MenuItem>
+              </TextField>
+
+              {deletionReasonType === 'other' && (
+                <TextField
+                  label="Please specify reason"
+                  required
+                  fullWidth
+                  size="small"
+                  multiline
+                  rows={2}
+                  value={customDeletionReason}
+                  onChange={(e) => setCustomDeletionReason(e.target.value)}
+                  placeholder="Tell us why you want to delete your personal data…"
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
+                />
+              )}
+
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={deletionConfirmed}
+                    onChange={(e) => setDeletionConfirmed(e.target.checked)}
+                    color="error"
+                  />
+                }
+                label={
+                  <Typography variant="body2" sx={{ color: '#334155', fontSize: '0.825rem', lineHeight: 1.4 }}>
+                    I understand and confirm that this action will permanently erase my personal data and deactivate my account once approved.
+                  </Typography>
+                }
+              />
+            </Stack>
+          </DialogContent>
+
+          <DialogActions sx={{ p: 0, pt: 1, gap: 1 }}>
+            <Button
+              variant="outlined"
+              onClick={() => setIsDeletionDialogOpen(false)}
+              disabled={submitDeletionMutation.isPending}
+              sx={{ textTransform: 'none', borderRadius: '10px', fontWeight: 600, px: 2.5 }}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="contained"
+              color="error"
+              disabled={
+                submitDeletionMutation.isPending ||
+                !deletionConfirmed ||
+                (deletionReasonType === 'other' && !customDeletionReason.trim())
+              }
+              onClick={() => submitDeletionMutation.mutate()}
+              startIcon={submitDeletionMutation.isPending ? <CircularProgress size={16} color="inherit" /> : <DeleteForeverIcon />}
+              sx={{
+                textTransform: 'none',
+                borderRadius: '10px',
+                fontWeight: 700,
+                px: 3,
+                bgcolor: '#DC2626',
+                '&:hover': { bgcolor: '#B91C1C' },
+              }}
+            >
+              {submitDeletionMutation.isPending ? 'Submitting Request…' : 'Submit Deletion Request'}
+            </Button>
+          </DialogActions>
+        </Dialog>
       </Container>
     </Box>
   );

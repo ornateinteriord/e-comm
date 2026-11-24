@@ -257,13 +257,13 @@ export async function generateInvoicePdfBuffer(data: InvoiceData): Promise<Buffe
       doc.fontSize(8).font('Helvetica-Bold').fillColor('#FFFFFF').text('SOLD BY (SELLER DETAILS)', leftMargin + 8, y + 5);
 
       const sY = y + 24;
-      doc.fontSize(8.5).font('Helvetica-Bold').fillColor('#0F172A').text('E-Shopy Retail (Pvt Ltd)', leftMargin + 8, sY);
-      doc.fontSize(7.5).font('Helvetica').fillColor('#475569');
-      doc.text('Registered Office: L-29 Ground Floor, Block L Mohan Garden,', leftMargin + 8, sY + 12);
-      doc.text('Uttam Nagar, West Delhi, New Delhi, Delhi, India - 110059', leftMargin + 8, sY + 22);
-      doc.font('Helvetica-Bold').fillColor('#0F172A').text('GSTIN: 07ABCDE1234F1Z5  |  State: Delhi (07)', leftMargin + 8, sY + 36);
-      doc.font('Helvetica').fillColor('#475569').text('Helpline: +91 7676518566', leftMargin + 8, sY + 48);
-      doc.font('Helvetica').fillColor('#475569').text('Care: eshopy650@gmail.com', leftMargin + 8, sY + 58);
+      doc.fontSize(8.5).font('Helvetica-Bold').fillColor('#0F172A').text('BLUSKY MICRO SERVICES FOUNDATION', leftMargin + 8, sY);
+      doc.fontSize(7.5).font('Helvetica-Bold').fillColor('#FF7900').text('E-Shopy Retail (CIN: U65100DL2022NPL407403)', leftMargin + 8, sY + 11);
+      doc.fontSize(7.2).font('Helvetica').fillColor('#475569');
+      doc.text('Office: W/o VIKAS KUMAR JHA, L-29 Ground Floor, Block L Mohan Garden,', leftMargin + 8, sY + 22);
+      doc.text('Uttam Nagar, West Delhi, New Delhi, Delhi, India - 110059', leftMargin + 8, sY + 31);
+      doc.font('Helvetica-Bold').fillColor('#0F172A').text('GSTIN: 07ABCDE1234F1Z5  |  State: Delhi (07)', leftMargin + 8, sY + 43);
+      doc.font('Helvetica').fillColor('#475569').text('Helpline: +91 7676518566  |  Email: eshopy650@gmail.com', leftMargin + 8, sY + 55);
 
       // Box 2: Customer (Billed & Shipped To)
       const cLeft = leftMargin + boxWidth + 10;

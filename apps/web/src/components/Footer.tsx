@@ -84,6 +84,7 @@ export default function Footer() {
               <Link component={RouterLink} to="/contact" sx={{ color: '#94A3B8', textDecoration: 'none', fontSize: '0.875rem', '&:hover': { color: '#FF7900' }, transition: 'color 0.15s' }}>Contact Us</Link>
               <Link component={RouterLink} to="/privacy-policy" sx={{ color: '#94A3B8', textDecoration: 'none', fontSize: '0.875rem', '&:hover': { color: '#FF7900' }, transition: 'color 0.15s' }}>Privacy Policy</Link>
               <Link component={RouterLink} to="/terms-and-conditions" sx={{ color: '#94A3B8', textDecoration: 'none', fontSize: '0.875rem', '&:hover': { color: '#FF7900' }, transition: 'color 0.15s' }}>Terms & Conditions</Link>
+              <Link component={RouterLink} to="/data-deletion-requests" sx={{ color: '#94A3B8', textDecoration: 'none', fontSize: '0.875rem', '&:hover': { color: '#FF7900' }, transition: 'color 0.15s' }}>User Data Deletion</Link>
             </Box>
           </Grid>
 
@@ -157,9 +158,11 @@ export default function Footer() {
           <Typography variant="caption" sx={{ color: '#94A3B8' }}>
             © {new Date().getFullYear()} BLUSKY MICRO SERVICES FOUNDATION (E-Shopy). All rights reserved.
           </Typography>
-          <Typography variant="caption" sx={{ color: '#64748B' }}>
-            Flagship Reliability · Verified Genuine Products
-          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+            <Link component={RouterLink} to="/privacy-policy" sx={{ color: '#64748B', fontSize: '0.75rem', textDecoration: 'none', '&:hover': { color: '#FF7900' } }}>Privacy</Link>
+            <Link component={RouterLink} to="/terms-and-conditions" sx={{ color: '#64748B', fontSize: '0.75rem', textDecoration: 'none', '&:hover': { color: '#FF7900' } }}>Terms</Link>
+            <Link component={RouterLink} to="/data-deletion-requests" sx={{ color: '#64748B', fontSize: '0.75rem', textDecoration: 'none', '&:hover': { color: '#FF7900' } }}>Data Deletion</Link>
+          </Box>
         </Box>
       </Container>
     </Box>

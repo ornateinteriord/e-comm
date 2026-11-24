@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { useSearchParams, useNavigate } from "react-router";
+import { useSearchParams, useNavigate, useLocation } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import {
   Box,
@@ -13,6 +13,11 @@ import {
   Button,
   InputBase,
   IconButton,
+  Drawer,
+  Badge,
+  Divider,
+  Switch,
+  Slider,
 } from "@mui/material";
 import {
   Category as CategoryIcon,
@@ -28,6 +33,8 @@ import {
   LocalOffer as DealIcon,
   Search as SearchIcon,
   Close as CloseIcon,
+  Tune as TuneIcon,
+  RestartAlt as ResetIcon,
 } from "@mui/icons-material";
 import {
   ShoppingServiceIcon,
@@ -40,6 +47,7 @@ import {
   MoreServiceIcon,
 } from "./ServiceIcons";
 import { useDebounce } from "../hooks/useDebounce";
+import { useUIStore } from "../store/ui.store";
 import api from "../api/client";
 import ProductCard from "./ProductCard";
 import type { PublicProduct } from "@ornate/types";
@@ -182,16 +190,56 @@ export default function MobileSplitStorefront({
   const [searchTerm, setSearchTerm] = useState(initialQuery);
   const debouncedSearch = useDebounce(searchTerm, 300);
 
+  // Filter popup & query states
+  const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
+  const [sortBy, setSortBy] = useState<string>("relevance"); // 'relevance' | 'price_asc' | 'price_desc' | 'newest'
+  const [inStockOnly, setInStockOnly] = useState(false);
+  const [dealsOnly, setDealsOnly] = useState(false);
+  const [priceMax, setPriceMax] = useState<number>(100000); // in Rupees
+
+  const hasActiveFilters = sortBy !== "relevance" || inStockOnly || dealsOnly || priceMax < 100000;
+  const activeFiltersCount =
+    (sortBy !== "relevance" ? 1 : 0) +
+    (inStockOnly ? 1 : 0) +
+    (dealsOnly ? 1 : 0) +
+    (priceMax < 100000 ? 1 : 0);
+
+  const resetFilters = () => {
+    setSortBy("relevance");
+    setInStockOnly(false);
+    setDealsOnly(false);
+    setPriceMax(100000);
+  };
+
+  // Global UI search store
+  const mobileSearchOpen = useUIStore((s) => s.mobileSearchOpen);
+  const closeMobileSearch = useUIStore((s) => s.closeMobileSearch);
+
   const rightPanelRef = useRef<HTMLDivElement>(null);
   const leftPanelRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // When mobileSearchOpen is triggered by clicking the top header search button:
+  // 1. Automatically switch left section to categories mode
+  // 2. Focus the search input field
+  useEffect(() => {
+    if (mobileSearchOpen) {
+      setLeftMode("categories");
+      setTimeout(() => {
+        searchInputRef.current?.focus();
+      }, 60);
+    }
+  }, [mobileSearchOpen]);
 
   // Sync tab query param
   useEffect(() => {
     if (tabParam === "categories") {
       setLeftMode("categories");
+    } else if (!tabParam && !initialCategory) {
+      setLeftMode("services");
+      setSelectedCategory(null);
     }
-  }, [tabParam]);
+  }, [tabParam, initialCategory]);
 
   // Sync initial search query
   useEffect(() => {
@@ -256,27 +304,65 @@ export default function MobileSplitStorefront({
 
   // ── Fetch products for currently selected category or search query ──────────
   const isSearching = Boolean(debouncedSearch.trim());
+
+  const location = useLocation();
+  // Determine whether user is on the main Home page view (strictly NOT in search, NOT in filters, NOT in category views, and strictly on /)
+  const isSearchingView = isSearching || Boolean(searchTerm.trim()) || mobileSearchOpen || hasActiveFilters || Boolean(initialQuery);
+  const isCategoryView = tabParam === "categories" || leftMode === "categories" || Boolean(selectedCategory) || Boolean(initialCategory);
+  const isHomeRoute = location.pathname === "/" && !tabParam && !initialQuery && !initialCategory;
+  const isOnlyHomePage = isHomeRoute && !isSearchingView && !isCategoryView;
   const { data: productsData, isLoading: productsLoading } = useQuery({
-    queryKey: ["mobile-split-products", selectedCategory, debouncedSearch],
+    queryKey: [
+      "mobile-split-products",
+      selectedCategory,
+      debouncedSearch,
+      sortBy,
+      inStockOnly,
+      dealsOnly,
+      priceMax,
+    ],
     queryFn: async () => {
-      let url = "";
+      const params = new URLSearchParams();
       if (debouncedSearch.trim()) {
-        const catPart = selectedCategory ? `&category=${encodeURIComponent(selectedCategory)}` : "";
-        url = `/search?q=${encodeURIComponent(debouncedSearch.trim())}${catPart}&limit=30`;
-      } else if (selectedCategory) {
-        url = `/search?category=${encodeURIComponent(selectedCategory)}&limit=30`;
-      } else {
-        url = `/products?limit=24`;
+        params.set("q", debouncedSearch.trim());
+      }
+      if (selectedCategory) {
+        params.set("category", selectedCategory);
+      }
+      if (sortBy && sortBy !== "relevance") {
+        params.set("sort", sortBy);
+      }
+      if (inStockOnly) {
+        params.set("inStock", "true");
+      }
+      if (priceMax < 100000) {
+        params.set("maxPrice", String(priceMax * 100)); // convert rupees to paise
+      }
+      params.set("limit", "40");
+
+      const endpoint =
+        debouncedSearch.trim() || selectedCategory || hasActiveFilters
+          ? `/search?${params.toString()}`
+          : `/products?limit=24`;
+
+      const { data } = await api.get(endpoint);
+      let items: PublicProduct[] = [];
+      let total = 0;
+      if (data.data?.products) {
+        items = data.data.products as PublicProduct[];
+        total = data.data.total as number;
+      } else if (data.data?.items) {
+        items = data.data.items as PublicProduct[];
+        total = data.data.total as number;
       }
 
-      const { data } = await api.get(url);
-      if (data.data?.products) {
-        return { items: data.data.products as PublicProduct[], total: data.data.total as number };
+      // If dealsOnly is toggled, filter items that have active deals or discounts
+      if (dealsOnly) {
+        items = items.filter(
+          (p) => p.pricing?.dealActive || (p.pricing?.savingsPercent ?? 0) > 10
+        );
       }
-      if (data.data?.items) {
-        return { items: data.data.items as PublicProduct[], total: data.data.total as number };
-      }
-      return { items: [] as PublicProduct[], total: 0 };
+      return { items, total };
     },
     staleTime: 1000 * 60 * 2,
   });
@@ -329,9 +415,12 @@ export default function MobileSplitStorefront({
   };
 
   // ── Theme colors ───────────────────────────────────────────────────────────
-  const bgLeft = isLight ? "#F8FAFC" : "#0B1120";
+  // Left sidebar background is lightened to distinct soft tone:
+  // In light mode: '#F1F4F8' (differentiated soft cool gray vs '#FFFFFF' right product canvas)
+  // In dark mode: '#1E293B' (differentiated lighter slate vs '#0F172A' dark product canvas)
+  const bgLeft = isLight ? "#F1F4F8" : "#1E293B";
   const bgRight = isLight ? "#FFFFFF" : "#0F172A";
-  const borderColor = isLight ? "#E5E7EB" : "rgba(255, 255, 255, 0.08)";
+  const borderColor = isLight ? "#E2E8F0" : "rgba(255, 255, 255, 0.08)";
   const textPrimary = isLight ? "#0F172A" : "#F8FAFC";
   const textSecondary = isLight ? "#64748B" : "#94A3B8";
   const activeBg = isLight ? "rgba(255, 121, 0, 0.12)" : "rgba(255, 121, 0, 0.22)";
@@ -353,8 +442,8 @@ export default function MobileSplitStorefront({
       <Box
         ref={leftPanelRef}
         sx={{
-          // Wider section width: 88px on xs, 98px on sm so text is clearly legible
-          width: { xs: 88, sm: 98 },
+          // Perfectly balanced sidebar width: 78px on xs, 84px on sm
+          width: { xs: 78, sm: 84 },
           flexShrink: 0,
           height: "100%",
           overflowY: "auto",
@@ -362,11 +451,13 @@ export default function MobileSplitStorefront({
           bgcolor: bgLeft,
           borderRight: `1px solid ${borderColor}`,
           WebkitOverflowScrolling: "touch",
-          "&::-webkit-scrollbar": { width: 3 },
-          "&::-webkit-scrollbar-thumb": { bgcolor: "rgba(255, 121, 0, 0.5)", borderRadius: 4 },
+          // HIDE SCROLLBAR IN LEFT SECTION COMPLETELY
+          scrollbarWidth: "none", // Firefox
+          msOverflowStyle: "none", // IE / Edge
+          "&::-webkit-scrollbar": { display: "none" }, // Chrome / Safari / iOS
           display: "flex",
           flexDirection: "column",
-          py: 0.75,
+          py: 0.5,
         }}
       >
         {/* If in CATEGORIES mode: show Back to Services button */}
@@ -384,12 +475,12 @@ export default function MobileSplitStorefront({
               alignItems: "center",
               justifyContent: "center",
               flexShrink: 0,
-              minHeight: 56,
-              py: 0.9,
+              minHeight: 44,
+              py: 0.5,
               px: 0.5,
-              mx: 0.75,
-              mb: 0.75,
-              borderRadius: "10px",
+              mx: 0.5,
+              mb: 0.5,
+              borderRadius: "8px",
               cursor: "pointer",
               bgcolor: isLight ? "rgba(255, 121, 0, 0.06)" : "rgba(255, 121, 0, 0.12)",
               border: `1px solid ${isLight ? "rgba(255, 121, 0, 0.25)" : "rgba(255, 121, 0, 0.4)"}`,
@@ -397,15 +488,15 @@ export default function MobileSplitStorefront({
               "&:hover": { bgcolor: activeBg },
             }}
           >
-            <ArrowBackIcon sx={{ fontSize: 19, color: "#FF7900" }} />
+            <ArrowBackIcon sx={{ fontSize: 16, color: "#FF7900" }} />
             <Typography
               sx={{
-                fontSize: "0.66rem",
+                fontSize: "0.62rem",
                 fontWeight: 800,
                 color: "#FF7900",
                 textAlign: "center",
-                lineHeight: 1.2,
-                mt: 0.35,
+                lineHeight: 1.1,
+                mt: 0.2,
                 whiteSpace: "nowrap",
               }}
             >
@@ -431,12 +522,12 @@ export default function MobileSplitStorefront({
                   alignItems: "center",
                   justifyContent: "center",
                   flexShrink: 0,
-                  minHeight: 70,
-                  py: 0.75,
-                  px: 0.5,
-                  mx: 0.5,
-                  my: 0.35,
-                  borderRadius: "10px",
+                  minHeight: 64,
+                  py: 0.6,
+                  px: 0.4,
+                  mx: 0.35,
+                  my: 0.25,
+                  borderRadius: "8px",
                   cursor: "pointer",
                   userSelect: "none",
                   bgcolor: isActive ? activeBg : "transparent",
@@ -450,14 +541,14 @@ export default function MobileSplitStorefront({
                 {/* 3D Service Icon */}
                 <Box
                   sx={{
-                    width: 42,
-                    height: 42,
+                    width: 38,
+                    height: 38,
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    mb: 0.35,
+                    mb: 0.25,
                     flexShrink: 0,
-                    transform: isActive ? "scale(1.06)" : "scale(1)",
+                    transform: isActive ? "scale(1.05)" : "scale(1)",
                     transition: "transform 0.18s ease",
                   }}
                 >
@@ -467,15 +558,15 @@ export default function MobileSplitStorefront({
                 {/* Visible small text label under icon */}
                 <Typography
                   sx={{
-                    fontSize: "0.72rem",
+                    fontSize: "0.66rem",
                     fontWeight: isActive ? 800 : 700,
                     color: isActive ? "#FF7900" : textPrimary,
                     textAlign: "center",
-                    lineHeight: 1.25,
+                    lineHeight: 1.2,
                     whiteSpace: "nowrap",
                     width: "100%",
                     flexShrink: 0,
-                    mt: 0.15,
+                    mt: 0.1,
                   }}
                 >
                   {item.name}
@@ -498,12 +589,12 @@ export default function MobileSplitStorefront({
                 alignItems: "center",
                 justifyContent: "center",
                 flexShrink: 0,
-                minHeight: 66,
-                py: 0.85,
-                px: 0.5,
-                mx: 0.5,
-                my: 0.3,
-                borderRadius: "10px",
+                minHeight: 60,
+                py: 0.65,
+                px: 0.4,
+                mx: 0.35,
+                my: 0.25,
+                borderRadius: "8px",
                 cursor: "pointer",
                 bgcolor: selectedCategory === null ? activeBg : "transparent",
                 borderLeft: selectedCategory === null ? `3.5px solid ${activeBorder}` : "3.5px solid transparent",
@@ -512,21 +603,21 @@ export default function MobileSplitStorefront({
             >
               <Box
                 sx={{
-                  width: 38,
-                  height: 38,
-                  borderRadius: "10px",
+                  width: 34,
+                  height: 34,
+                  borderRadius: "8px",
                   bgcolor: selectedCategory === null ? "rgba(255,121,0,0.2)" : (isLight ? "#E2E8F0" : "#1E293B"),
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  mb: 0.4,
+                  mb: 0.3,
                 }}
               >
-                <GridViewIcon sx={{ fontSize: 21, color: selectedCategory === null ? "#FF7900" : textSecondary }} />
+                <GridViewIcon sx={{ fontSize: 18, color: selectedCategory === null ? "#FF7900" : textSecondary }} />
               </Box>
               <Typography
                 sx={{
-                  fontSize: "0.68rem",
+                  fontSize: "0.64rem",
                   fontWeight: selectedCategory === null ? 800 : 700,
                   color: selectedCategory === null ? "#FF7900" : textPrimary,
                   textAlign: "center",
@@ -540,8 +631,8 @@ export default function MobileSplitStorefront({
             {/* List of Category Icons - ONLY THOSE WITH PRODUCTS */}
             {catsLoading
               ? Array.from({ length: 5 }).map((_, i) => (
-                  <Box key={i} sx={{ px: 1, py: 0.85, textAlign: "center", flexShrink: 0 }}>
-                    <Skeleton variant="rounded" width={38} height={38} sx={{ mx: "auto", mb: 0.5, borderRadius: "10px" }} />
+                  <Box key={i} sx={{ px: 1, py: 0.75, textAlign: "center", flexShrink: 0 }}>
+                    <Skeleton variant="rounded" width={34} height={34} sx={{ mx: "auto", mb: 0.5, borderRadius: "8px" }} />
                     <Skeleton variant="text" width="80%" sx={{ mx: "auto", fontSize: "0.6rem" }} />
                   </Box>
                 ))
@@ -559,12 +650,12 @@ export default function MobileSplitStorefront({
                         alignItems: "center",
                         justifyContent: "flex-start",
                         flexShrink: 0,
-                        minHeight: 68,
-                        py: 0.85,
-                        px: 0.5,
-                        mx: 0.5,
-                        my: 0.3,
-                        borderRadius: "10px",
+                        minHeight: 62,
+                        py: 0.65,
+                        px: 0.35,
+                        mx: 0.35,
+                        my: 0.25,
+                        borderRadius: "8px",
                         cursor: "pointer",
                         bgcolor: isSelected ? activeBg : "transparent",
                         borderLeft: isSelected ? `3.5px solid ${activeBorder}` : "3.5px solid transparent",
@@ -584,11 +675,11 @@ export default function MobileSplitStorefront({
                             (e.currentTarget as HTMLImageElement).style.display = "none";
                           }}
                           sx={{
-                            width: 38,
-                            height: 38,
-                            borderRadius: "10px",
+                            width: 34,
+                            height: 34,
+                            borderRadius: "8px",
                             objectFit: "cover",
-                            mb: 0.4,
+                            mb: 0.3,
                             border: isSelected ? `2px solid #FF7900` : `1px solid ${borderColor}`,
                             flexShrink: 0,
                           }}
@@ -596,14 +687,14 @@ export default function MobileSplitStorefront({
                       ) : (
                         <Box
                           sx={{
-                            width: 38,
-                            height: 38,
-                            borderRadius: "10px",
+                            width: 34,
+                            height: 34,
+                            borderRadius: "8px",
                             bgcolor: isSelected ? "rgba(255,121,0,0.18)" : (isLight ? "#E2E8F0" : "#1E293B"),
                             display: "flex",
                             alignItems: "center",
                             justifyContent: "center",
-                            mb: 0.4,
+                            mb: 0.3,
                             border: isSelected ? `2px solid #FF7900` : "1px solid transparent",
                             flexShrink: 0,
                           }}
@@ -612,14 +703,14 @@ export default function MobileSplitStorefront({
                         </Box>
                       )}
 
-                      {/* Clearly visible category label: 11px font, 2-line wrap, proper line-height */}
+                      {/* Clearly visible category label: 10px font, 2-line wrap, proper line-height */}
                       <Typography
                         sx={{
-                          fontSize: "0.68rem",
+                          fontSize: "0.64rem",
                           fontWeight: isSelected ? 800 : 700,
                           color: isSelected ? "#FF7900" : textPrimary,
                           textAlign: "center",
-                          lineHeight: 1.25,
+                          lineHeight: 1.2,
                           width: "100%",
                           px: 0.2,
                           display: "-webkit-box",
@@ -652,69 +743,138 @@ export default function MobileSplitStorefront({
           "&::-webkit-scrollbar-thumb": { bgcolor: "rgba(255, 121, 0, 0.5)", borderRadius: 4 },
         }}
       >
-        {/* ── SEARCH INPUT INSIDE RIGHT SECTION ON TOP ── */}
-        <Box
-          sx={{
-            p: 1,
-            pb: 0.75,
-            bgcolor: isLight ? "#FFFFFF" : "#0F172A",
-            borderBottom: `1px solid ${borderColor}`,
-            position: "sticky",
-            top: 0,
-            zIndex: 15,
-          }}
-        >
+        {/* ── SEARCH INPUT INSIDE RIGHT SECTION ON TOP (Hidden by default, shown on search button click or active search) ── */}
+        {(mobileSearchOpen || Boolean(searchTerm.trim())) && (
           <Box
-            component="form"
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (searchInputRef.current) {
-                searchInputRef.current.blur();
-              }
-            }}
             sx={{
-              display: "flex",
-              alignItems: "center",
-              bgcolor: isLight ? "#F1F5F9" : "rgba(255, 255, 255, 0.08)",
-              borderRadius: "10px",
-              px: 1.25,
-              py: 0.45,
-              border: `1px solid ${isLight ? "#E2E8F0" : "rgba(255, 255, 255, 0.12)"}`,
-              "&:focus-within": {
-                bgcolor: isLight ? "#FFFFFF" : "rgba(255, 255, 255, 0.12)",
-                borderColor: "#FF7900",
-                boxShadow: "0 0 0 2px rgba(255, 121, 0, 0.15)",
-              },
-              transition: "all 0.18s ease",
+              p: 1,
+              pb: 0.75,
+              bgcolor: isLight ? "#FFFFFF" : "#0F172A",
+              borderBottom: `1px solid ${borderColor}`,
+              position: "sticky",
+              top: 0,
+              zIndex: 15,
             }}
           >
-            <SearchIcon sx={{ color: isLight ? "#94A3B8" : "rgba(255,255,255,0.6)", mr: 1, fontSize: 18 }} />
-            <InputBase
-              inputRef={searchInputRef}
-              placeholder="Search products, brands…"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              fullWidth
-              sx={{
-                color: textPrimary,
-                fontSize: "0.82rem",
-                "& input::placeholder": { color: textSecondary, opacity: 1 },
+            <Box
+              component="form"
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (searchInputRef.current) {
+                  searchInputRef.current.blur();
+                }
               }}
-            />
-            {searchTerm && (
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                gap: 0.75,
+              }}
+            >
+              <Box
+                sx={{
+                  display: "flex",
+                  flex: 1,
+                  alignItems: "center",
+                  bgcolor: isLight ? "#F1F5F9" : "rgba(255, 255, 255, 0.08)",
+                  borderRadius: "10px",
+                  px: 1.25,
+                  py: 0.4,
+                  border: `1px solid ${isLight ? "#E2E8F0" : "rgba(255, 255, 255, 0.12)"}`,
+                  "&:focus-within": {
+                    bgcolor: isLight ? "#FFFFFF" : "rgba(255, 255, 255, 0.12)",
+                    borderColor: "#FF7900",
+                    boxShadow: "0 0 0 2px rgba(255, 121, 0, 0.15)",
+                  },
+                  transition: "all 0.18s ease",
+                }}
+              >
+                <SearchIcon sx={{ color: isLight ? "#94A3B8" : "rgba(255,255,255,0.6)", mr: 1, fontSize: 18 }} />
+                <InputBase
+                  inputRef={searchInputRef}
+                  placeholder="Search products, brands…"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  fullWidth
+                  sx={{
+                    color: textPrimary,
+                    fontSize: "0.82rem",
+                    "& input::placeholder": { color: textSecondary, opacity: 1 },
+                  }}
+                />
+                {searchTerm && (
+                  <IconButton
+                    size="small"
+                    onClick={() => {
+                      setSearchTerm("");
+                      if (searchInputRef.current) searchInputRef.current.focus();
+                    }}
+                    sx={{ p: 0.25, color: textSecondary }}
+                  >
+                    <CloseIcon sx={{ fontSize: 16 }} />
+                  </IconButton>
+                )}
+              </Box>
+
+              {/* Filter icon button while searching */}
               <IconButton
+                onClick={() => setFilterDrawerOpen(true)}
+                size="small"
+                sx={{
+                  bgcolor: hasActiveFilters
+                    ? (isLight ? "rgba(255,121,0,0.12)" : "rgba(255,121,0,0.25)")
+                    : (isLight ? "#F1F5F9" : "rgba(255,255,255,0.08)"),
+                  border: `1px solid ${
+                    hasActiveFilters
+                      ? "#FF7900"
+                      : (isLight ? "#E2E8F0" : "rgba(255,255,255,0.12)")
+                  }`,
+                  borderRadius: "10px",
+                  p: 0.65,
+                  color: hasActiveFilters ? "#FF7900" : (isLight ? "#475569" : "#CBD5E1"),
+                  "&:hover": {
+                    bgcolor: isLight ? "rgba(255,121,0,0.18)" : "rgba(255,121,0,0.3)",
+                    color: "#FF7900",
+                  },
+                  transition: "all 0.18s ease",
+                }}
+                aria-label="Filter products"
+                title="Filter products"
+              >
+                <Badge
+                  variant="dot"
+                  invisible={!hasActiveFilters}
+                  sx={{
+                    "& .MuiBadge-badge": {
+                      bgcolor: "#FF7900",
+                    },
+                  }}
+                >
+                  <TuneIcon sx={{ fontSize: 18 }} />
+                </Badge>
+              </IconButton>
+
+              <Button
                 size="small"
                 onClick={() => {
                   setSearchTerm("");
-                  if (searchInputRef.current) searchInputRef.current.focus();
+                  closeMobileSearch();
                 }}
-                sx={{ p: 0.25, color: textSecondary }}
+                sx={{
+                  minWidth: "auto",
+                  px: 1,
+                  py: 0.5,
+                  fontSize: "0.75rem",
+                  fontWeight: 700,
+                  color: "#FF7900",
+                  textTransform: "none",
+                  whiteSpace: "nowrap",
+                }}
               >
-                <CloseIcon sx={{ fontSize: 16 }} />
-              </IconButton>
-            )}
+                Close
+              </Button>
+            </Box>
           </Box>
-        </Box>
+        )}
 
         {/* Section title & count header */}
         <Box
@@ -755,6 +915,27 @@ export default function MobileSplitStorefront({
           </Box>
 
           <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, flexShrink: 0 }}>
+            {hasActiveFilters && (
+              <Chip
+                label="Filtered"
+                size="small"
+                onClick={() => setFilterDrawerOpen(true)}
+                onDelete={resetFilters}
+                sx={{
+                  height: 20,
+                  fontSize: "0.6rem",
+                  fontWeight: 800,
+                  bgcolor: "rgba(255,121,0,0.12)",
+                  color: "#FF7900",
+                  border: "1px solid rgba(255,121,0,0.3)",
+                  "& .MuiChip-deleteIcon": {
+                    color: "#FF7900",
+                    fontSize: 14,
+                    "&:hover": { color: "#D92D20" },
+                  },
+                }}
+              />
+            )}
             {isSearching && (
               <Chip
                 label="Clear"
@@ -839,8 +1020,8 @@ export default function MobileSplitStorefront({
           </Box>
         )}
 
-        {/* Deals rail when on "All" without search */}
-        {selectedCategory === null && !isSearching && dealProducts.length > 0 && (
+        {/* Hot Deals & Offers: ONLY displayed on Home page, NOT in search and NOT in category views */}
+        {isOnlyHomePage && dealProducts.length > 0 && (
           <Box sx={{ pt: 1, pb: 0.5, borderBottom: `1px solid ${borderColor}` }}>
             <Box sx={{ px: 1.5, pb: 0.75, display: "flex", alignItems: "center", gap: 0.5 }}>
               <DealIcon sx={{ fontSize: 16, color: "#D92D20" }} />
@@ -900,9 +1081,9 @@ export default function MobileSplitStorefront({
         )}
 
         {/* 2-Column Product Grid */}
-        <Box sx={{ p: 1 }}>
+        <Box sx={{ p: { xs: 0.75, sm: 1.25 } }}>
           {productsLoading ? (
-            <Grid container spacing={1}>
+            <Grid container spacing={0.75}>
               {Array.from({ length: 6 }).map((_, i) => (
                 <Grid item xs={6} key={i}>
                   <Skeleton variant="rounded" width="100%" sx={{ aspectRatio: "3/4", borderRadius: "8px" }} />
@@ -947,7 +1128,7 @@ export default function MobileSplitStorefront({
               </Button>
             </Box>
           ) : (
-            <Grid container spacing={1}>
+            <Grid container spacing={0.75}>
               {products.map((product) => (
                 <Grid item xs={6} key={product.id}>
                   <ProductCard product={product} />
@@ -957,6 +1138,273 @@ export default function MobileSplitStorefront({
           )}
         </Box>
       </Box>
+
+      {/* ════════════════════════ FILTER POPUP / BOTTOM SHEET ════════════════════════ */}
+      <Drawer
+        anchor="bottom"
+        open={filterDrawerOpen}
+        onClose={() => setFilterDrawerOpen(false)}
+        PaperProps={{
+          sx: {
+            borderTopLeftRadius: "20px",
+            borderTopRightRadius: "20px",
+            maxHeight: "85vh",
+            bgcolor: isLight ? "#FFFFFF" : "#0F172A",
+            color: textPrimary,
+            display: "flex",
+            flexDirection: "column",
+            overflow: "hidden",
+            boxShadow: "0 -8px 30px rgba(0,0,0,0.25)",
+          },
+        }}
+      >
+        {/* Swipe drag indicator bar */}
+        <Box sx={{ pt: 1.5, pb: 0.5, display: "flex", justifyContent: "center" }}>
+          <Box sx={{ width: 40, height: 4, borderRadius: 2, bgcolor: isLight ? "#CBD5E1" : "#334155" }} />
+        </Box>
+
+        {/* Header */}
+        <Box
+          sx={{
+            px: 2.5,
+            py: 1.5,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            borderBottom: `1px solid ${borderColor}`,
+          }}
+        >
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <TuneIcon sx={{ color: "#FF7900", fontSize: 20 }} />
+            <Typography sx={{ fontWeight: 900, fontSize: "1rem" }}>
+              Filter & Sort
+            </Typography>
+            {hasActiveFilters && (
+              <Chip
+                label={`${activeFiltersCount} active`}
+                size="small"
+                sx={{
+                  height: 20,
+                  fontSize: "0.65rem",
+                  fontWeight: 800,
+                  bgcolor: "rgba(255,121,0,0.15)",
+                  color: "#FF7900",
+                }}
+              />
+            )}
+          </Box>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            {hasActiveFilters && (
+              <Button
+                size="small"
+                onClick={resetFilters}
+                startIcon={<ResetIcon sx={{ fontSize: 15 }} />}
+                sx={{
+                  color: "#FF7900",
+                  textTransform: "none",
+                  fontWeight: 700,
+                  fontSize: "0.75rem",
+                  p: 0.5,
+                }}
+              >
+                Reset
+              </Button>
+            )}
+            <IconButton
+              size="small"
+              onClick={() => setFilterDrawerOpen(false)}
+              sx={{ color: textSecondary, p: 0.5 }}
+            >
+              <CloseIcon sx={{ fontSize: 20 }} />
+            </IconButton>
+          </Box>
+        </Box>
+
+        {/* Scrollable Filters Body */}
+        <Box sx={{ p: 2.5, overflowY: "auto", flex: 1, display: "flex", flexDirection: "column", gap: 2.5 }}>
+          {/* 1. Sort Options */}
+          <Box>
+            <Typography sx={{ fontWeight: 800, fontSize: "0.82rem", color: textPrimary, mb: 1.25 }}>
+              Sort Products By
+            </Typography>
+            <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1 }}>
+              {[
+                { label: "Featured", value: "relevance" },
+                { label: "Price: Low to High", value: "price_asc" },
+                { label: "Price: High to Low", value: "price_desc" },
+                { label: "Newest Arrivals", value: "newest" },
+              ].map((opt) => (
+                <Button
+                  key={opt.value}
+                  variant={sortBy === opt.value ? "contained" : "outlined"}
+                  onClick={() => setSortBy(opt.value)}
+                  size="small"
+                  sx={{
+                    justifyContent: "flex-start",
+                    textTransform: "none",
+                    fontWeight: 700,
+                    fontSize: "0.75rem",
+                    py: 1,
+                    px: 1.5,
+                    borderRadius: "10px",
+                    bgcolor: sortBy === opt.value ? "#FF7900 !important" : "transparent",
+                    color: sortBy === opt.value ? "#FFFFFF" : textPrimary,
+                    borderColor: sortBy === opt.value ? "#FF7900" : borderColor,
+                    "&:hover": {
+                      borderColor: "#FF7900",
+                    },
+                  }}
+                >
+                  {opt.label}
+                </Button>
+              ))}
+            </Box>
+          </Box>
+
+          <Divider sx={{ borderColor }} />
+
+          {/* 2. Price Budget Limit */}
+          <Box>
+            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1 }}>
+              <Typography sx={{ fontWeight: 800, fontSize: "0.82rem", color: textPrimary }}>
+                Max Price
+              </Typography>
+              <Typography sx={{ fontWeight: 900, fontSize: "0.85rem", color: "#FF7900" }}>
+                {priceMax >= 100000 ? "Any Price" : `Under ₹${priceMax.toLocaleString("en-IN")}`}
+              </Typography>
+            </Box>
+            <Slider
+              value={priceMax}
+              min={1000}
+              max={100000}
+              step={2000}
+              onChange={(_, val) => setPriceMax(val as number)}
+              sx={{
+                color: "#FF7900",
+                "& .MuiSlider-thumb": {
+                  boxShadow: "0 2px 8px rgba(255, 121, 0, 0.4)",
+                },
+              }}
+            />
+            {/* Quick price chips */}
+            <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", mt: 1 }}>
+              {[
+                { label: "Under ₹3k", val: 3000 },
+                { label: "Under ₹10k", val: 10000 },
+                { label: "Under ₹25k", val: 25000 },
+                { label: "All Prices", val: 100000 },
+              ].map((chip) => (
+                <Chip
+                  key={chip.label}
+                  label={chip.label}
+                  onClick={() => setPriceMax(chip.val)}
+                  clickable
+                  size="small"
+                  sx={{
+                    fontWeight: 700,
+                    fontSize: "0.7rem",
+                    bgcolor: priceMax === chip.val ? "rgba(255,121,0,0.18)" : (isLight ? "#F1F5F9" : "rgba(255,255,255,0.06)"),
+                    color: priceMax === chip.val ? "#FF7900" : textSecondary,
+                    border: priceMax === chip.val ? "1px solid #FF7900" : "1px solid transparent",
+                  }}
+                />
+              ))}
+            </Box>
+          </Box>
+
+          <Divider sx={{ borderColor }} />
+
+          {/* 3. Availability & Deals Switches */}
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <Box>
+                <Typography sx={{ fontWeight: 800, fontSize: "0.82rem", color: textPrimary }}>
+                  In Stock Only
+                </Typography>
+                <Typography sx={{ fontSize: "0.7rem", color: textSecondary }}>
+                  Hide items currently out of stock
+                </Typography>
+              </Box>
+              <Switch
+                checked={inStockOnly}
+                onChange={(e) => setInStockOnly(e.target.checked)}
+                sx={{
+                  "& .Mui-checked": { color: "#FF7900" },
+                  "& .Mui-checked + .MuiSwitch-track": { bgcolor: "#FF7900 !important" },
+                }}
+              />
+            </Box>
+
+            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <Box>
+                <Typography sx={{ fontWeight: 800, fontSize: "0.82rem", color: textPrimary }}>
+                  Special Deals & Discounts
+                </Typography>
+                <Typography sx={{ fontSize: "0.7rem", color: textSecondary }}>
+                  Show items with active sale prices
+                </Typography>
+              </Box>
+              <Switch
+                checked={dealsOnly}
+                onChange={(e) => setDealsOnly(e.target.checked)}
+                sx={{
+                  "& .Mui-checked": { color: "#FF7900" },
+                  "& .Mui-checked + .MuiSwitch-track": { bgcolor: "#FF7900 !important" },
+                }}
+              />
+            </Box>
+          </Box>
+        </Box>
+
+        {/* Sticky Apply Action Bar */}
+        <Box
+          sx={{
+            p: 2,
+            px: 2.5,
+            borderTop: `1px solid ${borderColor}`,
+            bgcolor: isLight ? "#FAFAFA" : "#0F172A",
+            display: "flex",
+            alignItems: "center",
+            gap: 1.5,
+          }}
+        >
+          <Button
+            variant="outlined"
+            onClick={resetFilters}
+            sx={{
+              flex: 1,
+              py: 1,
+              borderRadius: "10px",
+              borderColor: borderColor,
+              color: textSecondary,
+              fontWeight: 800,
+              fontSize: "0.8rem",
+              textTransform: "none",
+            }}
+          >
+            Clear All
+          </Button>
+
+          <Button
+            variant="contained"
+            onClick={() => setFilterDrawerOpen(false)}
+            sx={{
+              flex: 2,
+              py: 1,
+              borderRadius: "10px",
+              bgcolor: "#FF7900",
+              color: "#FFFFFF",
+              fontWeight: 900,
+              fontSize: "0.82rem",
+              textTransform: "none",
+              boxShadow: "0 4px 14px rgba(255, 121, 0, 0.35)",
+              "&:hover": { bgcolor: "#E06B00" },
+            }}
+          >
+            Apply Filters {products.length > 0 ? `(${products.length})` : ""}
+          </Button>
+        </Box>
+      </Drawer>
 
       {/* Toast Alert for Coming Soon Services */}
       <Snackbar

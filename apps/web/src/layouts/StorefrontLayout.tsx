@@ -29,6 +29,7 @@ import {
 import { useCartStore } from '../store/cart.store';
 import { useAuthStore } from '../store/auth.store';
 import { useThemeStore } from '../store/theme.store';
+import { useUIStore } from '../store/ui.store';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useDebounce } from '../hooks/useDebounce';
 import api from '../api/client';
@@ -53,6 +54,9 @@ export default function StorefrontLayout() {
   const itemCount = useCartStore((s) => s.itemCount);
   const { mode, toggleTheme } = useThemeStore();
   const isLight = mode === 'light';
+  const mobileSearchOpen = useUIStore((s) => s.mobileSearchOpen);
+  const toggleMobileSearch = useUIStore((s) => s.toggleMobileSearch);
+  const openMobileSearch = useUIStore((s) => s.openMobileSearch);
 
   const { data: walletData } = useQuery({
     queryKey: ['my-wallet-balance'],
@@ -155,9 +159,8 @@ export default function StorefrontLayout() {
     if (location.pathname === '/' && location.search.includes('tab=categories')) return 1;
     if (location.pathname === '/') return 0;
     if (location.pathname.startsWith('/categories')) return 1;
-    if (location.pathname.startsWith('/search')) return 2;
-    if (location.pathname.startsWith('/cart')) return 3;
-    if (location.pathname.startsWith('/account') || location.pathname.startsWith('/wallet') || location.pathname.startsWith('/login')) return 4;
+    if (location.pathname.startsWith('/cart')) return 2;
+    if (location.pathname.startsWith('/account') || location.pathname.startsWith('/wallet') || location.pathname.startsWith('/login')) return 3;
     return 0;
   };
 
@@ -586,6 +589,29 @@ export default function StorefrontLayout() {
                     ₹{walletBalanceRupees}
                   </Button>
                 )}
+
+                {/* Search toggle button on top right, immediately left of light/dark toggle */}
+                <IconButton
+                  onClick={() => {
+                    if (location.pathname !== '/' && location.pathname !== '/search') {
+                      navigate('/?tab=categories');
+                      openMobileSearch();
+                    } else {
+                      toggleMobileSearch();
+                    }
+                  }}
+                  size="small"
+                  aria-label="Search"
+                  sx={{
+                    color: mobileSearchOpen ? '#FF7900' : (isLight ? '#374151' : '#F8FAFC'),
+                    p: 0.75,
+                    bgcolor: mobileSearchOpen ? (isLight ? 'rgba(255,121,0,0.1)' : 'rgba(255,121,0,0.22)') : 'transparent',
+                    borderRadius: '8px',
+                    transition: 'all 0.2s',
+                  }}
+                >
+                  <SearchIcon fontSize="small" sx={{ color: mobileSearchOpen ? '#FF7900' : 'inherit' }} />
+                </IconButton>
 
                 <IconButton
                   onClick={toggleTheme}
@@ -1158,12 +1184,6 @@ export default function StorefrontLayout() {
               icon={<CategoryIcon />}
               component={RouterLink}
               to="/?tab=categories"
-            />
-            <BottomNavigationAction
-              label="Search"
-              icon={<SearchIcon />}
-              component={RouterLink}
-              to="/search"
             />
             <BottomNavigationAction
               label="Cart"

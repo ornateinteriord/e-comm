@@ -19,6 +19,7 @@ import {
   OpenInNew as OpenInNewIcon,
 } from '@mui/icons-material';
 import api from '../api/client';
+import InvoiceViewerDialog from '../components/InvoiceViewerDialog';
 import type { Order } from '@ornate/types';
 
 const FULFILMENT_STATUSES = [
@@ -28,7 +29,10 @@ const FULFILMENT_STATUSES = [
 export default function OrdersPage() {
   const queryClient = useQueryClient();
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [invoiceModalOpen, setInvoiceModalOpen] = useState(false);
+  const [activeInvoiceOrder, setActiveInvoiceOrder] = useState<Order | null>(null);
   const [newStatus, setNewStatus] = useState('');
+  const [newSellerAcceptanceStatus, setNewSellerAcceptanceStatus] = useState<'pending' | 'accepted' | 'rejected'>('pending');
   const [trackingNumber, setTrackingNumber] = useState('');
   const [shippingProvider, setShippingProvider] = useState('');
   const [note, setNote] = useState('');
@@ -47,6 +51,7 @@ export default function OrdersPage() {
       const targetId = (selectedOrder as any)._id || selectedOrder.orderNumber || selectedOrder.id;
       await api.patch(`/admin/orders/${targetId}/status`, {
         fulfilmentStatus: newStatus,
+        sellerAcceptanceStatus: newSellerAcceptanceStatus,
         trackingNumber: trackingNumber || undefined,
         shippingProvider: shippingProvider || undefined,
         note: note || `Status updated to ${newStatus}`,
@@ -61,6 +66,7 @@ export default function OrdersPage() {
   const openStatusDialog = (order: Order) => {
     setSelectedOrder(order);
     setNewStatus(order.fulfilmentStatus);
+    setNewSellerAcceptanceStatus((order.sellerAcceptanceStatus as any) || 'pending');
     setTrackingNumber(order.trackingNumber || '');
     setShippingProvider(order.shippingProvider || '');
     setNote('');
@@ -165,7 +171,7 @@ export default function OrdersPage() {
                   <TableCell sx={{ fontWeight: 800 }}>Date</TableCell>
                   <TableCell sx={{ fontWeight: 800 }}>Total (₹)</TableCell>
                   <TableCell sx={{ fontWeight: 800 }}>Payment</TableCell>
-                  <TableCell sx={{ fontWeight: 800 }}>Seller Review</TableCell>
+                  <TableCell sx={{ fontWeight: 800 }}>Ready to Pickup</TableCell>
                   <TableCell sx={{ fontWeight: 800 }}>Fulfillment</TableCell>
                   <TableCell sx={{ fontWeight: 800 }}>Shadowfax Delivery</TableCell>
                   <TableCell sx={{ fontWeight: 800, textAlign: 'right' }}>Actions</TableCell>
@@ -198,17 +204,18 @@ export default function OrdersPage() {
                         const status = order.sellerAcceptanceStatus || 'pending';
                         if (status === 'accepted') {
                           return (
-                            <Tooltip title={order.sellerAcceptedAt ? `Accepted on ${new Date(order.sellerAcceptedAt).toLocaleString()}` : 'Order accepted by seller'}>
+                            <Tooltip title={order.sellerAcceptedAt ? `Ready for pickup (Confirmed on ${new Date(order.sellerAcceptedAt).toLocaleString()})` : 'Ready for pickup'}>
                               <Chip
                                 icon={<CheckCircleIcon sx={{ fontSize: '13px !important' }} />}
-                                label="Accepted"
+                                label="Yes"
                                 size="small"
                                 sx={{
                                   fontWeight: 800,
-                                  fontSize: 10,
+                                  fontSize: 11,
                                   bgcolor: '#dcfce7',
                                   color: '#15803d',
                                   border: '1px solid #86efac',
+                                  px: 0.5,
                                 }}
                               />
                             </Tooltip>
@@ -216,34 +223,36 @@ export default function OrdersPage() {
                         }
                         if (status === 'rejected') {
                           return (
-                            <Tooltip title={`Rejection Reason: ${order.sellerRejectionReason || 'No reason provided'}`}>
+                            <Tooltip title={`Not ready - Seller rejected: ${order.sellerRejectionReason || 'No reason provided'}`}>
                               <Chip
                                 icon={<CancelIcon sx={{ fontSize: '13px !important' }} />}
-                                label="Rejected"
+                                label="No"
                                 size="small"
                                 sx={{
                                   fontWeight: 800,
-                                  fontSize: 10,
+                                  fontSize: 11,
                                   bgcolor: '#fee2e2',
                                   color: '#b91c1c',
                                   border: '1px solid #fca5a5',
+                                  px: 0.5,
                                 }}
                               />
                             </Tooltip>
                           );
                         }
                         return (
-                          <Tooltip title="Awaiting seller confirmation">
+                          <Tooltip title="Not ready - Awaiting seller confirmation">
                             <Chip
                               icon={<PendingIcon sx={{ fontSize: '13px !important' }} />}
-                              label="Pending Review"
+                              label="No"
                               size="small"
                               sx={{
                                 fontWeight: 800,
-                                fontSize: 10,
+                                fontSize: 11,
                                 bgcolor: '#fef3c7',
                                 color: '#b45309',
                                 border: '1px solid #fde68a',
+                                px: 0.5,
                               }}
                             />
                           </Tooltip>
@@ -345,9 +354,10 @@ export default function OrdersPage() {
                       <Tooltip title="View Tax Invoice">
                         <IconButton
                           size="small"
-                          component="a"
-                          href={`http://localhost:4000/api/v1/invoices/${order.id || order.orderNumber}/html`}
-                          target="_blank"
+                          onClick={() => {
+                            setActiveInvoiceOrder(order);
+                            setInvoiceModalOpen(true);
+                          }}
                         >
                           <InvoiceIcon fontSize="small" />
                         </IconButton>
@@ -383,6 +393,19 @@ export default function OrdersPage() {
                 {FULFILMENT_STATUSES.map((st) => (
                   <MenuItem key={st} value={st}>{st.toUpperCase()}</MenuItem>
                 ))}
+              </Select>
+            </FormControl>
+
+            <FormControl fullWidth size="small">
+              <InputLabel>Ready to Pickup</InputLabel>
+              <Select
+                value={newSellerAcceptanceStatus}
+                label="Ready to Pickup"
+                onChange={(e) => setNewSellerAcceptanceStatus(e.target.value as any)}
+              >
+                <MenuItem value="accepted">Yes (Confirmed & Ready for Pickup)</MenuItem>
+                <MenuItem value="pending">No (Pending Seller Confirmation)</MenuItem>
+                <MenuItem value="rejected">No (Seller Rejected Order)</MenuItem>
               </Select>
             </FormControl>
 
@@ -741,6 +764,17 @@ export default function OrdersPage() {
           <Button onClick={() => setOrderToTrack(null)}>Close</Button>
         </DialogActions>
       </Dialog>
+
+      {/* Official Tax Invoice Viewer Dialog */}
+      <InvoiceViewerDialog
+        open={invoiceModalOpen}
+        onClose={() => {
+          setInvoiceModalOpen(false);
+          setActiveInvoiceOrder(null);
+        }}
+        invoiceIdentifier={activeInvoiceOrder?.orderNumber || (activeInvoiceOrder as any)?._id || activeInvoiceOrder?.id || null}
+        orderNumber={activeInvoiceOrder?.orderNumber}
+      />
     </Box>
   );
 }

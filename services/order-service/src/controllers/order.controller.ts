@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import mongoose from 'mongoose';
+import axios from 'axios';
 import { Order, IOrder } from '../models/order.model.js';
 import { createLogger } from '@ornate/logger';
 import { distributeOrderCommissions } from '../utils/commission.js';
@@ -32,6 +33,24 @@ export function formatGatewayName(rawGateway?: string): string {
   if (lower === 'cashfree' || lower.startsWith('cashfree')) return 'Cashfree';
   if (lower === 'paytm' || lower.startsWith('paytm')) return 'Paytm';
   return candidate.charAt(0).toUpperCase() + candidate.slice(1);
+}
+
+const PAYMENT_SERVICE_URL = process.env.PAYMENT_SERVICE_URL ?? 'http://localhost:4007';
+
+export async function triggerInvoiceGeneration(order: any): Promise<void> {
+  try {
+    const orderId = order._id?.toString() || order.id || order.orderNumber;
+    await axios.post(
+      `${PAYMENT_SERVICE_URL}/api/v1/invoices/generate`,
+      {
+        order: typeof order.toObject === 'function' ? order.toObject() : order,
+        orderId,
+      },
+      { timeout: 5000 }
+    );
+  } catch (err: any) {
+    log.warn({ err: err?.message, orderNumber: order.orderNumber }, 'Non-blocking invoice generation trigger encountered an error');
+  }
 }
 
 export async function createCheckoutOrder(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -331,6 +350,7 @@ export async function createCheckoutOrder(req: Request, res: Response, next: Nex
         log.error({ err, orderId: order._id, orderNumber: order.orderNumber }, 'Failed to distribute commission on 100% wallet payment');
       });
       triggerOrderConfirmedNotification(order);
+      triggerInvoiceGeneration(order);
     }
 
     res.status(201).json({
@@ -544,6 +564,27 @@ export async function adminUpdateOrderStatus(req: Request, res: Response, next: 
     if (trackingNumber !== undefined) order.trackingNumber = trackingNumber;
     if (shippingProvider !== undefined) order.shippingProvider = shippingProvider;
 
+    if (req.body.sellerAcceptanceStatus !== undefined) {
+      const newAcceptance = req.body.sellerAcceptanceStatus;
+      if (['pending', 'accepted', 'rejected'].includes(newAcceptance)) {
+        order.sellerAcceptanceStatus = newAcceptance;
+        if (newAcceptance === 'accepted') {
+          order.sellerAcceptedAt = new Date();
+          for (const it of order.items) {
+            (it as any).sellerAcceptanceStatus = 'accepted';
+            (it as any).sellerAcceptedAt = new Date().toISOString();
+          }
+        } else if (newAcceptance === 'rejected') {
+          order.sellerRejectedAt = new Date();
+          order.sellerRejectionReason = note || 'Marked not ready for pickup by admin';
+          for (const it of order.items) {
+            (it as any).sellerAcceptanceStatus = 'rejected';
+            (it as any).sellerRejectedAt = new Date().toISOString();
+          }
+        }
+      }
+    }
+
     order.statusHistory.push({
       status: fulfilmentStatus || order.fulfilmentStatus,
       changedBy: req.user?.email || 'Admin',
@@ -557,6 +598,7 @@ export async function adminUpdateOrderStatus(req: Request, res: Response, next: 
       distributeOrderCommissions(order).catch((err) => {
         log.error({ err, orderId: order._id, orderNumber: order.orderNumber }, 'Failed to distribute commission on admin update');
       });
+      triggerInvoiceGeneration(order);
     }
 
     // Trigger lifecycle notifications
@@ -666,6 +708,7 @@ export async function confirmOrderPayment(req: Request, res: Response, next: Nex
         log.error({ err, orderId: order._id, orderNumber: order.orderNumber }, 'Failed to distribute commission on payment confirmation');
       });
       triggerOrderConfirmedNotification(order);
+      triggerInvoiceGeneration(order);
     }
 
     res.json({ success: true, data: order });

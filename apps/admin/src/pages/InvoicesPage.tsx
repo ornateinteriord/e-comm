@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   Box, Typography, Paper, Table, TableBody, TableCell, TableHead,
@@ -6,9 +6,12 @@ import {
 } from '@mui/material';
 import { Receipt as InvoiceIcon } from '@mui/icons-material';
 import api from '../api/client';
+import InvoiceViewerDialog from '../components/InvoiceViewerDialog';
 import type { Invoice } from '@ornate/types';
 
 export default function InvoicesPage() {
+  const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
+
   const { data: invoicesData, isLoading } = useQuery<{ items: Invoice[]; total: number }>({
     queryKey: ['admin-invoices-list'],
     queryFn: async () => {
@@ -68,9 +71,7 @@ export default function InvoicesPage() {
                       <IconButton
                         size="small"
                         color="primary"
-                        component="a"
-                        href={`/api/v1/invoices/${inv.id || inv.invoiceNumber}/html`}
-                        target="_blank"
+                        onClick={() => setSelectedInvoice(inv)}
                       >
                         <InvoiceIcon />
                       </IconButton>
@@ -82,6 +83,14 @@ export default function InvoicesPage() {
           </Table>
         )}
       </Paper>
+
+      {/* In-app Official Tax Invoice Viewer Dialog with Download / Print PDF */}
+      <InvoiceViewerDialog
+        open={Boolean(selectedInvoice)}
+        onClose={() => setSelectedInvoice(null)}
+        invoiceIdentifier={selectedInvoice?.invoiceNumber || selectedInvoice?.id || selectedInvoice?.orderNumber || null}
+        orderNumber={selectedInvoice?.orderNumber}
+      />
     </Box>
   );
 }

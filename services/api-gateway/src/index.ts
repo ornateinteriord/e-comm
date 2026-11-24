@@ -289,6 +289,8 @@ const serviceRoutes: Array<{ path: string; target: string }> = [
   { path: '/api/v1/wishlist', target: authTarget },
   { path: '/api/v1/wallet', target: authTarget },
   { path: '/api/v1/contact', target: authTarget },
+  { path: '/api/v1/privacy', target: authTarget },
+  { path: '/api/v1/admin/privacy', target: authTarget },
   { path: '/api/v1/admin/contact', target: authTarget },
   { path: '/api/v1/admin/customers', target: authTarget },
   { path: '/api/v1/admin/users', target: authTarget },

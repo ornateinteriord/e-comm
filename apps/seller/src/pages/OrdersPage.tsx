@@ -122,7 +122,7 @@ export default function OrdersPage() {
                   <TableCell sx={{ fontWeight: 700, color: '#475569' }}>Customer</TableCell>
                   <TableCell sx={{ fontWeight: 700, color: '#475569' }}>Delivery City</TableCell>
                   <TableCell sx={{ fontWeight: 700, color: '#475569' }}>Your Category Items</TableCell>
-                  <TableCell sx={{ fontWeight: 700, color: '#475569' }}>Seller Review</TableCell>
+                  <TableCell sx={{ fontWeight: 700, color: '#475569' }}>Ready to Pickup</TableCell>
                   <TableCell sx={{ fontWeight: 700, color: '#475569' }}>Fulfillment Status</TableCell>
                   <TableCell sx={{ fontWeight: 700, color: '#475569' }} align="right">Action</TableCell>
                 </TableRow>
@@ -173,17 +173,11 @@ export default function OrdersPage() {
                       </TableCell>
                       <TableCell>
                         <Chip
-                          label={
-                            acceptance === 'accepted'
-                              ? 'Accepted'
-                              : acceptance === 'rejected'
-                              ? 'Rejected'
-                              : 'Pending Review'
-                          }
+                          label={acceptance === 'accepted' ? 'Yes' : 'No'}
                           size="small"
                           sx={{
                             fontWeight: 800,
-                            fontSize: '0.72rem',
+                            fontSize: '0.75rem',
                             bgcolor:
                               acceptance === 'accepted'
                                 ? '#ECFDF5'
@@ -203,6 +197,7 @@ export default function OrdersPage() {
                                 ? '#FECACA'
                                 : '#FDE68A'
                             }`,
+                            px: 0.5,
                           }}
                         />
                       </TableCell>

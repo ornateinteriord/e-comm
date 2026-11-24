@@ -91,7 +91,7 @@ export default function OrderDetailPage() {
           <Button
             variant="outlined"
             startIcon={<InvoiceIcon />}
-            href={`/api/v1/invoices/${order.id || order.orderNumber}/html`}
+            href={`${import.meta.env.VITE_API_GATEWAY_URL || ''}/api/v1/invoices/${encodeURIComponent(order.orderNumber || order.id)}/html`}
             target="_blank"
             sx={{ borderRadius: '6px', fontWeight: 700 }}
           >

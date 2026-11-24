@@ -18,6 +18,7 @@ import {
   History as AuditIcon,
   Logout as LogoutIcon,
   Storefront as StorefrontIcon,
+  Shield as PrivacyIcon,
   Menu as MenuIcon,
   Close as CloseIcon,
 } from '@mui/icons-material';
@@ -35,6 +36,7 @@ const NAV_ITEMS = [
   { text: 'Live Inventory', path: '/inventory', icon: <InventoryIcon /> },
   { text: 'Tax Invoices', path: '/invoices', icon: <InvoicesIcon /> },
   { text: 'Customers', path: '/customers', icon: <CustomersIcon /> },
+  { text: 'DPDP Privacy Requests', path: '/data-deletion-requests', icon: <PrivacyIcon /> },
   { text: 'Inquiries & Messages', path: '/contact-messages', icon: <ContactMailIcon /> },
   { text: 'Coupons & Promos', path: '/coupons', icon: <CouponsIcon /> },
   { text: 'Audit Logs', path: '/audit-logs', icon: <AuditIcon /> },
