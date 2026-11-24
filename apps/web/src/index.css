@@ -29,16 +29,26 @@ html {
   -moz-osx-font-smoothing: grayscale;
   max-width: 100vw;
   overflow-x: hidden;
+  height: 100%;
+  overscroll-behavior-y: none;
 }
 
 body {
   background-color: var(--color-surface);
   color: var(--color-body);
   line-height: 1.6;
-  padding-top: var(--safe-top);
-  padding-bottom: var(--safe-bottom);
   max-width: 100vw;
   overflow-x: hidden;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overscroll-behavior-y: none;
+}
+
+#root {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 /* Reduced motion support */

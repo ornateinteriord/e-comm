@@ -430,9 +430,9 @@ export default function MobileSplitStorefront({
     <Box
       sx={{
         display: "flex",
-        // Height fills space between top Toolbar (~56px) and bottom nav (~60px)
-        height: "calc(100dvh - 56px - 60px)",
-        maxHeight: "calc(100dvh - 56px - 60px)",
+        flex: 1,
+        height: "100%",
+        maxHeight: "100%",
         width: "100%",
         overflow: "hidden",
         bgcolor: bgRight,
@@ -448,6 +448,7 @@ export default function MobileSplitStorefront({
           height: "100%",
           overflowY: "auto",
           overflowX: "hidden",
+          overscrollBehaviorY: "contain",
           bgcolor: bgLeft,
           borderRight: `1px solid ${borderColor}`,
           WebkitOverflowScrolling: "touch",
@@ -458,6 +459,7 @@ export default function MobileSplitStorefront({
           display: "flex",
           flexDirection: "column",
           py: 0.5,
+          pb: 3,
         }}
       >
         {/* If in CATEGORIES mode: show Back to Services button */}
@@ -737,6 +739,7 @@ export default function MobileSplitStorefront({
           height: "100%",
           overflowY: "auto",
           overflowX: "hidden",
+          overscrollBehaviorY: "contain",
           bgcolor: bgRight,
           WebkitOverflowScrolling: "touch",
           "&::-webkit-scrollbar": { width: 3 },
@@ -1081,7 +1084,7 @@ export default function MobileSplitStorefront({
         )}
 
         {/* 2-Column Product Grid */}
-        <Box sx={{ p: { xs: 0.75, sm: 1.25 } }}>
+        <Box sx={{ p: { xs: 0.75, sm: 1.25 }, pb: { xs: 3, sm: 4 } }}>
           {productsLoading ? (
             <Grid container spacing={0.75}>
               {Array.from({ length: 6 }).map((_, i) => (

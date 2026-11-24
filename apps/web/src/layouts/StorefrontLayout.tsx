@@ -165,7 +165,19 @@ export default function StorefrontLayout() {
   };
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', bgcolor: 'background.default', width: '100%', maxWidth: '100vw', overflowX: 'hidden' }}>
+    <Box
+      sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        height: isMobile ? '100dvh' : 'auto',
+        minHeight: isMobile ? '100dvh' : '100vh',
+        maxHeight: isMobile ? '100dvh' : 'none',
+        bgcolor: 'background.default',
+        width: '100%',
+        maxWidth: '100vw',
+        overflow: isMobile ? 'hidden' : 'visible',
+      }}
+    >
       {/* ---- Desktop Top Banner ---- */}
       {/* {true && (
         <Box
@@ -516,7 +528,7 @@ export default function StorefrontLayout() {
 
       {/* ---- Mobile Header (App Style) ---- */}
       {isMobile && (
-        <Box sx={{ position: 'sticky', top: 0, zIndex: 1200 }}>
+        <Box sx={{ flexShrink: 0, zIndex: 1200 }}>
           <AppBar
             position="static"
             elevation={0}
@@ -1125,30 +1137,34 @@ export default function StorefrontLayout() {
         component="main"
         sx={{
           flex: 1,
-          pb: (isMobile && (location.pathname === '/' || location.pathname === '/search')) ? 0 : (isMobile ? '80px' : 0),
-          overflow: (isMobile && (location.pathname === '/' || location.pathname === '/search')) ? 'hidden' : 'visible',
+          minHeight: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          overflowY: isMobile ? (location.pathname === '/' || location.pathname === '/search' ? 'hidden' : 'auto') : 'visible',
+          overflowX: 'hidden',
+          WebkitOverflowScrolling: 'touch',
+          overscrollBehaviorY: 'contain',
         }}
       >
         <Outlet />
+        {/* Global Footer inside scrollable main container for mobile non-split pages */}
+        {isMobile && location.pathname !== '/' && location.pathname !== '/search' && <Footer />}
       </Box>
 
-      {/* Global Footer (hidden on mobile split pages to keep full-height split view) */}
-      {(!isMobile || (location.pathname !== '/' && location.pathname !== '/search')) && <Footer />}
+      {/* Global Footer on Desktop */}
+      {!isMobile && <Footer />}
 
       {/* ---- Mobile Native Bottom App Bar (Android / iOS feel) ---- */}
       {isMobile && (
         <Paper
           elevation={8}
           sx={{
-            position: 'fixed',
-            bottom: 0,
-            left: 0,
-            right: 0,
+            flexShrink: 0,
             zIndex: 1100,
-            bgcolor: isLight ? 'rgba(255, 255, 255, 0.95)' : 'rgba(15, 23, 42, 0.95)',
+            bgcolor: isLight ? 'rgba(255, 255, 255, 0.98)' : 'rgba(15, 23, 42, 0.98)',
             backdropFilter: 'blur(20px)',
             borderTop: `1px solid ${isLight ? '#E5E7EB' : 'rgba(255, 255, 255, 0.08)'}`,
-            paddingBottom: 'env(safe-area-inset-bottom, 8px)',
+            paddingBottom: 'env(safe-area-inset-bottom, 0px)',
           }}
         >
           <BottomNavigation
@@ -1213,7 +1229,7 @@ export default function StorefrontLayout() {
           aria-label="Open cart"
           sx={{
             position: 'fixed',
-            bottom: isMobile ? 76 : 28,
+            bottom: isMobile ? 'calc(68px + env(safe-area-inset-bottom, 0px))' : 28,
             right: 24,
             zIndex: 1050,
             bgcolor: '#FF7900',
