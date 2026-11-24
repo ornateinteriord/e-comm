@@ -124,7 +124,18 @@ export default function CartPage() {
 
   if (items.length === 0) {
     return (
-      <Container maxWidth="md" sx={{ py: 12, textAlign: 'center' }}>
+      <Container
+        maxWidth="md"
+        sx={{
+          py: { xs: 8, md: 12 },
+          textAlign: 'center',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flex: 1,
+        }}
+      >
         <EmptyCartIcon sx={{ fontSize: 72, color: 'text.disabled', mb: 2 }} />
         <Typography variant="h5" fontWeight={800} sx={{ mb: 1 }}>Your shopping bag is empty</Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 4 }}>

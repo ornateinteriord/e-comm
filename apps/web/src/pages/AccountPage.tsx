@@ -660,41 +660,59 @@ export default function AccountPage() {
           {userCustomerId && (
             <Box
               sx={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 1.25,
                 bgcolor: '#F8FAFC',
-                p: 1.25,
+                p: { xs: 1.75, sm: 1.5 },
                 borderRadius: '12px',
                 border: '1px solid #E2E8F0',
                 width: { xs: '100%', md: 'auto' },
-                justifyContent: { xs: 'space-between', md: 'flex-start' },
+                display: 'flex',
+                flexDirection: { xs: 'column', sm: 'row' },
+                alignItems: { xs: 'stretch', sm: 'center' },
+                justifyContent: 'space-between',
+                gap: 1.5,
               }}
             >
-              <Box sx={{ pl: 0.5 }}>
-                <Typography variant="caption" sx={{ color: '#64748B', display: 'block', fontWeight: 600, fontSize: '0.72rem' }}>
+              <Box
+                sx={{
+                  display: 'flex',
+                  flexDirection: { xs: 'row', sm: 'column' },
+                  alignItems: { xs: 'center', sm: 'flex-start' },
+                  justifyContent: 'space-between',
+                  px: 0.5,
+                }}
+              >
+                <Typography variant="caption" sx={{ color: '#64748B', display: 'block', fontWeight: 700, fontSize: '0.72rem', letterSpacing: '0.04em' }}>
                   MY REFERRAL CODE
                 </Typography>
-                <Typography variant="subtitle2" sx={{ fontWeight: 800, color: '#0F172A', letterSpacing: '0.04em' }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 800, color: '#0F172A', letterSpacing: '0.05em', fontSize: '0.95rem' }}>
                   {userCustomerId}
                 </Typography>
               </Box>
-              <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+
+              <Stack
+                direction="row"
+                spacing={1.25}
+                alignItems="center"
+                sx={{ width: { xs: '100%', sm: 'auto' } }}
+              >
                 <Button
                   size="small"
                   variant="outlined"
                   onClick={() => setIsQrDialogOpen(true)}
                   startIcon={<QrCode2Icon />}
                   sx={{
+                    flex: { xs: 1, sm: 'initial' },
                     borderColor: '#059669',
                     color: '#059669',
                     fontWeight: 700,
                     fontSize: '0.75rem',
                     textTransform: 'none',
                     borderRadius: '8px',
-                    py: 0.75,
+                    py: 0.85,
                     px: 1.5,
                     bgcolor: '#FFFFFF',
+                    whiteSpace: 'nowrap',
+                    minHeight: 36,
                     '&:hover': {
                       bgcolor: '#ECFDF5',
                       borderColor: '#047857',
@@ -709,16 +727,21 @@ export default function AccountPage() {
                   onClick={handleCopyReferral}
                   startIcon={copied ? <CheckIcon /> : <CopyIcon />}
                   sx={{
+                    flex: { xs: 1, sm: 'initial' },
                     bgcolor: copied ? '#16A34A' : '#FF7900',
                     color: '#FFFFFF',
                     fontWeight: 700,
                     fontSize: '0.75rem',
                     textTransform: 'none',
                     borderRadius: '8px',
-                    py: 0.75,
+                    py: 0.85,
                     px: 1.5,
+                    whiteSpace: 'nowrap',
+                    minHeight: 36,
+                    boxShadow: 'none',
                     '&:hover': {
                       bgcolor: copied ? '#15803D' : '#E06B00',
+                      boxShadow: '0 2px 6px rgba(255, 121, 0, 0.3)',
                     },
                   }}
                 >
@@ -1905,6 +1928,7 @@ export default function AccountPage() {
                         boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
                         flex: { xs: 1, sm: 'initial' },
                         minHeight: 44,
+                        whiteSpace: 'nowrap',
                         '&:hover': {
                           bgcolor: '#F0FDF4',
                         },
@@ -1930,6 +1954,7 @@ export default function AccountPage() {
                         boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
                         flex: { xs: 1, sm: 'initial' },
                         minHeight: 44,
+                        whiteSpace: 'nowrap',
                         '&:hover': {
                           bgcolor: '#F0FDF4',
                         },

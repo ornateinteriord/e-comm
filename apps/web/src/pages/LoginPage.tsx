@@ -94,7 +94,16 @@ export default function LoginPage() {
   }
 
   return (
-    <Container maxWidth="xs" sx={{ py: { xs: 6, sm: 10 } }}>
+    <Container
+      maxWidth="xs"
+      sx={{
+        py: { xs: 4, sm: 8 },
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
+        flex: 1,
+      }}
+    >
       <Paper
         elevation={0}
         sx={{

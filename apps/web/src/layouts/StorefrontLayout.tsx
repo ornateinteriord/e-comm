@@ -1146,7 +1146,19 @@ export default function StorefrontLayout() {
           overscrollBehaviorY: 'contain',
         }}
       >
-        <Outlet />
+        <Box
+          sx={{
+            flex: '1 0 auto',
+            minHeight:
+              isMobile && location.pathname !== '/' && location.pathname !== '/search'
+                ? 'calc(100dvh - 56px - 60px - env(safe-area-inset-bottom, 0px))'
+                : 'auto',
+            display: 'flex',
+            flexDirection: 'column',
+          }}
+        >
+          <Outlet />
+        </Box>
         {/* Global Footer inside scrollable main container for mobile non-split pages */}
         {isMobile && location.pathname !== '/' && location.pathname !== '/search' && <Footer />}
       </Box>
