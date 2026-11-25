@@ -277,7 +277,7 @@ export default function MobileSplitStorefront({
     queryKey: ["categories-mobile-split"],
     queryFn: async () => {
       try {
-        const { data } = await api.get("/categories?hasProducts=true");
+        const { data } = await api.get("/categories?parent=null&hasProducts=true");
         const list = (data.data || []) as Category[];
         if (list.length > 0) return list;
       } catch {

@@ -76,6 +76,8 @@ const orderItemSchema = new Schema<OrderItem>(
     image: { type: String },
     categoryId: { type: String, index: true },
     categoryName: { type: String },
+    subcategoryId: { type: String, index: true },
+    subcategoryName: { type: String },
     sellerId: { type: String, index: true },
     sellerName: { type: String },
     storeId: { type: String, index: true },

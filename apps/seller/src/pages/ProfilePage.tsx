@@ -136,8 +136,16 @@ export default function ProfilePage() {
                   <TextField
                     fullWidth
                     disabled
-                    label="Assigned Category"
-                    value={seller?.categoryName || ''}
+                    label="Assigned Subcategory"
+                    value={seller?.subcategoryName ? `${seller.subcategoryName} (${seller.categoryName || 'General'})` : (seller?.categoryName || '')}
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    disabled
+                    label="Seller Tier & Capacity"
+                    value={`${seller?.typeOfSeller || seller?.typeOfStore || 'Standard'} Tier • ${seller?.currentStockTotal ?? 0} / ${seller?.maxStockLimit ?? 2500} units held`}
                   />
                 </Grid>
                 <Grid item xs={12} sm={6}>

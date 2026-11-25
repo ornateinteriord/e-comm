@@ -138,7 +138,7 @@ export default function SellerPendingActivationView() {
               <Stack direction="row" spacing={1} flexWrap="wrap">
                 <Chip
                   icon={<CategoryIcon sx={{ fontSize: '14px !important', color: '#EA580C' }} />}
-                  label={`Category: ${seller?.categoryName || 'Assigned'}`}
+                  label={`Subcategory: ${seller?.subcategoryName ? `${seller.subcategoryName} (${seller.categoryName || 'Category'})` : (seller?.categoryName || 'Assigned')}`}
                   size="small"
                   sx={{ bgcolor: '#FFF7ED', color: '#C2410C', fontWeight: 700, border: '1px solid #FFEDD5' }}
                 />
@@ -241,7 +241,7 @@ export default function SellerPendingActivationView() {
                     2. Admin Verification & Territory Check (In Progress)
                   </Typography>
                   <Typography variant="caption" sx={{ color: '#64748B' }}>
-                    The central administrator is currently reviewing the exclusivity of your assigned category ({seller?.categoryName}) and verifying location coverage.
+                    The central administrator is currently reviewing the exclusivity of your assigned subcategory ({seller?.subcategoryName || seller?.categoryName}) and verifying location coverage.
                   </Typography>
                 </Box>
               </Box>

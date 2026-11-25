@@ -36,11 +36,11 @@ import MapLocationPicker, { type LocationData } from '../components/map/MapLocat
 import RegisterSuccessDialog, { type SellerRegistrationDetails } from '../components/auth/RegisterSuccessDialog';
 
 export const SELLER_TYPES = [
-  { value: 'Basic', label: 'Basic — Neighborhood Express Seller' },
-  { value: 'Standard', label: 'Standard — Fulfillment & Dispatch Hub' },
-  { value: 'Advanced', label: 'Advanced — Regional Super Seller' },
-  { value: 'Flagship', label: 'Flagship — Experience & Service Center' },
-  { value: 'Wholesale', label: 'Wholesale — Mega Distribution Hub' },
+  { value: 'Basic', label: 'Basic — Neighborhood Express Seller (Max 500 units)', limit: 500 },
+  { value: 'Standard', label: 'Standard — Fulfillment & Dispatch Hub (Max 2,500 units)', limit: 2500 },
+  { value: 'Advanced', label: 'Advanced — Regional Super Seller (Max 10,000 units)', limit: 10000 },
+  { value: 'Flagship', label: 'Flagship — Experience & Service Center (Max 10,000 units)', limit: 10000 },
+  { value: 'Wholesale', label: 'Wholesale — Mega Distribution Hub (Max 10,000 units)', limit: 10000 },
 ];
 
 export const STORE_TYPES = SELLER_TYPES;
@@ -51,9 +51,10 @@ interface CategoryItem {
   name: string;
   slug: string;
   description?: string;
-  isAvailable: boolean;
+  isAvailable?: boolean;
   claimedBySeller?: { sellerId: string; name: string } | null;
   claimedByStore?: { storeId: string; name: string } | null;
+  subcategories?: CategoryItem[];
 }
 
 export default function RegisterSellerPage() {
@@ -82,14 +83,16 @@ export default function RegisterSellerPage() {
   const [isVerifyingRef, setIsVerifyingRef] = useState(false);
   const [referralError, setReferralError] = useState<string | null>(null);
 
-  // Form State - Category
+  // Form State - Category & Subcategory
   const [categories, setCategories] = useState<CategoryItem[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<CategoryItem | null>(null);
+  const [selectedSubcategory, setSelectedSubcategory] = useState<CategoryItem | null>(null);
   const [isLoadingCats, setIsLoadingCats] = useState(false);
 
   // Form State - Seller Details
   const [sellerName, setSellerName] = useState('');
   const [typeOfSeller, setTypeOfSeller] = useState('Standard (Fulfillment Hub)');
+  const [maxStockLimit, setMaxStockLimit] = useState<number>(2500);
   const [ownerName, setOwnerName] = useState('');
   const [mobileNumber, setMobileNumber] = useState('');
   const [email, setEmail] = useState('');
@@ -189,8 +192,8 @@ export default function RegisterSellerPage() {
       return;
     }
 
-    if (!selectedCategory) {
-      setFormError('Please select a category for your seller account.');
+    if (!selectedCategory || !selectedSubcategory) {
+      setFormError('Please select both a main category and an available subcategory. Sellers are exclusively assigned to subcategories.');
       return;
     }
 
@@ -220,6 +223,7 @@ export default function RegisterSellerPage() {
       const payload = {
         name: sellerName.trim(),
         typeOfSeller,
+        maxStockLimit,
         ownerName: ownerName.trim(),
         email: email.trim() || `${cleanMobile}@seller.eshopy.biz`,
         mobileNumber: cleanMobile,
@@ -227,6 +231,9 @@ export default function RegisterSellerPage() {
         categoryId: selectedCategory.id || selectedCategory._id,
         categoryName: selectedCategory.name,
         categorySlug: selectedCategory.slug,
+        subcategoryId: selectedSubcategory.id || selectedSubcategory._id,
+        subcategoryName: selectedSubcategory.name,
+        subcategorySlug: selectedSubcategory.slug,
         referralCode: verifiedReferral.code,
         address: {
           line1: line1.trim(),
@@ -259,6 +266,7 @@ export default function RegisterSellerPage() {
           mobileNumber: seller.mobileNumber,
           password,
           categoryName: seller.categoryName,
+          subcategoryName: seller.subcategoryName || selectedSubcategory.name,
           referralCode: verifiedReferral.code,
           referralName: verifiedReferral.name,
           referralType: verifiedReferral.type,
@@ -393,16 +401,16 @@ export default function RegisterSellerPage() {
 
               <Divider />
 
-              {/* SECTION 2: CATEGORY SELECTION */}
+              {/* SECTION 2: CATEGORY & SUBCATEGORY SELECTION */}
               <Box>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
                   <CategoryIcon sx={{ color: '#FF7900' }} />
                   <Typography variant="h6" sx={{ fontWeight: 700, color: '#172B30' }}>
-                    2. Select Seller Category
+                    2. Select Seller Subcategory
                   </Typography>
                 </Box>
                 <Typography variant="body2" sx={{ color: '#64748B', mb: 2 }}>
-                  Choose which product category your seller account will operate. Each category is granted to verified sellers.
+                  Sellers operate exclusively by subcategory. Choose a main department, then select an available subcategory.
                 </Typography>
 
                 {isLoadingCats ? (
@@ -410,63 +418,123 @@ export default function RegisterSellerPage() {
                     <CircularProgress size={28} sx={{ color: '#FF7900' }} />
                   </Box>
                 ) : (
-                  <Grid container spacing={1.5}>
-                    {categories.map((cat) => {
-                      const isSelected = (selectedCategory?.id || selectedCategory?._id) === (cat.id || cat._id);
-                      const isTaken = !cat.isAvailable;
-                      const claimedName = cat.claimedBySeller?.name || cat.claimedByStore?.name || 'Seller';
+                  <>
+                    <Typography variant="caption" sx={{ fontWeight: 700, color: '#64748B', textTransform: 'uppercase', mb: 1, display: 'block' }}>
+                      Step A: Choose Main Category
+                    </Typography>
+                    <Grid container spacing={1.5} sx={{ mb: 2 }}>
+                      {categories.map((cat) => {
+                        const isSelected = (selectedCategory?.id || selectedCategory?._id) === (cat.id || cat._id);
 
-                      return (
-                        <Grid item xs={12} sm={6} md={4} key={cat.id || cat._id}>
-                          <Paper
-                            elevation={0}
-                            onClick={() => !isTaken && setSelectedCategory(cat)}
-                            sx={{
-                              p: 2,
-                              borderRadius: 2,
-                              border: '1.5px solid',
-                              borderColor: isSelected ? '#FF7900' : isTaken ? '#E2E8F0' : '#CBD5E1',
-                              bgcolor: isSelected ? '#FFF7ED' : isTaken ? '#F1F5F9' : '#FFFFFF',
-                              cursor: isTaken ? 'not-allowed' : 'pointer',
-                              opacity: isTaken ? 0.65 : 1,
-                              transition: 'all 0.15s ease-in-out',
-                              '&:hover': {
-                                borderColor: isTaken ? '#E2E8F0' : '#FF7900',
-                                transform: isTaken ? 'none' : 'translateY(-2px)',
-                              },
-                            }}
-                          >
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: isTaken ? '#64748B' : '#172B30' }}>
-                                {cat.name}
+                        return (
+                          <Grid item xs={12} sm={6} md={4} key={cat.id || cat._id}>
+                            <Paper
+                              elevation={0}
+                              onClick={() => {
+                                setSelectedCategory(cat);
+                                setSelectedSubcategory(null);
+                              }}
+                              sx={{
+                                p: 1.75,
+                                borderRadius: 2,
+                                border: '1.5px solid',
+                                borderColor: isSelected ? '#FF7900' : '#E2E8F0',
+                                bgcolor: isSelected ? '#FFF7ED' : '#FFFFFF',
+                                cursor: 'pointer',
+                                transition: 'all 0.15s ease-in-out',
+                                '&:hover': {
+                                  borderColor: '#FF7900',
+                                  transform: 'translateY(-2px)',
+                                },
+                              }}
+                            >
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <Typography variant="subtitle2" sx={{ fontWeight: 800, color: '#172B30' }}>
+                                  {cat.name}
+                                </Typography>
+                                {isSelected && <CheckCircleIcon sx={{ fontSize: 18, color: '#FF7900' }} />}
+                              </Box>
+                              <Typography variant="caption" sx={{ color: '#64748B', mt: 0.5, display: 'block' }}>
+                                {cat.subcategories?.length ? `${cat.subcategories.length} subcategories` : 'No subcategories yet'}
                               </Typography>
-                              {isSelected && <CheckCircleIcon sx={{ fontSize: 18, color: '#FF7900' }} />}
-                            </Box>
-                            <Box sx={{ mt: 1 }}>
-                              {isTaken ? (
-                                <Chip
-                                  label={`Claimed: ${claimedName}`}
-                                  size="small"
-                                  sx={{ fontSize: '0.65rem', height: 20, bgcolor: '#E2E8F0', color: '#64748B' }}
-                                />
-                              ) : (
-                                <Chip
-                                  label="Available"
-                                  size="small"
-                                  sx={{ fontSize: '0.65rem', height: 20, bgcolor: '#ECFDF5', color: '#047857', fontWeight: 700 }}
-                                />
-                              )}
-                            </Box>
-                          </Paper>
-                        </Grid>
-                      );
-                    })}
-                  </Grid>
+                            </Paper>
+                          </Grid>
+                        );
+                      })}
+                    </Grid>
+
+                    {selectedCategory && (
+                      <Box sx={{ mt: 2, p: 2, bgcolor: '#F8FAFC', borderRadius: 2, border: '1px solid #E2E8F0' }}>
+                        <Typography variant="caption" sx={{ fontWeight: 700, color: '#4F46E5', textTransform: 'uppercase', mb: 1, display: 'block' }}>
+                          Step B: Choose Specific Subcategory for {selectedCategory.name}
+                        </Typography>
+                        {selectedCategory.subcategories && selectedCategory.subcategories.length > 0 ? (
+                          <Grid container spacing={1.5}>
+                            {selectedCategory.subcategories.map((sub: any) => {
+                              const isSubSelected = (selectedSubcategory?.id || selectedSubcategory?._id) === (sub.id || sub._id);
+                              const isTaken = !sub.isAvailable;
+                              const claimedName = sub.claimedBySeller?.name || sub.claimedByStore?.name || 'Seller';
+
+                              return (
+                                <Grid item xs={12} sm={6} md={4} key={sub.id || sub._id}>
+                                  <Paper
+                                    elevation={0}
+                                    onClick={() => !isTaken && setSelectedSubcategory(sub)}
+                                    sx={{
+                                      p: 1.5,
+                                      borderRadius: 2,
+                                      border: '1.5px solid',
+                                      borderColor: isSubSelected ? '#4F46E5' : isTaken ? '#E2E8F0' : '#CBD5E1',
+                                      bgcolor: isSubSelected ? '#EEF2FF' : isTaken ? '#F1F5F9' : '#FFFFFF',
+                                      cursor: isTaken ? 'not-allowed' : 'pointer',
+                                      opacity: isTaken ? 0.65 : 1,
+                                      transition: 'all 0.15s ease-in-out',
+                                      '&:hover': {
+                                        borderColor: isTaken ? '#E2E8F0' : '#4F46E5',
+                                        transform: isTaken ? 'none' : 'translateY(-2px)',
+                                      },
+                                    }}
+                                  >
+                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                      <Typography variant="subtitle2" sx={{ fontWeight: 700, color: isTaken ? '#64748B' : '#172B30' }}>
+                                        {sub.name}
+                                      </Typography>
+                                      {isSubSelected && <CheckCircleIcon sx={{ fontSize: 18, color: '#4F46E5' }} />}
+                                    </Box>
+                                    <Box sx={{ mt: 1 }}>
+                                      {isTaken ? (
+                                        <Chip
+                                          label={`Claimed: ${claimedName}`}
+                                          size="small"
+                                          sx={{ fontSize: '0.65rem', height: 20, bgcolor: '#E2E8F0', color: '#64748B' }}
+                                        />
+                                      ) : (
+                                        <Chip
+                                          label="Available"
+                                          size="small"
+                                          sx={{ fontSize: '0.65rem', height: 20, bgcolor: '#ECFDF5', color: '#047857', fontWeight: 700 }}
+                                        />
+                                      )}
+                                    </Box>
+                                  </Paper>
+                                </Grid>
+                              );
+                            })}
+                          </Grid>
+                        ) : (
+                          <Alert severity="warning" sx={{ borderRadius: 2 }}>
+                            {selectedCategory.name} does not have any subcategories configured yet. Please select another department or contact Admin to add subcategories.
+                          </Alert>
+                        )}
+                      </Box>
+                    )}
+                  </>
                 )}
 
-                {selectedCategory && (
+                {selectedSubcategory && (
                   <Alert severity="success" sx={{ mt: 2, borderRadius: 2 }}>
-                    Selected Category: <strong>{selectedCategory.name}</strong>
+                    Assigned Subcategory: <strong>{selectedSubcategory.name}</strong>
+                    {selectedCategory && ` (under ${selectedCategory.name})`}
                   </Alert>
                 )}
               </Box>
@@ -498,8 +566,13 @@ export default function RegisterSellerPage() {
                       fullWidth
                       label="Type of Seller *"
                       value={typeOfSeller}
-                      onChange={(e) => setTypeOfSeller(e.target.value)}
-                      helperText="Select your seller tier or operational capacity"
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setTypeOfSeller(val);
+                        const found = SELLER_TYPES.find((t) => t.value === val);
+                        if (found?.limit) setMaxStockLimit(found.limit);
+                      }}
+                      helperText={`Select seller tier (Capacity: ${maxStockLimit.toLocaleString()} units)`}
                     >
                       {SELLER_TYPES.map((t) => (
                         <MenuItem key={t.value} value={t.value}>

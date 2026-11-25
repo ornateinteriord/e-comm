@@ -55,11 +55,23 @@ export async function searchProducts(req: Request, res: Response, next: NextFunc
       if (maxPrice !== undefined) filter['pricing.sellingPrice'].$lte = maxPrice;
     }
 
-    // Category resolution if slug passed
+    // Category / Subcategory resolution if slug passed
     if (category) {
       const cat = await getCategoryModel().findOne({ slug: category });
       if (cat) {
-        filter.category = cat._id;
+        const catCondition = {
+          $or: [
+            { category: cat._id },
+            { subcategory: cat._id },
+            { subcategoryId: cat._id.toString() },
+          ],
+        };
+        if (filter.$or) {
+          filter.$and = [{ $or: filter.$or }, catCondition];
+          delete filter.$or;
+        } else {
+          filter.$or = catCondition.$or;
+        }
       }
     }
 
@@ -101,6 +113,8 @@ export async function searchProducts(req: Request, res: Response, next: NextFunc
         longDescription: doc.longDescription,
         categoryId: doc.category?.toString() || '',
         categoryName: catMap.get(doc.category?.toString()) || 'General',
+        subcategoryId: doc.subcategoryId || doc.subcategory?.toString() || undefined,
+        subcategoryName: doc.subcategoryName || (doc.subcategory ? catMap.get(doc.subcategory?.toString()) : undefined),
         images: doc.images || [],
         pricing: applicable,
         stock: doc.stock ?? 0,

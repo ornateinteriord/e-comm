@@ -12,6 +12,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "db:seed": "tsx src/scripts/seed.ts",
+    "seed:subcategories": "tsx src/scripts/seed-subcategories.ts",
+    "seed:furniture": "tsx src/scripts/seed-furniture-products.ts",
     "index:all": "tsx src/scripts/reindex-all.ts"
   },
   "dependencies": {

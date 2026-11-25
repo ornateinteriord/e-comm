@@ -9,6 +9,7 @@ import { serializePublicProduct, serializeAdminProduct } from '../utils/product.
 import { validatePrices } from '@ornate/pricing-utils';
 import { createLogger } from '@ornate/logger';
 import { emitSearchEvent } from '../utils/search-event.js';
+import { allocateStockForProduct, autoAssignUnassignedStockToSeller } from '../utils/stock-allocation.js';
 
 const log = createLogger('product-controller');
 
@@ -23,11 +24,24 @@ export async function listProducts(req: Request, res: Response, next: NextFuncti
     const limit = Math.min(100, Math.max(1, Number(req.query.limit ?? 24)));
     const skip = (page - 1) * limit;
     const category = req.query.category as string | undefined;
+    const subcategory = (req.query.subcategory || req.query.subcategoryId) as string | undefined;
     const brand = req.query.brand as string | undefined;
     const sort = (req.query.sort as string) ?? 'newest';
 
     const filter: Record<string, unknown> = { status: 'active', isPublished: true };
-    if (category) filter.category = category;
+    if (category) {
+      filter.$or = [
+        { category },
+        { subcategory: category },
+        { subcategoryId: String(category) },
+      ];
+    }
+    if (subcategory) {
+      filter.$or = [
+        { subcategory },
+        { subcategoryId: String(subcategory) },
+      ];
+    }
     if (brand) filter.brand = brand;
 
     const sortMap: Record<string, Record<string, number>> = {
@@ -39,6 +53,7 @@ export async function listProducts(req: Request, res: Response, next: NextFuncti
     const [products, total] = await Promise.all([
       Product.find(filter)
         .populate('category', 'name slug')
+        .populate('subcategory', 'name slug')
         .sort((sortMap[sort] as any) ?? { createdAt: -1 })
         .skip(skip)
         .limit(limit),
@@ -194,11 +209,41 @@ export async function createProduct(req: Request, res: Response, next: NextFunct
     }
 
     const slug = generateSlug(name, sku);
+
+    // Resolve subcategory details
+    const rawSubcatId = req.body.subcategoryId || (subcategory ? String(subcategory) : null);
+    let subcatDoc: any = null;
+    let finalSubcatName = req.body.subcategoryName;
+    if (rawSubcatId && mongoose.Types.ObjectId.isValid(rawSubcatId)) {
+      subcatDoc = await Category.findById(rawSubcatId).catch(() => null);
+      if (subcatDoc) {
+        finalSubcatName = subcatDoc.name;
+      }
+    }
+
+    // Allocate stock to an active seller in this subcategory up to seller capacity limit
+    const incomingStock = stock ?? 0;
+    const allocation = await allocateStockForProduct({
+      subcategoryId: rawSubcatId,
+      categoryId: category ? String(category) : null,
+      stock: incomingStock,
+    });
+
     const product = await Product.create({
       name, slug, sku: sku.toUpperCase(), brand, shortDescription, longDescription,
-      category, subcategory,
+      category,
+      subcategory: subcatDoc ? subcatDoc._id : (subcategory && mongoose.Types.ObjectId.isValid(String(subcategory)) ? subcategory : null),
+      subcategoryId: rawSubcatId || (subcatDoc ? subcatDoc._id.toString() : undefined),
+      subcategoryName: finalSubcatName,
+      sellerId: allocation.sellerId,
+      sellerName: allocation.sellerName,
+      storeId: allocation.storeId,
+      storeName: allocation.storeName,
+      assignedStock: allocation.assignedStock,
+      unassignedStock: allocation.unassignedStock,
+      assignmentStatus: allocation.assignmentStatus,
       pricing: { ...pricing },
-      stock: stock ?? 0,
+      stock: incomingStock,
       lowStockThreshold: lowStockThreshold ?? 5,
       status: status ?? 'draft',
       isPublished: isPublished ?? false,
@@ -269,9 +314,26 @@ export async function updateProduct(req: Request, res: Response, next: NextFunct
     // Update other fields
     const allowed = [
       'name', 'brand', 'shortDescription', 'longDescription', 'category',
-      'subcategory', 'stock', 'lowStockThreshold', 'status', 'isPublished', 'isFeatured',
+      'subcategory', 'subcategoryId', 'subcategoryName',
+      'stock', 'lowStockThreshold', 'status', 'isPublished', 'isFeatured',
       'attributes', 'seoTitle', 'seoDescription', 'taxClass', 'weight', 'dimensions',
     ];
+
+    if (updates.subcategoryId || updates.subcategory) {
+      const subId = String(updates.subcategoryId || updates.subcategory || '');
+      if (subId && mongoose.Types.ObjectId.isValid(subId)) {
+        const subDoc = await Category.findById(subId).select('name');
+        if (subDoc) {
+          updates.subcategory = subDoc._id;
+          updates.subcategoryId = subDoc._id.toString();
+          updates.subcategoryName = subDoc.name;
+        }
+      } else if (!subId) {
+        updates.subcategory = null;
+        updates.subcategoryId = undefined;
+        updates.subcategoryName = undefined;
+      }
+    }
 
     if (updates.status === 'inactive' && updates.isPublished === undefined) {
       updates.isPublished = false;
@@ -381,15 +443,49 @@ export async function getAdminProduct(req: Request, res: Response, next: NextFun
 // SELLER PORTAL PRODUCT CONTROLLERS
 // ==========================================
 
+function buildSellerProductScope(user?: { categoryId?: string; subcategoryId?: string }): Record<string, unknown> {
+  const categoryId = user?.categoryId;
+  const subcategoryId = user?.subcategoryId;
+
+  // Sellers operate at subcategory level whenever assigned a distinct subcategory
+  if (subcategoryId && subcategoryId !== categoryId) {
+    return {
+      $or: [
+        { subcategoryId: String(subcategoryId) },
+        ...(mongoose.Types.ObjectId.isValid(subcategoryId)
+          ? [{ subcategory: new mongoose.Types.ObjectId(subcategoryId) }]
+          : []),
+      ],
+    };
+  }
+
+  // Fallback for direct-category assignments
+  if (categoryId) {
+    const catMatch = mongoose.Types.ObjectId.isValid(categoryId)
+      ? { $in: [categoryId, new mongoose.Types.ObjectId(categoryId)] }
+      : categoryId;
+    return {
+      $or: [
+        { category: catMatch },
+        { subcategoryId: String(categoryId) },
+        { subcategory: catMatch },
+      ],
+    };
+  }
+
+  return {};
+}
+
 /**
  * GET /api/v1/seller/products
- * Returns all products within the seller's assigned category.
+ * Returns all products within the seller's assigned subcategory (or fallback category).
  */
 export async function sellerListProducts(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const categoryId = req.user?.categoryId;
-    if (!categoryId) {
-      res.status(400).json({ success: false, error: { code: 'CATEGORY_REQUIRED', message: 'Seller has no category assigned.' } });
+    const subcategoryId = req.user?.subcategoryId;
+    if (!categoryId && !subcategoryId) {
+      res.status(400).json({ success: false, error: { code: 'CATEGORY_REQUIRED', message: 'Seller has no subcategory or category assigned.' } });
       return;
     }
 
@@ -399,17 +495,18 @@ export async function sellerListProducts(req: Request, res: Response, next: Next
     const search = req.query.search as string | undefined;
     const status = req.query.status as string | undefined;
 
-    const filter: Record<string, unknown> = {
-      category: mongoose.Types.ObjectId.isValid(categoryId) ? new mongoose.Types.ObjectId(categoryId) : categoryId,
-    };
-    if (status && status !== 'all') filter.status = status;
+    const scopeFilter = buildSellerProductScope(req.user);
+    const andClauses: Record<string, unknown>[] = [scopeFilter];
+    if (status && status !== 'all') andClauses.push({ status });
     if (search) {
       const reg = new RegExp(search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
-      filter.$or = [{ name: reg }, { sku: reg }];
+      andClauses.push({ $or: [{ name: reg }, { sku: reg }] });
     }
 
+    const filter: Record<string, unknown> = andClauses.length === 1 ? andClauses[0] : { $and: andClauses };
+
     const [products, total] = await Promise.all([
-      Product.find(filter).populate('category', 'name slug').skip(skip).limit(limit).sort({ createdAt: -1 }),
+      Product.find(filter).populate('category', 'name slug').populate('subcategory', 'name slug').skip(skip).limit(limit).sort({ createdAt: -1 }),
       Product.countDocuments(filter),
     ]);
 
@@ -432,14 +529,14 @@ export async function sellerListProducts(req: Request, res: Response, next: Next
 
 /**
  * POST /api/v1/seller/products
- * Creates a product within the seller's category.
+ * Creates a product within the seller's assigned subcategory and allocates capacity.
  */
 export async function sellerCreateProduct(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const categoryId = req.user?.categoryId;
     const sellerId = req.user?.sellerId || req.user?.storeId;
-    if (!categoryId) {
-      res.status(400).json({ success: false, error: { code: 'CATEGORY_REQUIRED', message: 'Seller has no category assigned.' } });
+    if (!categoryId && !req.user?.subcategoryId) {
+      res.status(400).json({ success: false, error: { code: 'CATEGORY_REQUIRED', message: 'Seller has no subcategory or category assigned.' } });
       return;
     }
 
@@ -478,6 +575,29 @@ export async function sellerCreateProduct(req: Request, res: Response, next: Nex
     }
 
     const slug = generateSlug(name, skuUpper);
+
+    const targetSubcatId = (req.user?.subcategoryId || req.body.subcategoryId || categoryId)?.toString();
+    let resolvedRootCatId = categoryId;
+    let subcatDoc: any = null;
+    let subcatName: string | undefined = undefined;
+    if (targetSubcatId && mongoose.Types.ObjectId.isValid(targetSubcatId)) {
+      subcatDoc = await Category.findById(targetSubcatId).select('name parent');
+      if (subcatDoc) {
+        subcatName = subcatDoc.name;
+        if (!resolvedRootCatId) {
+          resolvedRootCatId = subcatDoc.parent ? subcatDoc.parent.toString() : subcatDoc._id.toString();
+        }
+      }
+    }
+
+    const incomingStock = stock ?? 0;
+    const allocation = await allocateStockForProduct({
+      requestedSellerId: sellerId,
+      subcategoryId: targetSubcatId,
+      categoryId: resolvedRootCatId,
+      stock: incomingStock,
+    });
+
     const product = await Product.create({
       name,
       slug,
@@ -485,9 +605,17 @@ export async function sellerCreateProduct(req: Request, res: Response, next: Nex
       brand,
       shortDescription,
       longDescription,
-      category: mongoose.Types.ObjectId.isValid(categoryId) ? new mongoose.Types.ObjectId(categoryId) : categoryId,
+      category: resolvedRootCatId && mongoose.Types.ObjectId.isValid(resolvedRootCatId)
+        ? new mongoose.Types.ObjectId(resolvedRootCatId)
+        : resolvedRootCatId,
+      subcategory: subcatDoc ? subcatDoc._id : (targetSubcatId && mongoose.Types.ObjectId.isValid(targetSubcatId) ? new mongoose.Types.ObjectId(targetSubcatId) : null),
+      subcategoryId: targetSubcatId,
+      subcategoryName: subcatName,
       pricing: pricePayload,
-      stock: stock ?? 0,
+      stock: incomingStock,
+      assignedStock: allocation.assignedStock,
+      unassignedStock: allocation.unassignedStock,
+      assignmentStatus: allocation.assignmentStatus,
       lowStockThreshold: lowStockThreshold ?? 5,
       status: status ?? 'active',
       isPublished: typeof isPublished === 'boolean' ? isPublished : true,
@@ -498,10 +626,10 @@ export async function sellerCreateProduct(req: Request, res: Response, next: Nex
       taxClass,
       weight,
       dimensions,
-      sellerId,
-      sellerName: sellerId,
-      storeId: sellerId,
-      storeName: sellerId,
+      sellerId: allocation.sellerId || sellerId,
+      sellerName: allocation.sellerName || sellerId,
+      storeId: allocation.storeId || sellerId,
+      storeName: allocation.storeName || sellerId,
       createdBy: { type: 'seller', id: req.user!.userId, name: sellerId },
       images: (images ?? []).map((img: any, idx: number) => ({
         id: img.id || uuidv4(),
@@ -513,7 +641,7 @@ export async function sellerCreateProduct(req: Request, res: Response, next: Nex
     });
 
     await emitSearchEvent(product.id as string, 'upsert');
-    log.info({ productId: product.id, sku: product.sku, sellerId }, 'Product created by seller');
+    log.info({ productId: product.id, sku: product.sku, sellerId, subcategoryId: targetSubcatId }, 'Product created by seller');
 
     res.status(201).json({
       success: true,
@@ -531,18 +659,14 @@ export async function sellerCreateProduct(req: Request, res: Response, next: Nex
 export async function sellerUpdateProduct(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const { id } = req.params;
-    const categoryId = req.user?.categoryId;
-
-    const catMatch = mongoose.Types.ObjectId.isValid(categoryId!)
-      ? { $in: [categoryId, new mongoose.Types.ObjectId(categoryId!)] }
-      : categoryId;
+    const scopeFilter = buildSellerProductScope(req.user);
 
     const product = await Product.findOne({
       _id: id,
-      category: catMatch,
+      ...scopeFilter,
     });
     if (!product) {
-      res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Product not found in seller category.' } });
+      res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Product not found in seller subcategory.' } });
       return;
     }
 
@@ -608,3 +732,258 @@ export async function sellerUpdateProduct(req: Request, res: Response, next: Nex
 export const storeListProducts = sellerListProducts;
 export const storeCreateProduct = sellerCreateProduct;
 export const storeUpdateProduct = sellerUpdateProduct;
+
+function getAuthDatabase(): any {
+  const conn: any = mongoose.connection;
+  const client = typeof conn.getClient === 'function' ? conn.getClient() : conn.client;
+  const dbName = process.env.AUTH_DB_NAME ?? 'ornate_auth';
+  return client ? client.db(dbName) : mongoose.connection.useDb(dbName).db;
+}
+
+/**
+ * GET /api/v1/seller/:storeId/products
+ * Public storefront endpoint returning seller details (name, address, category, subcategory)
+ * alongside active published products for that store/seller.
+ */
+export async function getPublicSellerProducts(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const storeIdParam = String(req.params.storeId || req.params.sellerId || '').trim();
+    if (!storeIdParam) {
+      res.status(400).json({
+        success: false,
+        error: { code: 'STORE_ID_REQUIRED', message: 'Store or seller ID is required.' },
+      });
+      return;
+    }
+
+    const authDb = getAuthDatabase();
+    const upperId = storeIdParam.toUpperCase();
+    const storeOrClauses: Record<string, unknown>[] = [
+      { storeId: storeIdParam },
+      { sellerId: storeIdParam },
+      { storeId: upperId },
+      { sellerId: upperId },
+    ];
+    if (mongoose.Types.ObjectId.isValid(storeIdParam)) {
+      storeOrClauses.push({ _id: new mongoose.Types.ObjectId(storeIdParam) });
+    }
+
+    const seller = await authDb.collection('stores').findOne({
+      $or: storeOrClauses,
+      isActive: true,
+      status: { $ne: 'suspended' },
+    });
+
+    if (!seller) {
+      res.status(404).json({
+        success: false,
+        error: { code: 'SELLER_NOT_FOUND', message: 'Seller/store not found.' },
+      });
+      return;
+    }
+
+    const effectiveStoreId = String(seller.storeId || seller.sellerId || seller._id);
+
+    // Resolve fresh category & subcategory names from catalog DB when available
+    const catLookupIds = [seller.categoryId, seller.subcategoryId]
+      .filter((cid): cid is string => Boolean(cid && mongoose.Types.ObjectId.isValid(String(cid))))
+      .map((cid) => new mongoose.Types.ObjectId(String(cid)));
+
+    const categoryDocs = catLookupIds.length > 0
+      ? await Category.find({ _id: { $in: catLookupIds } }).select('name slug').lean()
+      : [];
+    const categoryDocMap = new Map(categoryDocs.map((c: any) => [String(c._id), c]));
+
+    const rootCatDoc = seller.categoryId ? categoryDocMap.get(String(seller.categoryId)) : undefined;
+    const subCatDoc = seller.subcategoryId ? categoryDocMap.get(String(seller.subcategoryId)) : undefined;
+
+    const resolvedCategoryName = String(rootCatDoc?.name || seller.categoryName || '');
+    const resolvedCategorySlug = String(rootCatDoc?.slug || seller.categorySlug || '');
+    const resolvedSubcategoryName = seller.subcategoryId
+      ? String(subCatDoc?.name || seller.subcategoryName || '')
+      : '';
+    const resolvedSubcategorySlug = seller.subcategoryId
+      ? String(subCatDoc?.slug || seller.subcategorySlug || '')
+      : '';
+
+    const page = Math.max(1, Number(req.query.page ?? 1));
+    const limit = Math.min(100, Math.max(1, Number(req.query.limit ?? 24)));
+    const skip = (page - 1) * limit;
+    const search = req.query.search as string | undefined;
+    const sort = (req.query.sort as string) ?? 'newest';
+
+    const sortMap: Record<string, Record<string, number>> = {
+      newest: { createdAt: -1 },
+      price_asc: { 'pricing.sellingPrice': 1 },
+      price_desc: { 'pricing.sellingPrice': -1 },
+    };
+
+    const idVariants = Array.from(
+      new Set(
+        [seller.sellerId, seller.storeId, String(seller._id)]
+          .filter(Boolean)
+          .map((v) => String(v)),
+      ),
+    );
+    const scopeFilter = buildSellerProductScope({
+      categoryId: seller.categoryId ? String(seller.categoryId) : undefined,
+      subcategoryId: seller.subcategoryId ? String(seller.subcategoryId) : undefined,
+    });
+    const scopeClauses = Array.isArray((scopeFilter as any).$or) ? (scopeFilter as any).$or : [];
+    const matchClauses: Record<string, unknown>[] = [
+      ...scopeClauses,
+      ...(idVariants.length > 0
+        ? [{ sellerId: { $in: idVariants } }, { storeId: { $in: idVariants } }]
+        : []),
+    ];
+
+    const andClauses: Record<string, unknown>[] = [
+      { status: 'active', isPublished: true },
+    ];
+    if (matchClauses.length > 0) {
+      andClauses.push({ $or: matchClauses });
+    }
+    if (search && search.trim()) {
+      const reg = new RegExp(search.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+      andClauses.push({ $or: [{ name: reg }, { sku: reg }, { brand: reg }] });
+    }
+
+    const filter: Record<string, unknown> = andClauses.length === 1 ? andClauses[0] : { $and: andClauses };
+
+    const [products, total] = await Promise.all([
+      Product.find(filter)
+        .populate('category', 'name slug')
+        .populate('subcategory', 'name slug')
+        .sort((sortMap[sort] as any) ?? { createdAt: -1 })
+        .skip(skip)
+        .limit(limit),
+      Product.countDocuments(filter),
+    ]);
+
+    const rawAddr = seller.address || {};
+    const fallbackFormatted = [
+      rawAddr.line1,
+      rawAddr.line2,
+      rawAddr.city,
+      rawAddr.state,
+      rawAddr.pincode,
+      rawAddr.country,
+    ]
+      .filter(Boolean)
+      .join(', ');
+
+    const sellerAddress = {
+      line1: rawAddr.line1 || '',
+      line2: rawAddr.line2 || '',
+      city: rawAddr.city || '',
+      state: rawAddr.state || '',
+      pincode: rawAddr.pincode || '',
+      country: rawAddr.country || 'India',
+      formattedAddress: seller.location?.formattedAddress || fallbackFormatted,
+    };
+
+    const serializedProducts = products.map((p) => {
+      const pub = serializePublicProduct(p);
+      pub.categoryName = pub.categoryName || resolvedCategoryName;
+      pub.subcategoryName = pub.subcategoryName || resolvedSubcategoryName || undefined;
+      pub.sellerId = pub.sellerId || effectiveStoreId;
+      pub.storeId = pub.storeId || effectiveStoreId;
+      pub.sellerName = pub.sellerName || seller.name;
+      pub.storeName = pub.storeName || seller.name;
+      return pub;
+    });
+
+    res.json({
+      success: true,
+      data: {
+        storeId: effectiveStoreId,
+        sellerId: effectiveStoreId,
+        sellerName: seller.name,
+        storeName: seller.name,
+        ownerName: seller.ownerName,
+        categoryId: seller.categoryId ? String(seller.categoryId) : '',
+        categoryName: resolvedCategoryName,
+        categorySlug: resolvedCategorySlug,
+        subcategoryId: seller.subcategoryId ? String(seller.subcategoryId) : null,
+        subcategoryName: resolvedSubcategoryName || null,
+        subcategorySlug: resolvedSubcategorySlug || null,
+        sellerAddress,
+        seller: {
+          id: String(seller._id),
+          sellerId: effectiveStoreId,
+          storeId: effectiveStoreId,
+          name: seller.name,
+          sellerName: seller.name,
+          ownerName: seller.ownerName,
+          typeOfSeller: seller.typeOfSeller || seller.typeOfStore || 'Standard',
+          categoryId: seller.categoryId ? String(seller.categoryId) : '',
+          categoryName: resolvedCategoryName,
+          categorySlug: resolvedCategorySlug,
+          subcategoryId: seller.subcategoryId ? String(seller.subcategoryId) : null,
+          subcategoryName: resolvedSubcategoryName || null,
+          subcategorySlug: resolvedSubcategorySlug || null,
+          address: sellerAddress,
+          location: seller.location || null,
+          status: seller.status,
+          isActive: seller.isActive,
+        },
+        products: serializedProducts,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+          hasNextPage: page * limit < total,
+          hasPrevPage: page > 1,
+        },
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * POST /api/v1/admin/sellers/:sellerId/auto-assign-stock
+ * Automatically allocates pending unassigned products to a seller up to its maximum capacity.
+ */
+export async function adminAutoAssignStock(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const targetId = String(req.params.sellerId || req.params.storeId || '').trim();
+    const authDb = getAuthDatabase();
+
+    const seller = await authDb.collection('stores').findOne({
+      $or: [{ sellerId: targetId }, { storeId: targetId }],
+    });
+    if (!seller) {
+      res.status(404).json({ success: false, error: { code: 'SELLER_NOT_FOUND', message: 'Seller not found.' } });
+      return;
+    }
+
+    const effectiveId = seller.sellerId || seller.storeId;
+    const result = await autoAssignUnassignedStockToSeller({
+      sellerId: effectiveId,
+      storeId: effectiveId,
+      name: seller.name,
+      subcategoryId: seller.subcategoryId || seller.categoryId,
+      maxStockLimit: seller.maxStockLimit,
+      currentStockTotal: seller.currentStockTotal,
+    });
+
+    const updatedSeller = await authDb.collection('stores').findOne({ _id: seller._id });
+
+    res.json({
+      success: true,
+      data: {
+        allocatedProducts: result.allocatedProducts,
+        allocatedUnits: result.allocatedUnits,
+        currentStockTotal: updatedSeller?.currentStockTotal ?? 0,
+        maxStockLimit: updatedSeller?.maxStockLimit ?? 2500,
+        availableCapacity: Math.max(0, (updatedSeller?.maxStockLimit ?? 2500) - (updatedSeller?.currentStockTotal ?? 0)),
+      },
+      message: `Successfully allocated ${result.allocatedUnits} units across ${result.allocatedProducts} products to seller ${seller.name}.`,
+    });
+  } catch (err) {
+    next(err);
+  }
+}

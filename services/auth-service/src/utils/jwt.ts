@@ -13,6 +13,7 @@ export function signAccessToken(payload: {
   sellerId?: string;
   storeId?: string;
   categoryId?: string;
+  subcategoryId?: string;
 }): string {
   return jwt.sign(payload, ACCESS_SECRET, { expiresIn: ACCESS_EXPIRY });
 }

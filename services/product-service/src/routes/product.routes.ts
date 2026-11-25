@@ -3,7 +3,8 @@ import {
   listProducts, getProductBySlug, getFeaturedProduct,
   adminListProducts, createProduct, updateProduct, deleteProduct, getAdminProduct, setSponsorProduct,
   sellerListProducts, sellerCreateProduct, sellerUpdateProduct,
-  storeListProducts, storeCreateProduct, storeUpdateProduct,
+  storeListProducts, storeCreateProduct, storeUpdateProduct, adminAutoAssignStock,
+  getPublicSellerProducts,
 } from '../controllers/product.controller.js';
 import { listCategories, getCategoryBySlug, createCategory, updateCategory, deleteCategory } from '../controllers/category.controller.js';
 import { attachUser, requireRole } from '../middleware/auth.middleware.js';
@@ -26,6 +27,14 @@ router.get('/api/v1/categories', listCategories);
 router.get('/categories', listCategories);
 router.get('/api/v1/categories/:slug', getCategoryBySlug);
 router.get('/categories/:slug', getCategoryBySlug);
+
+// ---- Public seller/store products route ----
+router.get('/api/v1/seller/:storeId/products', getPublicSellerProducts);
+router.get('/seller/:storeId/products', getPublicSellerProducts);
+router.get('/api/v1/sellers/:storeId/products', getPublicSellerProducts);
+router.get('/sellers/:storeId/products', getPublicSellerProducts);
+router.get('/api/v1/store/:storeId/products', getPublicSellerProducts);
+router.get('/store/:storeId/products', getPublicSellerProducts);
 
 // ---- Seller product routes ----
 router.get('/api/v1/seller/products', attachUser, requireRole('seller'), sellerListProducts);
@@ -75,10 +84,20 @@ router.delete('/admin/products/:id', attachUser, requireRole('admin'), deletePro
 router.post('/api/v1/admin/products/:id/images', attachUser, requireRole('catalog_manager'), uploadImages);
 router.delete('/api/v1/admin/products/:id/images/:imageId', attachUser, requireRole('catalog_manager'), deleteImage);
 
+// ---- Seller/Store auto-assign stock routes ----
+router.post('/api/v1/admin/sellers/:sellerId/auto-assign-stock', attachUser, requireRole('catalog_manager'), adminAutoAssignStock);
+router.post('/admin/sellers/:sellerId/auto-assign-stock', attachUser, requireRole('catalog_manager'), adminAutoAssignStock);
+router.post('/api/v1/admin/stores/:storeId/auto-assign-stock', attachUser, requireRole('catalog_manager'), adminAutoAssignStock);
+router.post('/admin/stores/:storeId/auto-assign-stock', attachUser, requireRole('catalog_manager'), adminAutoAssignStock);
+
 // ---- Admin category routes ----
 router.get('/api/v1/admin/categories', attachUser, requireRole('catalog_manager'), listCategories);
+router.get('/admin/categories', attachUser, requireRole('catalog_manager'), listCategories);
 router.post('/api/v1/admin/categories', attachUser, requireRole('catalog_manager'), createCategory);
+router.post('/admin/categories', attachUser, requireRole('catalog_manager'), createCategory);
 router.patch('/api/v1/admin/categories/:id', attachUser, requireRole('catalog_manager'), updateCategory);
+router.patch('/admin/categories/:id', attachUser, requireRole('catalog_manager'), updateCategory);
 router.delete('/api/v1/admin/categories/:id', attachUser, requireRole('admin'), deleteCategory);
+router.delete('/admin/categories/:id', attachUser, requireRole('admin'), deleteCategory);
 
 export default router;

@@ -126,7 +126,7 @@ export default function StorefrontLayout() {
     queryKey: ['categories-header'],
     queryFn: async () => {
       try {
-        const { data } = await api.get('/categories');
+        const { data } = await api.get('/categories?parent=null');
         const list = Array.isArray(data.data) ? data.data : [];
         if (list.length > 0) return list as Array<{ id: string; name: string; slug: string; description?: string }>;
       } catch (err) {

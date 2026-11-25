@@ -76,7 +76,7 @@ export default function OrdersPage() {
           Customer Orders Fulfillment
         </Typography>
         <Typography variant="body2" sx={{ color: '#64748B', mt: 0.5 }}>
-          Viewing customer orders containing items in <strong>{seller?.categoryName || 'your category'}</strong>.
+          Viewing customer orders containing items in <strong>{seller?.subcategoryName ? `${seller.subcategoryName} (${seller.categoryName})` : (seller?.categoryName || 'your subcategory')}</strong>.
         </Typography>
       </Box>
 

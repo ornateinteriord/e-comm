@@ -39,6 +39,16 @@ export function serializePublicProduct(product: IProduct): PublicProduct {
     : '';
   const categoryName = categoryObj && categoryObj.name ? String(categoryObj.name) : '';
 
+  const subcatObj = (product as any).subcategory;
+  const subcategoryId =
+    (product as any).subcategoryId ||
+    (subcatObj ? (subcatObj._id ? subcatObj._id.toString() : subcatObj.toString()) : undefined);
+  const subcategoryName =
+    (product as any).subcategoryName ||
+    (subcatObj && subcatObj.name ? String(subcatObj.name) : undefined);
+
+  const effectiveSellerId = (product as any).sellerId || (product as any).storeId;
+
   return {
     id: (product._id ?? product.id).toString(),
     name: product.name,
@@ -49,9 +59,14 @@ export function serializePublicProduct(product: IProduct): PublicProduct {
     longDescription: product.longDescription,
     categoryId,
     categoryName,
+    subcategoryId,
+    subcategoryName,
     images: product.images ?? [],
     pricing,
     stock: product.stock,
+    assignedStock: (product as any).assignedStock ?? (effectiveSellerId ? product.stock : 0),
+    unassignedStock: (product as any).unassignedStock ?? (effectiveSellerId ? 0 : product.stock),
+    assignmentStatus: (product as any).assignmentStatus ?? (effectiveSellerId ? 'assigned' : 'unassigned'),
     attributes: product.attributes ?? [],
     variants: product.variants ?? [],
     status: product.status,

@@ -39,6 +39,7 @@ export interface SellerRegistrationDetails {
   mobileNumber: string;
   password: string;
   categoryName: string;
+  subcategoryName?: string;
   referralCode: string;
   referralName: string;
   referralType: 'vendor' | 'seller' | 'store';
@@ -98,7 +99,7 @@ export default function RegisterSuccessDialog({
       `Seller ID: ${displayId}`,
       `Seller Name: ${details.name}`,
       `Seller Type: ${displayType}`,
-      `Assigned Category: ${details.categoryName}`,
+      `Assigned Subcategory: ${details.subcategoryName ? `${details.subcategoryName} (${details.categoryName})` : details.categoryName}`,
       `Owner Name: ${details.ownerName}`,
       `Username (Mobile): ${details.mobileNumber}`,
       `Password: ${details.password}`,
@@ -309,7 +310,7 @@ export default function RegisterSuccessDialog({
                   </Typography>
                   <Box sx={{ display: 'flex', gap: 1, mt: 0.5, flexWrap: 'wrap' }}>
                     <Chip
-                      label={details.categoryName}
+                      label={details.subcategoryName ? `${details.categoryName} > ${details.subcategoryName}` : details.categoryName}
                       size="small"
                       sx={{ bgcolor: '#FFF7ED', color: '#FF7900', fontWeight: 700, fontSize: '0.68rem', height: 20 }}
                     />

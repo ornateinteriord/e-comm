@@ -27,6 +27,8 @@ export const createProductSchema = z.object({
     longDescription: z.string().max(10000).optional(),
     category: z.string().min(1, 'Category is required.'),
     subcategory: z.string().nullable().optional(),
+    subcategoryId: z.string().nullable().optional(),
+    subcategoryName: z.string().nullable().optional(),
     pricing: pricingSchema,
     stock: z.number().int().nonnegative().optional(),
     lowStockThreshold: z.number().int().nonnegative().optional(),

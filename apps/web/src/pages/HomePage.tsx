@@ -18,6 +18,7 @@ import {
   Coffee as CoffeeIcon,
   FitnessCenter as FitnessCenterIcon,
   MenuBook as MenuBookIcon,
+  Weekend as WeekendIcon,
   Category as CategoryIcon,
 } from "@mui/icons-material";
 import api from "../api/client";
@@ -73,6 +74,12 @@ const CATEGORY_META: Record<string, CategoryDisplayMeta> = {
     icon: <MenuBookIcon sx={{ fontSize: 16 }} />,
     subtitle: "Design, architecture, and reference editions",
   },
+  furnitures: {
+    image: "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=1000&q=85",
+    tag: "FURNITURE",
+    icon: <WeekendIcon sx={{ fontSize: 16 }} />,
+    subtitle: "Living room sofas, beds, dining sets, office & outdoor furniture",
+  },
 };
 
 const DEFAULT_CATEGORY_META: CategoryDisplayMeta = {
@@ -107,7 +114,7 @@ export default function HomePage() {
     queryKey: ["categories-list"],
     queryFn: async () => {
       try {
-        const { data } = await api.get("/categories");
+        const { data } = await api.get("/categories?parent=null");
         const list = Array.isArray(data.data) ? data.data : [];
         if (list.length > 0) return list as Array<{ id: string; name: string; slug: string; description?: string }>;
       } catch (err) {

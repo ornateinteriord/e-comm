@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { useParams, Link as RouterLink } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -14,23 +15,36 @@ export default function CategoryPage() {
   const { slug } = useParams();
   const theme = useTheme();
   const isLight = theme.palette.mode === 'light';
+  const [selectedSubSlug, setSelectedSubSlug] = useState<string | null>(null);
+
+  useEffect(() => {
+    setSelectedSubSlug(null);
+  }, [slug]);
 
   const { data: categoryData } = useQuery({
     queryKey: ['category-detail', slug],
     queryFn: async () => {
       const { data } = await api.get(`/categories/${slug}`);
-      return data.data as { id: string; name: string; slug: string; description?: string };
+      return data.data as {
+        id: string;
+        name: string;
+        slug: string;
+        description?: string;
+        subcategories?: Array<{ id: string; name: string; slug: string }>;
+      };
     },
     enabled: Boolean(slug),
   });
 
+  const activeCategorySlug = selectedSubSlug || slug;
+
   const { data: productsData, isLoading } = useQuery({
-    queryKey: ['category-products', slug],
+    queryKey: ['category-products', activeCategorySlug],
     queryFn: async () => {
-      const { data } = await api.get(`/search?category=${slug}&limit=24`);
+      const { data } = await api.get(`/search?category=${activeCategorySlug}&limit=24`);
       return data.data as { products: PublicProduct[]; total: number };
     },
-    enabled: Boolean(slug),
+    enabled: Boolean(activeCategorySlug),
   });
 
   const currentCategory = categoryData;
@@ -55,7 +69,7 @@ export default function CategoryPage() {
       {/* Header Banner */}
       <Box
         sx={{
-          mb: 4,
+          mb: currentCategory?.subcategories?.length ? 2.5 : 4,
           p: { xs: 3, md: 4 },
           borderRadius: '8px',
           bgcolor: isLight ? '#172B30' : '#111827',
@@ -76,6 +90,40 @@ export default function CategoryPage() {
           {currentCategory?.description || `Explore our curated selection of flagship ${currentCategory?.name || slug} with express shipping.`}
         </Typography>
       </Box>
+
+      {/* Subcategory Filter Pills */}
+      {currentCategory?.subcategories && currentCategory.subcategories.length > 0 && (
+        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mb: 3 }}>
+          <Chip
+            label={`All ${currentCategory.name}`}
+            clickable
+            onClick={() => setSelectedSubSlug(null)}
+            sx={{
+              fontWeight: 700,
+              bgcolor: selectedSubSlug === null ? '#FF7900' : (isLight ? '#F1F5F9' : 'rgba(255,255,255,0.08)'),
+              color: selectedSubSlug === null ? '#FFFFFF' : 'text.primary',
+              '&:hover': { bgcolor: selectedSubSlug === null ? '#E85D04' : (isLight ? '#E2E8F0' : 'rgba(255,255,255,0.14)') },
+            }}
+          />
+          {currentCategory.subcategories.map((sub) => {
+            const active = selectedSubSlug === sub.slug;
+            return (
+              <Chip
+                key={sub.id}
+                label={sub.name}
+                clickable
+                onClick={() => setSelectedSubSlug(sub.slug)}
+                sx={{
+                  fontWeight: 700,
+                  bgcolor: active ? '#FF7900' : (isLight ? '#F1F5F9' : 'rgba(255,255,255,0.08)'),
+                  color: active ? '#FFFFFF' : 'text.primary',
+                  '&:hover': { bgcolor: active ? '#E85D04' : (isLight ? '#E2E8F0' : 'rgba(255,255,255,0.14)') },
+                }}
+              />
+            );
+          })}
+        </Stack>
+      )}
 
       {/* Products Grid */}
       {isLoading ? (

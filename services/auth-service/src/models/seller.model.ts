@@ -30,6 +30,12 @@ export interface ISeller extends Document {
   categoryId: string;
   categoryName: string;
   categorySlug: string;
+  subcategoryId?: string;
+  subcategoryName?: string;
+  subcategorySlug?: string;
+  maxStockLimit: number;
+  currentStockTotal: number;
+  availableCapacity?: number;
   referralCode: string;
   referralName: string;
   referralType: 'vendor' | 'seller' | 'store';
@@ -77,6 +83,11 @@ const sellerSchema = new Schema<ISeller>(
     categoryId: { type: String, required: true, index: true },
     categoryName: { type: String, required: true, trim: true },
     categorySlug: { type: String, required: true, trim: true },
+    subcategoryId: { type: String, trim: true, index: true },
+    subcategoryName: { type: String, trim: true },
+    subcategorySlug: { type: String, trim: true },
+    maxStockLimit: { type: Number, default: 2500, min: 0 },
+    currentStockTotal: { type: Number, default: 0, min: 0 },
     referralCode: { type: String, required: true, trim: true, index: true },
     referralName: { type: String, required: true, trim: true },
     referralType: { type: String, enum: ['vendor', 'seller', 'store'], required: true },
@@ -102,6 +113,7 @@ const sellerSchema = new Schema<ISeller>(
         ret.storeId = ret.sellerId;
         ret.typeOfSeller = ret.typeOfSeller || ret.typeOfStore;
         ret.typeOfStore = ret.typeOfSeller;
+        ret.availableCapacity = Math.max(0, (ret.maxStockLimit ?? 2500) - (ret.currentStockTotal ?? 0));
         delete ret.passwordHash;
         delete ret.__v;
         return ret;
@@ -109,6 +121,21 @@ const sellerSchema = new Schema<ISeller>(
     },
   },
 );
+
+sellerSchema.virtual('availableCapacity').get(function () {
+  return Math.max(0, (this.maxStockLimit ?? 2500) - (this.currentStockTotal ?? 0));
+});
+
+export function getDefaultMaxStockLimit(typeOfSeller?: string): number {
+  const normalized = String(typeOfSeller || '').toLowerCase();
+  if (normalized.includes('basic') || normalized.includes('express')) {
+    return 500;
+  }
+  if (normalized.includes('advanced') || normalized.includes('superstore') || normalized.includes('warehouse') || normalized.includes('wholesale') || normalized.includes('flagship')) {
+    return 10000;
+  }
+  return 2500;
+}
 
 sellerSchema.pre('save', function (next) {
   if (!this.sellerId && this.storeId) {

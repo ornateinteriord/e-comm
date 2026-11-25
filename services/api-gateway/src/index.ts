@@ -342,13 +342,12 @@ const serviceRoutes: Array<{ path: string; target: string }> = [
 // Sort routes so more specific paths match first if needed
 const sortedRoutes = [...serviceRoutes].sort((a, b) => b.path.length - a.path.length);
 
-// Mount each proxy with pathFilter so Express doesn't strip the route prefix
-sortedRoutes.forEach(({ path, target }) => {
+function mountProxy(target: string, pathFilter: (pathname: string) => boolean) {
   app.use(
     createProxyMiddleware({
       target,
       changeOrigin: true,
-      pathFilter: (pathname) => pathname === path || pathname.startsWith(path + '/') || pathname.startsWith(path + '?'),
+      pathFilter,
       on: {
         proxyRes: (proxyRes, req) => {
           const origin = (req as Request).headers?.origin;
@@ -378,6 +377,20 @@ sortedRoutes.forEach(({ path, target }) => {
         },
       },
     }),
+  );
+}
+
+// Route seller/store auto-assign-stock and public seller products lookup to product service before the general /seller & /admin/sellers auth prefixes
+mountProxy(productTarget, (pathname) =>
+  /^\/api\/v1\/admin\/(sellers|stores)\/[^/]+\/auto-assign-stock\/?$/.test(pathname) ||
+  /^\/api\/v1\/(seller|sellers|store|stores)\/[^/]+\/products\/?$/.test(pathname),
+);
+
+// Mount each proxy with pathFilter so Express doesn't strip the route prefix
+sortedRoutes.forEach(({ path, target }) => {
+  mountProxy(
+    target,
+    (pathname) => pathname === path || pathname.startsWith(path + '/') || pathname.startsWith(path + '?'),
   );
 });
 

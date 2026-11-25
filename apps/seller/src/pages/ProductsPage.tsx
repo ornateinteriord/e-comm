@@ -27,6 +27,7 @@ import {
   IconButton,
   MenuItem,
   Snackbar,
+  LinearProgress,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -39,7 +40,7 @@ import { useSellerAuthStore } from '../store/auth.store';
 import { ProductImageUploader, type ProductImageItem } from '../components/ProductImageUploader';
 
 export default function ProductsPage() {
-  const { seller } = useSellerAuthStore();
+  const { seller, updateSellerProfile } = useSellerAuthStore();
   const [products, setProducts] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -108,6 +109,13 @@ export default function ProductsPage() {
       if (resp.data?.success) {
         setProducts(resp.data.data?.items || []);
       }
+
+      // Refresh seller profile to get latest stock totals and capacity
+      api.get('/seller/me').then((sResp) => {
+        if (sResp.data?.success && sResp.data.data) {
+          updateSellerProfile(sResp.data.data);
+        }
+      }).catch(() => {});
     } catch (err) {
       console.error('Failed to load products', err);
     } finally {
@@ -281,6 +289,7 @@ export default function ProductsPage() {
         name: name.trim(),
         sku: sku.trim().toUpperCase(),
         brand: brand.trim() || undefined,
+        subcategoryId: seller?.subcategoryId || undefined,
         shortDescription: shortDescription.trim() || undefined,
         stock: parseInt(stock, 10) || 0,
         lowStockThreshold: parseInt(lowStockThreshold, 10) || 3,
@@ -339,16 +348,24 @@ export default function ProductsPage() {
         <Box>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
             <Typography variant="h5" sx={{ fontWeight: 800, color: '#172B30' }}>
-              Category Products & Catalog
+              Subcategory Products & Inventory
             </Typography>
             <Chip
-              label={seller?.categoryName || 'General'}
+              label={seller?.subcategoryName ? `${seller.categoryName || 'Category'} > ${seller.subcategoryName}` : (seller?.categoryName || 'General')}
               size="small"
               sx={{ bgcolor: '#FF7900', color: '#FFFFFF', fontWeight: 700 }}
             />
+            {(seller?.typeOfSeller || seller?.typeOfStore) && (
+              <Chip
+                label={`${seller?.typeOfSeller || seller?.typeOfStore} Tier`}
+                size="small"
+                variant="outlined"
+                sx={{ borderColor: '#CBD5E1', color: '#475569', fontWeight: 600, fontSize: '0.75rem' }}
+              />
+            )}
           </Box>
           <Typography variant="body2" sx={{ color: '#64748B', mt: 0.5 }}>
-            Manage product inventory, pricing, and enable/disable listings on the customer storefront.
+            Manage product inventory, pricing, and live storefront status for your dedicated subcategory.
           </Typography>
         </Box>
 
@@ -367,6 +384,65 @@ export default function ProductsPage() {
           Add Product
         </Button>
       </Box>
+
+      {/* Stock Capacity Progress Meter */}
+      {seller && (
+        <Paper
+          elevation={0}
+          sx={{
+            p: 2,
+            mb: 3,
+            borderRadius: 2.5,
+            border: '1px solid #E2E8F0',
+            bgcolor: '#FFFFFF',
+          }}
+        >
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1, flexWrap: 'wrap', gap: 1 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <ProductsIcon sx={{ color: '#FF7900', fontSize: 20 }} />
+              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#172B30' }}>
+                Seller Physical Stock Capacity ({seller.typeOfSeller || seller.typeOfStore || 'Standard'} Tier)
+              </Typography>
+            </Box>
+            <Typography variant="caption" sx={{ fontWeight: 700, color: '#475569' }}>
+              Occupied: {seller.currentStockTotal ?? 0} / {seller.maxStockLimit ?? 2500} units ({Math.min(100, Math.round(((seller.currentStockTotal ?? 0) / (seller.maxStockLimit || 2500)) * 100))}%)
+            </Typography>
+          </Box>
+          {(() => {
+            const maxL = seller.maxStockLimit ?? 2500;
+            const curL = seller.currentStockTotal ?? 0;
+            const pct = Math.min(100, Math.round((curL / (maxL || 1)) * 100));
+            const available = Math.max(0, maxL - curL);
+            return (
+              <>
+                <LinearProgress
+                  variant="determinate"
+                  value={pct}
+                  sx={{
+                    height: 8,
+                    borderRadius: 4,
+                    bgcolor: '#E2E8F0',
+                    '& .MuiLinearProgress-bar': {
+                      borderRadius: 4,
+                      bgcolor: pct >= 90 ? '#EF4444' : pct >= 75 ? '#F59E0B' : '#10B981',
+                    },
+                  }}
+                />
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 1, flexWrap: 'wrap', gap: 1 }}>
+                  <Typography variant="caption" sx={{ color: available > 0 ? '#047857' : '#B91C1C', fontWeight: 600 }}>
+                    {available > 0
+                      ? `${available.toLocaleString()} units remaining for new or restocked products`
+                      : 'Seller capacity full: Any newly added units will overflow into the unassigned queue'}
+                  </Typography>
+                  <Typography variant="caption" sx={{ color: '#64748B' }}>
+                    Dedicated Subcategory: <strong>{seller.subcategoryName || seller.categoryName || 'General'}</strong>
+                  </Typography>
+                </Box>
+              </>
+            );
+          })()}
+        </Paper>
+      )}
 
       {/* Filter & Search Bar */}
       <Paper elevation={0} sx={{ p: 2, mb: 3, borderRadius: 2.5, border: '1px solid #E2E8F0', bgcolor: '#FFFFFF', display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
@@ -467,11 +543,18 @@ export default function ProductsPage() {
                         {prod.sku}
                       </TableCell>
                       <TableCell>
-                        <Chip
-                          label={prod.categoryName || seller?.categoryName}
-                          size="small"
-                          sx={{ bgcolor: '#FFF7ED', color: '#FF7900', fontWeight: 700, fontSize: '0.7rem' }}
-                        />
+                        <Stack spacing={0.5}>
+                          <Chip
+                            label={prod.subcategoryName || prod.categoryName || seller?.subcategoryName || seller?.categoryName || 'General'}
+                            size="small"
+                            sx={{ bgcolor: '#FFF7ED', color: '#FF7900', fontWeight: 700, fontSize: '0.7rem' }}
+                          />
+                          {prod.subcategoryName && prod.categoryName && (
+                            <Typography variant="caption" sx={{ color: '#94A3B8', fontSize: '0.65rem' }}>
+                              under {prod.categoryName}
+                            </Typography>
+                          )}
+                        </Stack>
                       </TableCell>
                       <TableCell>
                         <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#172B30' }}>
@@ -484,15 +567,31 @@ export default function ProductsPage() {
                         )}
                       </TableCell>
                       <TableCell>
-                        <Chip
-                          label={`${prod.stock ?? 0} in stock`}
-                          size="small"
-                          sx={{
-                            bgcolor: (prod.stock ?? 0) <= 3 ? '#FEF2F2' : '#ECFDF5',
-                            color: (prod.stock ?? 0) <= 3 ? '#B91C1C' : '#047857',
-                            fontWeight: 700,
-                          }}
-                        />
+                        <Stack spacing={0.5}>
+                          <Chip
+                            label={`${prod.stock ?? 0} in stock`}
+                            size="small"
+                            sx={{
+                              bgcolor: (prod.stock ?? 0) <= 3 ? '#FEF2F2' : '#ECFDF5',
+                              color: (prod.stock ?? 0) <= 3 ? '#B91C1C' : '#047857',
+                              fontWeight: 700,
+                            }}
+                          />
+                          {prod.assignmentStatus === 'partially_assigned' && (
+                            <Chip
+                              label={`${prod.assignedStock} seller / ${prod.unassignedStock} queue`}
+                              size="small"
+                              sx={{ bgcolor: '#FEF3C7', color: '#B45309', fontWeight: 600, fontSize: '0.65rem' }}
+                            />
+                          )}
+                          {prod.assignmentStatus === 'unassigned' && (
+                            <Chip
+                              label="Unassigned Queue"
+                              size="small"
+                              sx={{ bgcolor: '#FEF2F2', color: '#B91C1C', fontWeight: 600, fontSize: '0.65rem' }}
+                            />
+                          )}
+                        </Stack>
                       </TableCell>
                       <TableCell>
                         {isSellerAdded ? (
@@ -555,7 +654,7 @@ export default function ProductsPage() {
       {/* Add Product Modal */}
       <Dialog open={openAddModal} onClose={() => setOpenAddModal(false)} maxWidth="md" fullWidth>
         <DialogTitle sx={{ fontWeight: 800, color: '#172B30', borderBottom: '1px solid #E2E8F0' }}>
-          Add Product to {seller?.categoryName || 'Category'}
+          Add Product to {seller?.subcategoryName || seller?.categoryName || 'Subcategory'}
         </DialogTitle>
         <DialogContent sx={{ pt: 3 }}>
           {modalError && (
@@ -597,8 +696,9 @@ export default function ProductsPage() {
                 <TextField
                   fullWidth
                   disabled
-                  label="Category (Locked to Seller)"
-                  value={seller?.categoryName || 'General'}
+                  label="Designated Subcategory & Category"
+                  value={seller?.subcategoryName ? `${seller.subcategoryName} (${seller.categoryName || 'General'})` : (seller?.categoryName || 'General')}
+                  helperText={`Seller capacity: ${seller?.currentStockTotal ?? 0} / ${seller?.maxStockLimit ?? 2500} units`}
                 />
               </Grid>
               <Grid item xs={12} sm={4}>
@@ -652,6 +752,23 @@ export default function ProductsPage() {
                   onChange={(e) => setLowStockThreshold(e.target.value)}
                 />
               </Grid>
+
+              {(() => {
+                const maxL = seller?.maxStockLimit ?? 2500;
+                const curL = seller?.currentStockTotal ?? 0;
+                const avail = Math.max(0, maxL - curL);
+                const reqStock = parseInt(stock, 10) || 0;
+                if (reqStock > avail) {
+                  return (
+                    <Grid item xs={12}>
+                      <Alert severity="warning" sx={{ py: 0.5, px: 1.5, fontSize: '0.8rem' }}>
+                        Notice: Requested stock ({reqStock} units) exceeds available capacity ({avail} units remaining). {avail} units will be allocated immediately, and the remaining {reqStock - avail} units will queue as unassigned overflow.
+                      </Alert>
+                    </Grid>
+                  );
+                }
+                return null;
+              })()}
 
               {/* Status / Active Selection */}
               <Grid item xs={12}>
@@ -778,8 +895,8 @@ export default function ProductsPage() {
                 <TextField
                   fullWidth
                   disabled
-                  label="Category"
-                  value={editingProduct?.categoryName || seller?.categoryName || 'General'}
+                  label="Subcategory & Category"
+                  value={editingProduct?.subcategoryName ? `${editingProduct.subcategoryName} (${editingProduct.categoryName || seller?.categoryName || 'General'})` : (editingProduct?.categoryName || seller?.categoryName || 'General')}
                 />
               </Grid>
               <Grid item xs={12} sm={4}>

@@ -374,7 +374,7 @@ export default function OrderDetailPage() {
                 Items to Fulfill ({items.length})
               </Typography>
               <Chip
-                label={seller?.categoryName || 'Your Category'}
+                label={seller?.subcategoryName || seller?.categoryName || 'Your Subcategory'}
                 size="small"
                 sx={{ bgcolor: '#FFF7ED', color: '#FF7900', fontWeight: 700 }}
               />

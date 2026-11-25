@@ -101,6 +101,8 @@ export async function createCheckoutOrder(req: Request, res: Response, next: Nex
         image: it.image || it.productImage || '',
         categoryId: it.categoryId || null,
         categoryName: it.categoryName || null,
+        subcategoryId: it.subcategoryId || null,
+        subcategoryName: it.subcategoryName || null,
         sellerId: it.sellerId || it.storeId || null,
         sellerName: it.sellerName || it.storeName || null,
         storeId: it.storeId || it.sellerId || null,
@@ -169,28 +171,45 @@ export async function createCheckoutOrder(req: Request, res: Response, next: Nex
             }
             if (!item.categoryName && product.categoryName) item.categoryName = product.categoryName;
 
-            // Resolve seller for this item
+            const rawSubcatId = product.subcategoryId || product.subcategory;
+            if (rawSubcatId) {
+              item.subcategoryId = String(rawSubcatId);
+            }
+            if (product.subcategoryName) {
+              item.subcategoryName = String(product.subcategoryName);
+            }
+
+            // Resolve seller for this item (subcategory first, fallback to category)
             const resolvedSellerId = product.sellerId || product.storeId;
             if (resolvedSellerId) {
               item.sellerId = String(resolvedSellerId);
               item.storeId = String(resolvedSellerId);
               item.sellerName = product.sellerName || product.storeName || item.sellerName;
               item.storeName = product.storeName || product.sellerName || item.storeName;
-            } else if (item.categoryId) {
-              // Look up assigned seller for this category in authDb
+            } else if (item.subcategoryId || item.categoryId) {
+              // Look up assigned seller for this subcategory (or category fallback) in authDb
               try {
                 const clientObj = typeof (mongoose.connection as any).getClient === 'function'
                   ? (mongoose.connection as any).getClient()
                   : (mongoose.connection as any).client;
                 const authDb = clientObj ? clientObj.db('ornate_auth') : null;
                 if (authDb) {
-                  const assignedStore = await authDb.collection('stores').findOne({
-                    categoryId: item.categoryId,
-                    isActive: true,
-                    status: { $ne: 'suspended' },
-                  });
+                  let assignedStore = item.subcategoryId
+                    ? await authDb.collection('stores').findOne({
+                        subcategoryId: item.subcategoryId,
+                        isActive: true,
+                        status: { $ne: 'suspended' },
+                      })
+                    : null;
+                  if (!assignedStore && item.categoryId) {
+                    assignedStore = await authDb.collection('stores').findOne({
+                      categoryId: item.categoryId,
+                      isActive: true,
+                      status: { $ne: 'suspended' },
+                    });
+                  }
                   if (assignedStore) {
-                    const storeId = assignedStore.storeId || assignedStore.sellerId || String(assignedStore._id);
+                    const storeId = assignedStore.sellerId || assignedStore.storeId || String(assignedStore._id);
                     item.sellerId = storeId;
                     item.storeId = storeId;
                     item.sellerName = assignedStore.name || assignedStore.ownerName;
@@ -198,7 +217,7 @@ export async function createCheckoutOrder(req: Request, res: Response, next: Nex
                   }
                 }
               } catch (storeLookupErr) {
-                log.warn({ storeLookupErr }, 'Could not look up assigned store for category');
+                log.warn({ storeLookupErr }, 'Could not look up assigned seller for subcategory/category');
               }
             }
           }
@@ -739,17 +758,32 @@ export async function adminTriggerOrderCommission(req: Request, res: Response, n
 // SELLER PORTAL ORDER CONTROLLERS
 // ==========================================
 
+function doesOrderItemMatchSeller(
+  it: any,
+  scope: { sellerId?: string; categoryId?: string; subcategoryId?: string },
+): boolean {
+  const { sellerId, categoryId, subcategoryId } = scope;
+  if (sellerId && (it.sellerId === sellerId || it.storeId === sellerId)) {
+    return true;
+  }
+  if (subcategoryId && subcategoryId !== categoryId) {
+    return it.subcategoryId === subcategoryId;
+  }
+  return Boolean(categoryId && it.categoryId === categoryId);
+}
+
 /**
  * GET /api/v1/seller/orders
- * Returns orders containing products in the seller's category, with items filtered to seller scope.
+ * Returns orders containing products in the seller's subcategory (or fallback category), with items filtered to seller scope.
  */
 export async function sellerListOrders(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const categoryId = req.user?.categoryId;
+    const subcategoryId = req.user?.subcategoryId;
     const sellerId = req.user?.sellerId || req.user?.storeId;
 
-    if (!categoryId && !sellerId) {
-      res.status(400).json({ success: false, error: { code: 'UNAUTHORIZED', message: 'No seller or category assigned.' } });
+    if (!categoryId && !subcategoryId && !sellerId) {
+      res.status(400).json({ success: false, error: { code: 'UNAUTHORIZED', message: 'No seller, subcategory, or category assigned.' } });
       return;
     }
 
@@ -763,7 +797,11 @@ export async function sellerListOrders(req: Request, res: Response, next: NextFu
       matchConditions.push({ 'items.sellerId': sellerId });
       matchConditions.push({ 'items.storeId': sellerId });
     }
-    if (categoryId) matchConditions.push({ 'items.categoryId': categoryId });
+    if (subcategoryId && subcategoryId !== categoryId) {
+      matchConditions.push({ 'items.subcategoryId': subcategoryId });
+    } else if (categoryId) {
+      matchConditions.push({ 'items.categoryId': categoryId });
+    }
 
     const query: any = { $or: matchConditions };
 
@@ -772,12 +810,11 @@ export async function sellerListOrders(req: Request, res: Response, next: NextFu
       Order.countDocuments(query),
     ]);
 
-    // Filter each order's items so the seller only receives their category items
+    // Filter each order's items so the seller only receives their subcategory items
+    const scope = { sellerId, categoryId, subcategoryId };
     let filteredOrders = orders.map((o) => {
       const obj = o.toObject();
-      obj.items = (obj.items || []).filter((it: any) =>
-        (sellerId && (it.sellerId === sellerId || it.storeId === sellerId)) || (categoryId && it.categoryId === categoryId)
-      );
+      obj.items = (obj.items || []).filter((it: any) => doesOrderItemMatchSeller(it, scope));
       return obj;
     });
 
@@ -814,6 +851,7 @@ export async function sellerListOrders(req: Request, res: Response, next: NextFu
 export async function sellerGetOrderDetails(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const categoryId = req.user?.categoryId;
+    const subcategoryId = req.user?.subcategoryId;
     const sellerId = req.user?.sellerId || req.user?.storeId;
     const orderId = String(req.params.id || '');
 
@@ -830,12 +868,11 @@ export async function sellerGetOrderDetails(req: Request, res: Response, next: N
     }
 
     const obj = order.toObject();
-    obj.items = (obj.items || []).filter((it: any) =>
-      (sellerId && (it.sellerId === sellerId || it.storeId === sellerId)) || (categoryId && it.categoryId === categoryId)
-    );
+    const scope = { sellerId, categoryId, subcategoryId };
+    obj.items = (obj.items || []).filter((it: any) => doesOrderItemMatchSeller(it, scope));
 
     if (obj.items.length === 0) {
-      res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'This order has no items in your category.' } });
+      res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'This order has no items in your subcategory.' } });
       return;
     }
 
@@ -852,6 +889,7 @@ export async function sellerGetOrderDetails(req: Request, res: Response, next: N
 export async function sellerUpdateItemStatus(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const categoryId = req.user?.categoryId;
+    const subcategoryId = req.user?.subcategoryId;
     const sellerId = req.user?.sellerId || req.user?.storeId;
     const orderId = String(req.params.id || '');
     const { status, courierName, trackingNumber, productId } = req.body;
@@ -876,10 +914,9 @@ export async function sellerUpdateItemStatus(req: Request, res: Response, next: 
       return;
     }
 
+    const scope = { sellerId, categoryId, subcategoryId };
     const matchedItems = order.items.filter(
-      (it) =>
-        ((sellerId && (it.sellerId === sellerId || it.storeId === sellerId)) || (categoryId && it.categoryId === categoryId)) &&
-        (!productId || it.productId === productId),
+      (it) => doesOrderItemMatchSeller(it, scope) && (!productId || it.productId === productId),
     );
 
     // Validate the whole batch before mutating anything, so an illegal item
@@ -995,6 +1032,7 @@ async function getSellerPickupDetails(sellerId?: string) {
 export async function sellerAcceptOrder(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const categoryId = req.user?.categoryId;
+    const subcategoryId = req.user?.subcategoryId;
     const sellerId = req.user?.sellerId || req.user?.storeId;
     const orderId = String(req.params.id || '');
 
@@ -1010,13 +1048,12 @@ export async function sellerAcceptOrder(req: Request, res: Response, next: NextF
       return;
     }
 
+    const scope = { sellerId, categoryId, subcategoryId };
     const matchedItems = order.items.filter(
-      (it) =>
-        ((sellerId && (it.sellerId === sellerId || it.storeId === sellerId)) || (categoryId && it.categoryId === categoryId)) ||
-        (!sellerId && !categoryId), // If single-seller / admin
+      (it) => doesOrderItemMatchSeller(it, scope) || (!sellerId && !categoryId && !subcategoryId), // If single-seller / admin
     );
 
-    if (matchedItems.length === 0 && (sellerId || categoryId)) {
+    if (matchedItems.length === 0 && (sellerId || categoryId || subcategoryId)) {
       res.status(403).json({
         success: false,
         error: { code: 'UNAUTHORIZED', message: 'No items in this order match your seller profile.' },
@@ -1065,6 +1102,7 @@ export async function sellerAcceptOrder(req: Request, res: Response, next: NextF
 export async function sellerRejectOrder(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const categoryId = req.user?.categoryId;
+    const subcategoryId = req.user?.subcategoryId;
     const sellerId = req.user?.sellerId || req.user?.storeId;
     const orderId = String(req.params.id || '');
     const reason = typeof req.body.reason === 'string' ? req.body.reason.trim() : '';
@@ -1089,13 +1127,12 @@ export async function sellerRejectOrder(req: Request, res: Response, next: NextF
       return;
     }
 
+    const scope = { sellerId, categoryId, subcategoryId };
     const matchedItems = order.items.filter(
-      (it) =>
-        ((sellerId && (it.sellerId === sellerId || it.storeId === sellerId)) || (categoryId && it.categoryId === categoryId)) ||
-        (!sellerId && !categoryId),
+      (it) => doesOrderItemMatchSeller(it, scope) || (!sellerId && !categoryId && !subcategoryId),
     );
 
-    if (matchedItems.length === 0 && (sellerId || categoryId)) {
+    if (matchedItems.length === 0 && (sellerId || categoryId || subcategoryId)) {
       res.status(403).json({
         success: false,
         error: { code: 'UNAUTHORIZED', message: 'No items in this order match your seller profile.' },
