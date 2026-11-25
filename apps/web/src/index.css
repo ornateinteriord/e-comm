@@ -23,32 +23,49 @@
   --safe-right: env(safe-area-inset-right, 0px);
 }
 
-html {
+html,
+body {
   font-family: 'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   max-width: 100vw;
   overflow-x: hidden;
-  height: 100%;
-  overscroll-behavior-y: none;
-}
-
-body {
   background-color: var(--color-surface);
   color: var(--color-body);
   line-height: 1.6;
-  max-width: 100vw;
-  overflow-x: hidden;
-  height: 100%;
   margin: 0;
   padding: 0;
-  overscroll-behavior-y: none;
 }
 
-#root {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
+/* Mobile viewport: lock height to 100% and prevent overscroll bounce for split-screen apps */
+@media (max-width: 899.95px) {
+  html,
+  body {
+    height: 100%;
+    overscroll-behavior-y: none;
+  }
+  #root {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+}
+
+/* Desktop viewport: natural document scrolling with full content flow */
+@media (min-width: 900px) {
+  html,
+  body {
+    min-height: 100%;
+    height: auto;
+    overflow-y: auto;
+    overscroll-behavior-y: auto;
+  }
+  #root {
+    min-height: 100vh;
+    height: auto;
+    display: flex;
+    flex-direction: column;
+  }
 }
 
 /* Reduced motion support */

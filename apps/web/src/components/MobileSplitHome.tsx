@@ -50,6 +50,7 @@ import { useDebounce } from "../hooks/useDebounce";
 import { useUIStore } from "../store/ui.store";
 import api from "../api/client";
 import ProductCard from "./ProductCard";
+import { DUMMY_PRODUCTS, DUMMY_CATEGORIES } from "../data/dummyData";
 import type { PublicProduct } from "@ornate/types";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -261,10 +262,12 @@ export default function MobileSplitStorefront({
     queryFn: async () => {
       try {
         const { data } = await api.get("/search?limit=100");
-        return (data.data?.products || data.data?.items || []) as PublicProduct[];
+        const list = (data.data?.products || data.data?.items || []) as PublicProduct[];
+        if (list.length > 0) return list;
       } catch {
-        return [];
+        // fallback
       }
+      return DUMMY_PRODUCTS;
     },
     staleTime: 1000 * 60 * 5,
   });
@@ -273,8 +276,14 @@ export default function MobileSplitStorefront({
   const { data: categories = [], isLoading: catsLoading } = useQuery<Category[]>({
     queryKey: ["categories-mobile-split"],
     queryFn: async () => {
-      const { data } = await api.get("/categories?hasProducts=true");
-      return (data.data || []) as Category[];
+      try {
+        const { data } = await api.get("/categories?hasProducts=true");
+        const list = (data.data || []) as Category[];
+        if (list.length > 0) return list;
+      } catch {
+        // fallback
+      }
+      return DUMMY_CATEGORIES as unknown as Category[];
     },
     staleTime: 1000 * 60 * 5,
   });
@@ -345,15 +354,24 @@ export default function MobileSplitStorefront({
           ? `/search?${params.toString()}`
           : `/products?limit=24`;
 
-      const { data } = await api.get(endpoint);
       let items: PublicProduct[] = [];
       let total = 0;
-      if (data.data?.products) {
-        items = data.data.products as PublicProduct[];
-        total = data.data.total as number;
-      } else if (data.data?.items) {
-        items = data.data.items as PublicProduct[];
-        total = data.data.total as number;
+      try {
+        const { data } = await api.get(endpoint);
+        if (data.data?.products) {
+          items = data.data.products as PublicProduct[];
+          total = data.data.total as number;
+        } else if (data.data?.items) {
+          items = data.data.items as PublicProduct[];
+          total = data.data.total as number;
+        }
+      } catch (err) {
+        console.warn("Mobile split products fetch failed, using fallback", err);
+      }
+
+      if (items.length === 0 && !debouncedSearch.trim() && !selectedCategory) {
+        items = DUMMY_PRODUCTS;
+        total = DUMMY_PRODUCTS.length;
       }
 
       // If dealsOnly is toggled, filter items that have active deals or discounts
@@ -371,9 +389,15 @@ export default function MobileSplitStorefront({
   const { data: dealProductsData } = useQuery({
     queryKey: ["mobile-split-deals"],
     queryFn: async () => {
-      const { data } = await api.get("/products?limit=8");
-      const list = (data.data?.items || data.data?.products || []) as PublicProduct[];
-      return list.filter((p) => p.pricing?.dealActive || (p.pricing?.savingsPercent ?? 0) > 15);
+      try {
+        const { data } = await api.get("/products?limit=8");
+        const list = (data.data?.items || data.data?.products || []) as PublicProduct[];
+        const filtered = list.filter((p) => p.pricing?.dealActive || (p.pricing?.savingsPercent ?? 0) > 15);
+        if (filtered.length > 0) return filtered;
+      } catch {
+        // fallback
+      }
+      return DUMMY_PRODUCTS.filter((p) => p.pricing?.dealActive || (p.pricing?.savingsPercent ?? 0) > 15);
     },
     staleTime: 1000 * 60 * 5,
   });
@@ -431,6 +455,7 @@ export default function MobileSplitStorefront({
       sx={{
         display: "flex",
         flex: 1,
+        minHeight: 0,
         height: "100%",
         maxHeight: "100%",
         width: "100%",
@@ -444,14 +469,17 @@ export default function MobileSplitStorefront({
         sx={{
           // Perfectly balanced sidebar width: 78px on xs, 84px on sm
           width: { xs: 78, sm: 84 },
+          minWidth: { xs: 78, sm: 84 },
           flexShrink: 0,
           height: "100%",
+          minHeight: 0,
           overflowY: "auto",
           overflowX: "hidden",
           overscrollBehaviorY: "contain",
           bgcolor: bgLeft,
           borderRight: `1px solid ${borderColor}`,
           WebkitOverflowScrolling: "touch",
+          touchAction: "pan-y",
           // HIDE SCROLLBAR IN LEFT SECTION COMPLETELY
           scrollbarWidth: "none", // Firefox
           msOverflowStyle: "none", // IE / Edge
@@ -737,11 +765,13 @@ export default function MobileSplitStorefront({
         sx={{
           flex: 1,
           height: "100%",
+          minHeight: 0,
           overflowY: "auto",
           overflowX: "hidden",
           overscrollBehaviorY: "contain",
           bgcolor: bgRight,
           WebkitOverflowScrolling: "touch",
+          touchAction: "pan-y",
           "&::-webkit-scrollbar": { width: 3 },
           "&::-webkit-scrollbar-thumb": { bgcolor: "rgba(255, 121, 0, 0.5)", borderRadius: 4 },
         }}

@@ -32,6 +32,7 @@ import { useThemeStore } from '../store/theme.store';
 import { useUIStore } from '../store/ui.store';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useDebounce } from '../hooks/useDebounce';
+import { DUMMY_CATEGORIES } from '../data/dummyData';
 import api from '../api/client';
 import Footer from '../components/Footer.tsx';
 
@@ -124,13 +125,19 @@ export default function StorefrontLayout() {
   const { data: apiCategories } = useQuery({
     queryKey: ['categories-header'],
     queryFn: async () => {
-      const { data } = await api.get('/categories');
-      return data.data as Array<{ id: string; name: string; slug: string; description?: string }>;
+      try {
+        const { data } = await api.get('/categories');
+        const list = Array.isArray(data.data) ? data.data : [];
+        if (list.length > 0) return list as Array<{ id: string; name: string; slug: string; description?: string }>;
+      } catch (err) {
+        console.warn('Header categories fetch failed, using fallback', err);
+      }
+      return DUMMY_CATEGORIES;
     },
     staleTime: 1000 * 60 * 10,
   });
 
-  const categories = apiCategories ?? [];
+  const categories = apiCategories ?? DUMMY_CATEGORIES;
 
   const handleSearch = useCallback(
     (e: FormEvent) => {
@@ -1136,25 +1143,29 @@ export default function StorefrontLayout() {
       <Box
         component="main"
         sx={{
-          flex: 1,
+          flex: isMobile && (location.pathname === '/' || location.pathname === '/search') ? 1 : '1 0 auto',
           minHeight: 0,
+          height: isMobile && (location.pathname === '/' || location.pathname === '/search') ? '100%' : 'auto',
           display: 'flex',
           flexDirection: 'column',
           overflowY: isMobile ? (location.pathname === '/' || location.pathname === '/search' ? 'hidden' : 'auto') : 'visible',
-          overflowX: 'hidden',
+          overflowX: isMobile ? 'hidden' : 'visible',
           WebkitOverflowScrolling: 'touch',
-          overscrollBehaviorY: 'contain',
+          overscrollBehaviorY: isMobile ? 'contain' : 'auto',
         }}
       >
         <Box
           sx={{
-            flex: '1 0 auto',
+            flex: isMobile && (location.pathname === '/' || location.pathname === '/search') ? 1 : '1 0 auto',
             minHeight:
               isMobile && location.pathname !== '/' && location.pathname !== '/search'
                 ? 'calc(100dvh - 56px - 60px - env(safe-area-inset-bottom, 0px))'
-                : 'auto',
+                : 0,
+            height: isMobile && (location.pathname === '/' || location.pathname === '/search') ? '100%' : 'auto',
+            overflow: isMobile && (location.pathname === '/' || location.pathname === '/search') ? 'hidden' : 'visible',
             display: 'flex',
             flexDirection: 'column',
+            width: '100%',
           }}
         >
           <Outlet />

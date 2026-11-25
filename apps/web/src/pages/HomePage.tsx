@@ -25,6 +25,7 @@ import ProductCard from "../components/ProductCard";
 import MobilePromoFeed from "../components/MobilePromoFeed";
 import QuickServicesGrid from "../components/QuickServicesGrid";
 import MobileSplitStorefront from "../components/MobileSplitHome";
+import { DUMMY_PRODUCTS, DUMMY_CATEGORIES } from "../data/dummyData";
 import type { PublicProduct } from "@ornate/types";
 
 
@@ -89,17 +90,32 @@ export default function HomePage() {
   const { data: productsData, isLoading } = useQuery({
     queryKey: ["featured-products"],
     queryFn: async () => {
-      const { data } = await api.get("/products?limit=12");
-      return data.data as { items: PublicProduct[]; total: number };
+      try {
+        const { data } = await api.get("/products?limit=12");
+        const items = (data.data?.items || data.data?.products || (Array.isArray(data.data) ? data.data : [])) as PublicProduct[];
+        const total = (data.data?.total as number) || items.length;
+        if (items.length > 0) return { items, total };
+      } catch (err) {
+        console.warn("Featured products fetch failed, using fallback:", err);
+      }
+      return { items: DUMMY_PRODUCTS.slice(0, 12), total: DUMMY_PRODUCTS.length };
     },
+    staleTime: 1000 * 60 * 5,
   });
 
   const { data: categories } = useQuery({
     queryKey: ["categories-list"],
     queryFn: async () => {
-      const { data } = await api.get("/categories");
-      return data.data as Array<{ id: string; name: string; slug: string; description?: string }>;
+      try {
+        const { data } = await api.get("/categories");
+        const list = Array.isArray(data.data) ? data.data : [];
+        if (list.length > 0) return list as Array<{ id: string; name: string; slug: string; description?: string }>;
+      } catch (err) {
+        console.warn("Categories fetch failed, using fallback:", err);
+      }
+      return DUMMY_CATEGORIES;
     },
+    staleTime: 1000 * 60 * 10,
   });
 
   const { data: featuredSponsorProduct, isLoading: isLoadingSponsor } = useQuery({
