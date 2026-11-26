@@ -8,6 +8,7 @@ import type {
   StatusHistoryEntry,
   SellerAcceptanceStatus,
   ShadowfaxDetails,
+  OrderDeliveryDetails,
 } from '@ornate/types';
 import { ITEM_STATUSES, ORDER_FULFILMENT_STATUSES, PAYMENT_STATUSES } from '../domain/order-lifecycle.js';
 
@@ -28,6 +29,7 @@ export interface IOrder extends Document {
   sellerAcceptedAt?: Date;
   sellerRejectedAt?: Date;
   shadowfaxDetails?: ShadowfaxDetails;
+  deliveryDetails?: OrderDeliveryDetails;
   paymentMethod?: string;
   paymentReference?: string;
   cashfreeOrderId?: string;
@@ -154,6 +156,7 @@ const orderSchema = new Schema<IOrder>(
     sellerAcceptedAt: { type: Date, default: null },
     sellerRejectedAt: { type: Date, default: null },
     shadowfaxDetails: { type: Schema.Types.Mixed, default: null },
+    deliveryDetails: { type: Schema.Types.Mixed, default: null },
     paymentMethod: { type: String, default: 'Cashfree' },
     paymentReference: { type: String, default: null },
     cashfreeOrderId: { type: String, default: null },

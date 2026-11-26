@@ -9,6 +9,7 @@ import { connectDB, mongoose } from '@ornate/db';
 import { createLogger } from '@ornate/logger';
 import orderRoutes from './routes/order.routes.js';
 import cartRoutes from './routes/cart.routes.js';
+import deliveryRoutes from './routes/delivery.routes.js';
 import { Coupon } from './models/coupon.model.js';
 import {
   createCheckoutOrder,
@@ -40,6 +41,7 @@ const staticAllowed = [
   'http://localhost:5173',
   'http://localhost:5174',
   'http://localhost:5175',
+  'http://localhost:5176',
   'http://localhost:3000',
   'https://e-shopy-admin.vercel.app',
   'https://e-shopy-ui.vercel.app',
@@ -50,6 +52,7 @@ const staticAllowed = [
   'https://admin.eshopy.biz',
   'https://seller.eshopy.biz',
   'https://store.eshopy.biz',
+  'https://delivery.eshopy.biz',
   'https://vendor.eshopy.biz',
   'https://www.eshopy.biz',
   'https://eshopy.biz',
@@ -186,6 +189,8 @@ app.post('/api/v1/webhooks/shadowfax', shadowfaxWebhook);
 app.post('/api/v1/orders/webhook/shadowfax', shadowfaxWebhook);
 
 // Mounted paths
+app.use('/api/v1', deliveryRoutes);
+app.use(deliveryRoutes);
 app.use('/api/v1', orderRoutes);
 app.use('/api/v1/cart', cartRoutes);
 app.use('/cart', cartRoutes);

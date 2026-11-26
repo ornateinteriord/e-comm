@@ -228,6 +228,71 @@ export default function OrderDetailPage() {
 
         {/* Shipping & Payment Details */}
         <Grid item xs={12} md={4}>
+          {order.deliveryDetails && order.deliveryDetails.status !== 'cancelled' && (
+            <Paper
+              elevation={0}
+              sx={{
+                p: 3,
+                borderRadius: '8px',
+                border: '1px solid',
+                borderColor: '#fed7aa',
+                bgcolor: '#fff7ed',
+                mb: 3,
+              }}
+            >
+              <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.5 }}>
+                <Typography variant="subtitle2" fontWeight={800} color="#9a3412">
+                  E-SHOPY LIVE DELIVERY
+                </Typography>
+                <Chip
+                  size="small"
+                  label={(order.deliveryDetails.status || 'assigned').replace(/_/g, ' ').toUpperCase()}
+                  color={order.deliveryDetails.status === 'delivered' ? 'success' : 'warning'}
+                  sx={{ fontWeight: 800, fontSize: 10 }}
+                />
+              </Stack>
+
+              {order.deliveryDetails.partnerName && (
+                <Typography variant="body2" fontWeight={700} color="#172B30">
+                  Partner: {order.deliveryDetails.partnerName}
+                </Typography>
+              )}
+              {order.deliveryDetails.partnerPhone && (
+                <Typography variant="body2" color="text.secondary">
+                  Contact: {order.deliveryDetails.partnerPhone}
+                </Typography>
+              )}
+              {order.deliveryDetails.vehicleType && (
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1.5 }}>
+                  Vehicle: {order.deliveryDetails.vehicleType.toUpperCase()}
+                  {order.deliveryDetails.vehicleNumber ? ` (${order.deliveryDetails.vehicleNumber})` : ''}
+                </Typography>
+              )}
+
+              {order.deliveryDetails.deliveryOtp && order.deliveryDetails.status !== 'delivered' && (
+                <Box
+                  sx={{
+                    p: 1.5,
+                    borderRadius: '6px',
+                    bgcolor: '#ffffff',
+                    border: '1px dashed #fb923c',
+                    textAlign: 'center',
+                  }}
+                >
+                  <Typography variant="caption" color="text.secondary" fontWeight={700} display="block">
+                    DELIVERY VERIFICATION OTP
+                  </Typography>
+                  <Typography variant="h5" fontWeight={900} color="#ea580c" letterSpacing="0.2em">
+                    {order.deliveryDetails.deliveryOtp}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Share this 4-digit PIN with your rider at delivery
+                  </Typography>
+                </Box>
+              )}
+            </Paper>
+          )}
+
           <Paper elevation={0} sx={{ p: 3, borderRadius: '8px', border: '1px solid', borderColor: 'divider', mb: 3 }}>
             <Typography variant="subtitle2" fontWeight={800} sx={{ mb: 2 }}>
               SHIPPING ADDRESS

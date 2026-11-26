@@ -53,6 +53,7 @@ const staticAllowedOrigins = [
   'http://localhost:5173',
   'http://localhost:5174',
   'http://localhost:5175',
+  'http://localhost:5176',
   'http://localhost:3000',
   'http://localhost:4000',
   'https://e-shopy-admin.vercel.app',
@@ -64,6 +65,7 @@ const staticAllowedOrigins = [
   'https://admin.eshopy.biz',
   'https://seller.eshopy.biz',
   'https://store.eshopy.biz',
+  'https://delivery.eshopy.biz',
   'https://vendor.eshopy.biz',
   'https://www.eshopy.biz',
   'https://eshopy.biz',
@@ -297,6 +299,22 @@ const serviceRoutes: Array<{ path: string; target: string }> = [
   { path: '/api/v1/admin/audit-logs', target: authTarget },
   { path: '/api/v1/admin/sellers', target: authTarget },
   { path: '/api/v1/admin/stores', target: authTarget },
+  { path: '/api/v1/admin/delivery-partners', target: authTarget },
+  { path: '/api/v1/admin/delivery-app-release', target: authTarget },
+
+  // Delivery Partner Auth, Profile, KYC, APK Release & POD Uploads (auth-service)
+  { path: '/api/v1/delivery/register', target: authTarget },
+  { path: '/api/v1/delivery/login', target: authTarget },
+  { path: '/api/v1/delivery/me', target: authTarget },
+  { path: '/api/v1/delivery/upload-pod', target: authTarget },
+  { path: '/api/v1/delivery/app-release', target: authTarget },
+  { path: '/api/v1/delivery/app-download', target: authTarget },
+
+  // Delivery Partner Dispatch, Assignments & Earnings (order-service)
+  { path: '/api/v1/delivery/orders', target: orderTarget },
+  { path: '/api/v1/delivery/assignments', target: orderTarget },
+  { path: '/api/v1/delivery/earnings', target: orderTarget },
+  { path: '/api/v1/admin/delivery', target: orderTarget },
 
   // Seller Routes
   { path: '/api/v1/seller/products', target: productTarget },

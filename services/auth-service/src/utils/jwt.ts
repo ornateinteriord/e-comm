@@ -12,6 +12,7 @@ export function signAccessToken(payload: {
   role: UserRole;
   sellerId?: string;
   storeId?: string;
+  deliveryPartnerId?: string;
   categoryId?: string;
   subcategoryId?: string;
 }): string {

@@ -17,10 +17,11 @@ import {
   HourglassEmpty as PendingIcon,
   InfoOutlined as InfoIcon,
   OpenInNew as OpenInNewIcon,
+  TwoWheeler as BikeIcon,
 } from '@mui/icons-material';
 import api from '../api/client';
 import InvoiceViewerDialog from '../components/InvoiceViewerDialog';
-import type { Order } from '@ornate/types';
+import type { DeliveryAssignment, DeliveryPartnerProfile, Order } from '@ornate/types';
 
 const FULFILMENT_STATUSES = [
   'pending', 'confirmed', 'processing', 'packed', 'shipped', 'delivered', 'cancelled'
@@ -85,6 +86,78 @@ export default function OrdersPage() {
   const [trackingData, setTrackingData] = useState<any | null>(null);
   const [isLoadingTracking, setIsLoadingTracking] = useState(false);
   const [trackingError, setTrackingError] = useState<string | null>(null);
+
+  // Internal Delivery Partner Assignment & Tracking State
+  const [orderToAssignPartner, setOrderToAssignPartner] = useState<Order | null>(null);
+  const [availablePartners, setAvailablePartners] = useState<DeliveryPartnerProfile[]>([]);
+  const [selectedPartnerId, setSelectedPartnerId] = useState('');
+  const [isAssigningPartner, setIsAssigningPartner] = useState(false);
+  const [assignPartnerError, setAssignPartnerError] = useState<string | null>(null);
+  const [internalTrackOrder, setInternalTrackOrder] = useState<Order | null>(null);
+  const [internalAssignment, setInternalAssignment] = useState<DeliveryAssignment | null>(null);
+  const [isLoadingInternalTrack, setIsLoadingInternalTrack] = useState(false);
+
+  const openAssignPartnerDialog = async (order: Order) => {
+    setOrderToAssignPartner(order);
+    setAssignPartnerError(null);
+    setSelectedPartnerId('');
+    try {
+      const resp = await api.get('/admin/delivery-partners?status=active');
+      if (resp.data?.success) {
+        const list = (resp.data.data || []) as DeliveryPartnerProfile[];
+        setAvailablePartners(list);
+        const firstVerified = list.find((p) => p.kycStatus === 'verified');
+        if (firstVerified) setSelectedPartnerId(firstVerified.partnerId);
+      }
+    } catch {
+      setAssignPartnerError('Failed to load active delivery partners.');
+    }
+  };
+
+  const handleConfirmAssignPartner = async () => {
+    if (!orderToAssignPartner || !selectedPartnerId) return;
+    setIsAssigningPartner(true);
+    setAssignPartnerError(null);
+    try {
+      const targetId = (orderToAssignPartner as any)._id || orderToAssignPartner.orderNumber || orderToAssignPartner.id;
+      const resp = await api.post(`/admin/orders/${targetId}/delivery/assign`, {
+        partnerId: selectedPartnerId,
+      });
+      if (resp.data?.success) {
+        queryClient.invalidateQueries({ queryKey: ['admin-orders-list'] });
+        setOrderToAssignPartner(null);
+      }
+    } catch (err: any) {
+      setAssignPartnerError(err.response?.data?.error?.message || 'Failed to assign delivery partner.');
+    } finally {
+      setIsAssigningPartner(false);
+    }
+  };
+
+  const openInternalTrackDialog = async (order: Order) => {
+    setInternalTrackOrder(order);
+    setInternalAssignment(null);
+    setIsLoadingInternalTrack(true);
+    try {
+      const targetId = (order as any)._id || order.orderNumber || order.id;
+      const resp = await api.get(`/admin/orders/${targetId}/delivery/track`);
+      if (resp.data?.success) {
+        setInternalAssignment(resp.data.data);
+      }
+    } catch {
+      setInternalAssignment(null);
+    } finally {
+      setIsLoadingInternalTrack(false);
+    }
+  };
+
+  const handleCancelInternalAssignment = async (order: Order) => {
+    if (!window.confirm(`Cancel E-Shopy delivery assignment for #${order.orderNumber}?`)) return;
+    const targetId = (order as any)._id || order.orderNumber || order.id;
+    await api.post(`/admin/orders/${targetId}/delivery/cancel`, { reason: 'Reassigned by admin' });
+    setInternalTrackOrder(null);
+    queryClient.invalidateQueries({ queryKey: ['admin-orders-list'] });
+  };
 
   const openDispatchDialog = async (order: Order) => {
     setOrderToDispatch(order);
@@ -173,7 +246,7 @@ export default function OrdersPage() {
                   <TableCell sx={{ fontWeight: 800 }}>Payment</TableCell>
                   <TableCell sx={{ fontWeight: 800 }}>Ready to Pickup</TableCell>
                   <TableCell sx={{ fontWeight: 800 }}>Fulfillment</TableCell>
-                  <TableCell sx={{ fontWeight: 800 }}>Shadowfax Delivery</TableCell>
+                  <TableCell sx={{ fontWeight: 800 }}>Delivery Dispatch</TableCell>
                   <TableCell sx={{ fontWeight: 800, textAlign: 'right' }}>Actions</TableCell>
                 </TableRow>
               </TableHead>
@@ -274,8 +347,33 @@ export default function OrdersPage() {
                     </TableCell>
                     <TableCell>
                       {(() => {
+                        const internal = order.deliveryDetails;
                         const sfx = (order as any).shadowfaxDetails;
                         const awb = sfx?.awbNumber || (order.shippingProvider === 'Shadowfax' ? order.trackingNumber : null);
+
+                        if (internal?.assignmentCode && internal.status !== 'cancelled') {
+                          return (
+                            <Stack direction="row" spacing={0.75} alignItems="center">
+                              <Chip
+                                icon={<BikeIcon sx={{ fontSize: '14px !important' }} />}
+                                label={`${internal.partnerId || 'Rider'} (${(internal.status || 'assigned').replace(/_/g, ' ')})`}
+                                size="small"
+                                sx={{
+                                  fontWeight: 800,
+                                  fontSize: 10,
+                                  bgcolor: internal.status === 'delivered' ? '#dcfce7' : '#fff7ed',
+                                  color: internal.status === 'delivered' ? '#15803d' : '#c2410c',
+                                  border: '1px solid #fed7aa',
+                                }}
+                              />
+                              <Tooltip title="Track E-Shopy Delivery Partner">
+                                <IconButton size="small" onClick={() => openInternalTrackDialog(order)} sx={{ color: '#FF7900' }}>
+                                  <TrackIcon fontSize="small" />
+                                </IconButton>
+                              </Tooltip>
+                            </Stack>
+                          );
+                        }
 
                         if (awb) {
                           return (
@@ -325,28 +423,52 @@ export default function OrdersPage() {
                         const canDispatch = isAccepted && !isCancelled;
 
                         return (
-                          <Tooltip title={disabledTooltip || 'Book delivery with Shadowfax Forward Logistics'}>
-                            <span>
-                              <Button
-                                size="small"
-                                variant="contained"
-                                disabled={!canDispatch}
-                                onClick={() => openDispatchDialog(order)}
-                                startIcon={<ShippingIcon sx={{ fontSize: 16 }} />}
-                                sx={{
-                                  textTransform: 'none',
-                                  fontWeight: 800,
-                                  fontSize: '0.72rem',
-                                  py: 0.4,
-                                  px: 1.25,
-                                  bgcolor: canDispatch ? '#FF7900' : undefined,
-                                  '&:hover': { bgcolor: '#e66d00' },
-                                }}
-                              >
-                                Dispatch via Shadowfax
-                              </Button>
-                            </span>
-                          </Tooltip>
+                          <Stack direction="row" spacing={0.75} alignItems="center">
+                            <Tooltip title={disabledTooltip || 'Assign internal E-Shopy delivery partner'}>
+                              <span>
+                                <Button
+                                  size="small"
+                                  variant="outlined"
+                                  disabled={!canDispatch}
+                                  onClick={() => openAssignPartnerDialog(order)}
+                                  startIcon={<BikeIcon sx={{ fontSize: 15 }} />}
+                                  sx={{
+                                    textTransform: 'none',
+                                    fontWeight: 800,
+                                    fontSize: '0.7rem',
+                                    py: 0.35,
+                                    px: 1,
+                                    borderColor: '#FF7900',
+                                    color: '#EA580C',
+                                  }}
+                                >
+                                  Assign Rider
+                                </Button>
+                              </span>
+                            </Tooltip>
+                            <Tooltip title={disabledTooltip || 'Book delivery with Shadowfax Forward Logistics'}>
+                              <span>
+                                <Button
+                                  size="small"
+                                  variant="contained"
+                                  disabled={!canDispatch}
+                                  onClick={() => openDispatchDialog(order)}
+                                  startIcon={<ShippingIcon sx={{ fontSize: 15 }} />}
+                                  sx={{
+                                    textTransform: 'none',
+                                    fontWeight: 800,
+                                    fontSize: '0.7rem',
+                                    py: 0.35,
+                                    px: 1,
+                                    bgcolor: canDispatch ? '#FF7900' : undefined,
+                                    '&:hover': { bgcolor: '#e66d00' },
+                                  }}
+                                >
+                                  Shadowfax
+                                </Button>
+                              </span>
+                            </Tooltip>
+                          </Stack>
                         );
                       })()}
                     </TableCell>
@@ -762,6 +884,155 @@ export default function OrdersPage() {
             </Button>
           )}
           <Button onClick={() => setOrderToTrack(null)}>Close</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Assign Internal Delivery Partner Dialog */}
+      <Dialog
+        open={Boolean(orderToAssignPartner)}
+        onClose={() => !isAssigningPartner && setOrderToAssignPartner(null)}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle sx={{ fontWeight: 800, display: 'flex', alignItems: 'center', gap: 1 }}>
+          <BikeIcon sx={{ color: '#FF7900' }} />
+          Assign Rider to #{orderToAssignPartner?.orderNumber}
+        </DialogTitle>
+        <DialogContent dividers>
+          <Stack spacing={2} sx={{ mt: 0.5 }}>
+            {assignPartnerError && <Alert severity="error">{assignPartnerError}</Alert>}
+            {availablePartners.length === 0 ? (
+              <Alert severity="info">
+                No active delivery partners found. Approve or create a rider in Delivery Partners first.
+              </Alert>
+            ) : (
+              <FormControl fullWidth size="small">
+                <InputLabel>Select Delivery Partner</InputLabel>
+                <Select
+                  value={selectedPartnerId}
+                  label="Select Delivery Partner"
+                  onChange={(e) => setSelectedPartnerId(e.target.value)}
+                >
+                  {availablePartners.map((p) => {
+                    const isVerified = p.kycStatus === 'verified';
+                    return (
+                      <MenuItem key={p.partnerId} value={p.partnerId} disabled={!isVerified}>
+                        {p.name} ({p.partnerId}) — {isVerified ? p.availabilityStatus.toUpperCase() : 'KYC PENDING'} • {p.city}
+                      </MenuItem>
+                    );
+                  })}
+                </Select>
+              </FormControl>
+            )}
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button onClick={() => setOrderToAssignPartner(null)} disabled={isAssigningPartner}>
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            disabled={!selectedPartnerId || isAssigningPartner}
+            onClick={handleConfirmAssignPartner}
+            sx={{ bgcolor: '#FF7900', fontWeight: 800 }}
+          >
+            {isAssigningPartner ? 'Assigning...' : 'Assign Rider'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Internal Delivery Partner Live Tracking Dialog */}
+      <Dialog
+        open={Boolean(internalTrackOrder)}
+        onClose={() => setInternalTrackOrder(null)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle sx={{ fontWeight: 800, display: 'flex', alignItems: 'center', gap: 1 }}>
+          <BikeIcon sx={{ color: '#FF7900' }} />
+          E-Shopy Delivery Tracking — #{internalTrackOrder?.orderNumber}
+        </DialogTitle>
+        <DialogContent dividers>
+          {isLoadingInternalTrack ? (
+            <Box sx={{ py: 5, textAlign: 'center' }}>
+              <CircularProgress />
+            </Box>
+          ) : internalAssignment ? (
+            <Stack spacing={2}>
+              <Paper elevation={0} sx={{ p: 2, bgcolor: '#FFF7ED', border: '1px solid #FED7AA', borderRadius: 2 }}>
+                <Stack direction="row" justifyContent="space-between" alignItems="center">
+                  <Box>
+                    <Typography variant="subtitle2" fontWeight={800}>
+                      {internalAssignment.partnerName} ({internalAssignment.partnerId})
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      +91 {internalAssignment.partnerPhone} • {internalAssignment.vehicleType.toUpperCase()} ({internalAssignment.vehicleNumber || 'N/A'})
+                    </Typography>
+                  </Box>
+                  <Chip
+                    label={internalAssignment.status.replace(/_/g, ' ').toUpperCase()}
+                    color={internalAssignment.status === 'delivered' ? 'success' : 'warning'}
+                    sx={{ fontWeight: 800 }}
+                  />
+                </Stack>
+                {internalAssignment.deliveryOtp && (
+                  <Typography variant="body2" sx={{ mt: 1, fontWeight: 700, color: '#9A3412' }}>
+                    Customer Delivery OTP: <strong>{internalAssignment.deliveryOtp}</strong>
+                  </Typography>
+                )}
+                {internalAssignment.lastKnownLocation && (
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                    Last GPS: {internalAssignment.lastKnownLocation.lat}, {internalAssignment.lastKnownLocation.lng}
+                  </Typography>
+                )}
+              </Paper>
+
+              {internalAssignment.podPhotoUrl && (
+                <Box>
+                  <Typography variant="subtitle2" fontWeight={800} sx={{ mb: 0.75 }}>
+                    Proof of Delivery Photo
+                  </Typography>
+                  <img
+                    src={internalAssignment.podPhotoUrl}
+                    alt="POD"
+                    style={{ maxHeight: 180, borderRadius: 8, border: '1px solid #e2e8f0' }}
+                  />
+                </Box>
+              )}
+
+              <Box>
+                <Typography variant="subtitle2" fontWeight={800} sx={{ mb: 1 }}>
+                  Delivery Timeline
+                </Typography>
+                <Stack spacing={1}>
+                  {(internalAssignment.trackingHistory || []).map((evt, idx) => (
+                    <Box key={idx} sx={{ pl: 2, borderLeft: '2px solid #FF7900' }}>
+                      <Typography variant="caption" fontWeight={800}>
+                        {evt.status.replace(/_/g, ' ').toUpperCase()} • {new Date(evt.timestamp).toLocaleString('en-IN')}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {evt.note}
+                      </Typography>
+                    </Box>
+                  ))}
+                </Stack>
+              </Box>
+            </Stack>
+          ) : (
+            <Alert severity="info">No assignment details available.</Alert>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          {internalAssignment && !['delivered', 'failed', 'cancelled'].includes(internalAssignment.status) && internalTrackOrder && (
+            <Button
+              color="error"
+              onClick={() => handleCancelInternalAssignment(internalTrackOrder)}
+              sx={{ mr: 'auto', fontWeight: 700 }}
+            >
+              Cancel Assignment
+            </Button>
+          )}
+          <Button onClick={() => setInternalTrackOrder(null)}>Close</Button>
         </DialogActions>
       </Dialog>
 

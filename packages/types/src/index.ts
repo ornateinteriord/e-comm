@@ -13,7 +13,8 @@ export type UserRole =
   | 'admin'
   | 'super_admin'
   | 'seller'
-  | 'store';
+  | 'store'
+  | 'delivery_partner';
 
 export interface JwtPayload {
   userId: string;
@@ -21,6 +22,7 @@ export interface JwtPayload {
   role: UserRole;
   sellerId?: string;
   storeId?: string;
+  deliveryPartnerId?: string;
   categoryId?: string;
   subcategoryId?: string;
   iat: number;
@@ -361,6 +363,7 @@ export interface Order {
   sellerAcceptedAt?: string;
   sellerRejectedAt?: string;
   shadowfaxDetails?: ShadowfaxDetails;
+  deliveryDetails?: OrderDeliveryDetails;
   paymentMethod?: string;
   paymentReference?: string;
   invoiceId?: string | null;
@@ -652,3 +655,247 @@ export type StoreAddress = SellerAddress;
 export type StoreStatus = SellerStatus;
 export type StoreType = SellerType;
 export type StoreProfile = SellerProfile;
+
+// ---- Delivery Partner & Last-Mile Logistics ----
+export type DeliveryVehicleType = 'bike' | 'scooter' | 'bicycle' | 'car' | 'van';
+export type DeliveryPartnerStatus = 'pending_approval' | 'active' | 'suspended';
+export type DeliveryKycStatus = 'unverified' | 'submitted' | 'verified' | 'rejected';
+export type DeliveryAvailabilityStatus = 'offline' | 'online' | 'on_delivery';
+export type DeliveryAssignmentStatus =
+  | 'assigned'
+  | 'accepted'
+  | 'arrived_pickup'
+  | 'picked_up'
+  | 'in_transit'
+  | 'arrived_customer'
+  | 'delivered'
+  | 'failed'
+  | 'cancelled';
+
+export interface DeliveryGeoPoint {
+  lat: number;
+  lng: number;
+  formattedAddress?: string;
+  updatedAt?: string;
+}
+
+export interface DeliveryKycDocuments {
+  drivingLicenseNumber?: string;
+  drivingLicenseUrl?: string;
+  vehicleRcUrl?: string;
+  idProofUrl?: string;
+  profilePhotoUrl?: string;
+}
+
+export interface DeliveryBankDetails {
+  accountHolderName?: string;
+  accountNumber?: string;
+  ifscCode?: string;
+  upiId?: string;
+}
+
+export interface DeliveryPartnerProfile {
+  id: string;
+  partnerId: string;
+  name: string;
+  email: string;
+  mobileNumber: string;
+  role: 'delivery_partner';
+  vehicleType: DeliveryVehicleType;
+  vehicleNumber: string;
+  city: string;
+  state: string;
+  pincode: string;
+  servicePincodes: string[];
+  status: DeliveryPartnerStatus;
+  isActive: boolean;
+  kycStatus?: DeliveryKycStatus;
+  kycRejectionReason?: string;
+  kycVerifiedAt?: string;
+  isKycComplete?: boolean;
+  availabilityStatus: DeliveryAvailabilityStatus;
+  currentLocation?: DeliveryGeoPoint;
+  kycDocuments?: DeliveryKycDocuments;
+  bankDetails?: DeliveryBankDetails;
+  rating: number;
+  totalDeliveries: number;
+  totalEarningsPaise: number;
+  cashInHandPaise: number;
+  lastActiveAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DeliveryAppReleaseInfo {
+  appId: string;
+  appName: string;
+  versionName: string;
+  versionCode: number;
+  minSupportedVersionCode: number;
+  apkUrl: string;
+  playStoreUrl?: string;
+  downloadUrl: string;
+  releaseNotes?: string;
+  forceUpdate: boolean;
+  isConfigured: boolean;
+  updatedAt?: string;
+}
+
+export interface DeliveryProofOfDelivery {
+  otpVerified: boolean;
+  photoUrl?: string;
+  signatureDataUrl?: string;
+  recipientName?: string;
+  notes?: string;
+  deliveredAt?: string;
+}
+
+export interface DeliveryCodSummary {
+  isCod: boolean;
+  expectedAmountPaise: number;
+  collectedAmountPaise: number;
+  collectedAt?: string;
+  settled: boolean;
+}
+
+export interface DeliveryTrackingEvent {
+  status: string;
+  note?: string;
+  lat?: number;
+  lng?: number;
+  changedBy?: string;
+  timestamp: string;
+}
+
+export interface OrderDeliveryDetails {
+  assignmentId?: string;
+  assignmentCode?: string;
+  partnerId?: string;
+  partnerName?: string;
+  partnerPhone?: string;
+  vehicleType?: DeliveryVehicleType;
+  vehicleNumber?: string;
+  status?: DeliveryAssignmentStatus;
+  deliveryOtp?: string;
+  otpVerified?: boolean;
+  assignedAt?: string;
+  acceptedAt?: string;
+  pickedUpAt?: string;
+  deliveredAt?: string;
+  failedReason?: string;
+  payoutPaise?: number;
+  pod?: DeliveryProofOfDelivery;
+  cod?: DeliveryCodSummary;
+  lastKnownLocation?: DeliveryGeoPoint;
+  trackingHistory?: DeliveryTrackingEvent[];
+}
+
+export interface DeliveryStopLocation {
+  name: string;
+  phone: string;
+  line1: string;
+  line2?: string;
+  city: string;
+  state?: string;
+  pincode: string;
+  lat?: number;
+  lng?: number;
+}
+
+export interface DeliveryAssignment {
+  id: string;
+  assignmentCode: string;
+  orderId: string;
+  orderNumber: string;
+  partnerId: string;
+  partnerMongoId?: string;
+  partnerName: string;
+  partnerPhone: string;
+  vehicleType: DeliveryVehicleType;
+  vehicleNumber?: string;
+  assignmentMode: 'admin_assigned' | 'self_claimed';
+  status: DeliveryAssignmentStatus;
+  pickupLocation: DeliveryStopLocation;
+  dropLocation: DeliveryStopLocation;
+  itemsSummary: Array<{
+    productId: string;
+    name: string;
+    sku: string;
+    quantity: number;
+    image?: string;
+  }>;
+  otpRequired: boolean;
+  otpVerified: boolean;
+  deliveryOtp?: string;
+  isCod: boolean;
+  codAmountPaise: number;
+  codCollectedPaise: number;
+  codSettled: boolean;
+  payoutPaise: number;
+  tipPaise: number;
+  distanceKm?: number;
+  podPhotoUrl?: string;
+  podSignatureUrl?: string;
+  podRecipientName?: string;
+  podNotes?: string;
+  failureReason?: string;
+  lastKnownLocation?: DeliveryGeoPoint;
+  trackingHistory: DeliveryTrackingEvent[];
+  assignedAt: string;
+  acceptedAt?: string;
+  arrivedPickupAt?: string;
+  pickedUpAt?: string;
+  arrivedCustomerAt?: string;
+  deliveredAt?: string;
+  failedAt?: string;
+  cancelledAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AvailableDeliveryOrder {
+  id: string;
+  orderNumber: string;
+  createdAt: string;
+  fulfilmentStatus: FulfilmentStatus;
+  paymentStatus: PaymentStatus;
+  paymentMethod?: string;
+  isCod: boolean;
+  codAmountPaise: number;
+  grandTotalPaise: number;
+  estimatedPayoutPaise: number;
+  estimatedDistanceKm?: number;
+  itemCount: number;
+  itemsSummary: Array<{
+    productId: string;
+    name: string;
+    sku: string;
+    quantity: number;
+    image?: string;
+  }>;
+  pickupLocation: DeliveryStopLocation;
+  dropLocation: DeliveryStopLocation;
+}
+
+export interface DeliveryEarningsSummary {
+  todayEarningsPaise: number;
+  weekEarningsPaise: number;
+  totalEarningsPaise: number;
+  cashInHandPaise: number;
+  completedTrips: number;
+  activeTrips: number;
+  rating: number;
+  recentTrips: Array<{
+    id: string;
+    assignmentCode: string;
+    orderNumber: string;
+    status: DeliveryAssignmentStatus;
+    payoutPaise: number;
+    tipPaise: number;
+    codCollectedPaise: number;
+    codSettled: boolean;
+    dropCity: string;
+    deliveredAt?: string;
+    createdAt: string;
+  }>;
+}

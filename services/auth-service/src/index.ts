@@ -13,6 +13,7 @@ import contactRoutes from './routes/contact.routes.js';
 import walletRoutes from './routes/wallet.routes.js';
 import sellerRoutes from './routes/seller.routes.js';
 import storeRoutes from './routes/store.routes.js';
+import deliveryPartnerRoutes from './routes/delivery-partner.routes.js';
 import privacyRoutes from './routes/privacy.routes.js';
 import { requireAuth, requireRole } from './middleware/auth.middleware.js';
 import {
@@ -40,6 +41,7 @@ const staticAllowed = [
   'http://localhost:5173',
   'http://localhost:5174',
   'http://localhost:5175',
+  'http://localhost:5176',
   'http://localhost:3000',
   'https://e-shopy-admin.vercel.app',
   'https://e-shopy-ui.vercel.app',
@@ -50,6 +52,7 @@ const staticAllowed = [
   'https://admin.eshopy.biz',
   'https://seller.eshopy.biz',
   'https://store.eshopy.biz',
+  'https://delivery.eshopy.biz',
   'https://vendor.eshopy.biz',
   'https://www.eshopy.biz',
   'https://eshopy.biz',
@@ -208,6 +211,10 @@ app.use('/api/v1/wallet', walletRoutes);
 
 // Store routes (registration, login, profile, admin stores)
 app.use(storeRoutes);
+
+// Delivery partner routes (registration, login, KYC, availability, admin fleet)
+app.use('/api/v1', deliveryPartnerRoutes);
+app.use(deliveryPartnerRoutes);
 
 // DPDP Privacy & Data Deletion routes
 app.use('/api/v1', privacyRoutes);

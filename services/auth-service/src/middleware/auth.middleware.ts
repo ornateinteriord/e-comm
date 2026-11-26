@@ -56,6 +56,7 @@ const ROLE_HIERARCHY: Record<UserRole, number> = {
   customer: 0,
   seller: 1,
   store: 1,
+  delivery_partner: 1,
   support: 2,
   catalog_manager: 3,
   inventory_manager: 4,
