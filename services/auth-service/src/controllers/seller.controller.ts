@@ -3,7 +3,14 @@ import bcrypt from 'bcryptjs';
 import { mongoose } from '@ornate/db';
 import { Seller, generateNextSellerId, getDefaultMaxStockLimit } from '../models/seller.model.js';
 import { lookupSellerReferralCode } from '../utils/referral.js';
-import { signAccessToken, signRefreshToken } from '../utils/jwt.js';
+import {
+  signAccessToken,
+  signRefreshToken,
+  verifyRefreshToken,
+  setRefreshCookie,
+  clearRefreshCookie,
+  extractRefreshToken,
+} from '../utils/jwt.js';
 import { createLogger } from '@ornate/logger';
 
 const log = createLogger('seller-controller');
@@ -454,6 +461,7 @@ export async function registerSeller(req: Request, res: Response): Promise<void>
       subcategoryId: seller.subcategoryId,
     });
     const refreshToken = signRefreshToken({ userId: seller._id.toString() });
+    setRefreshCookie(res, refreshToken, 'sellerRefreshToken', req);
 
     log.info({ sellerId: seller.sellerId, name: seller.name, subcategoryId: seller.subcategoryId }, 'Seller registered successfully');
 
@@ -563,6 +571,7 @@ export async function loginSeller(req: Request, res: Response): Promise<void> {
       subcategoryId: seller.subcategoryId,
     });
     const refreshToken = signRefreshToken({ userId: seller._id.toString() });
+    setRefreshCookie(res, refreshToken, 'sellerRefreshToken', req);
 
     log.info({ sellerId: effectiveId }, 'Seller logged in successfully');
 
@@ -581,6 +590,72 @@ export async function loginSeller(req: Request, res: Response): Promise<void> {
     res.status(500).json({
       success: false,
       error: { code: 'LOGIN_FAILED', message: 'Login failed. Please try again.' },
+    });
+  }
+}
+
+/**
+ * POST /api/v1/seller/refresh
+ * Refreshes an expired seller access token using the 30-day refresh token.
+ */
+export async function refreshSeller(req: Request, res: Response): Promise<void> {
+  try {
+    const token = extractRefreshToken(req, ['sellerRefreshToken', 'refreshToken']);
+    if (!token) {
+      res.status(401).json({
+        success: false,
+        error: { code: 'NO_REFRESH_TOKEN', message: 'Seller refresh token missing.' },
+      });
+      return;
+    }
+
+    let payload: { userId: string };
+    try {
+      payload = verifyRefreshToken(token);
+    } catch {
+      clearRefreshCookie(res, 'sellerRefreshToken', req);
+      res.status(401).json({
+        success: false,
+        error: { code: 'INVALID_REFRESH_TOKEN', message: 'Invalid or expired seller refresh token.' },
+      });
+      return;
+    }
+
+    const seller = await Seller.findById(payload.userId);
+    if (!seller || seller.status === 'suspended') {
+      clearRefreshCookie(res, 'sellerRefreshToken', req);
+      res.status(401).json({
+        success: false,
+        error: { code: 'SELLER_INACTIVE', message: 'Seller account not found or suspended.' },
+      });
+      return;
+    }
+
+    const effectiveId = seller.sellerId || seller.storeId || '';
+    const accessToken = signAccessToken({
+      userId: seller._id.toString(),
+      email: seller.email,
+      role: 'seller',
+      sellerId: effectiveId,
+      storeId: effectiveId,
+      categoryId: seller.categoryId,
+      subcategoryId: seller.subcategoryId,
+    });
+    const newRefreshToken = signRefreshToken({ userId: seller._id.toString() });
+    setRefreshCookie(res, newRefreshToken, 'sellerRefreshToken', req);
+
+    res.json({
+      success: true,
+      data: {
+        accessToken,
+        refreshToken: newRefreshToken,
+      },
+    });
+  } catch (err: any) {
+    log.error({ err }, 'Error refreshing seller token');
+    res.status(500).json({
+      success: false,
+      error: { code: 'REFRESH_FAILED', message: 'Failed to refresh seller session.' },
     });
   }
 }

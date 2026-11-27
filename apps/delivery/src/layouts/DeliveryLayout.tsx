@@ -1,5 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Outlet, useLocation, useNavigate, Link as RouterLink } from 'react-router';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { App as CapApp } from '@capacitor/app';
+import { Capacitor } from '@capacitor/core';
 import {
   Alert,
   AppBar,
@@ -9,6 +12,7 @@ import {
   Box,
   Button,
   Chip,
+  CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
@@ -43,13 +47,26 @@ import {
   VerifiedUser as KycIcon,
   WifiOff as OfflineIcon,
 } from '@mui/icons-material';
-import { useQuery } from '@tanstack/react-query';
 import type { DeliveryAssignment, DeliveryPartnerProfile } from '@ornate/types';
 import api from '../api/client';
 import { useDeliveryAuthStore } from '../store/auth.store';
 import { useGeolocationSync } from '../hooks/useGeolocationSync';
 import { useAppReleaseUpdater } from '../hooks/useAppReleaseUpdater';
 import DeliveryPendingActivationView from '../components/auth/DeliveryPendingActivationView';
+import PullToRefreshContainer from '../components/common/PullToRefreshContainer';
+import RiderPermissionsGate from '../components/permissions/RiderPermissionsGate';
+import {
+  checkAllNativePermissions,
+  consumePendingNativeLaunchRoute,
+  isAllNativePermissionsGranted,
+  requestOrderAlertPermission,
+  resolveNextPendingAlert,
+  startNativeOrderMonitor,
+  stopNativeOrderMonitor,
+  stopOrderBellAlert,
+  subscribeNativeLaunchRoute,
+  type NativePermissionsReport,
+} from '../utils/orderAlertAudio';
 
 const DRAWER_WIDTH = 250;
 
@@ -65,7 +82,8 @@ export default function DeliveryLayout() {
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const location = useLocation();
   const navigate = useNavigate();
-  const { partner, isAuthenticated, updatePartnerProfile, clearAuth } = useDeliveryAuthStore();
+  const queryClient = useQueryClient();
+  const { token, refreshToken, partner, isAuthenticated, updatePartnerProfile, clearAuth } = useDeliveryAuthStore();
   const [isTogglingDuty, setIsTogglingDuty] = useState(false);
   const [dutyError, setDutyError] = useState<string | null>(null);
   const [apkInfoDialogOpen, setApkInfoDialogOpen] = useState(false);
@@ -73,8 +91,25 @@ export default function DeliveryLayout() {
   const [isOnlineNet, setIsOnlineNet] = useState(
     typeof navigator !== 'undefined' ? navigator.onLine : true,
   );
+  const [permissionsReport, setPermissionsReport] = useState<NativePermissionsReport | null>(null);
+  const [permissionsChecked, setPermissionsChecked] = useState(!Capacitor.isNativePlatform());
+  const promptedAssignmentIdsRef = useRef<Set<string>>(new Set());
 
   const updater = useAppReleaseUpdater();
+  const isIncomingOrderRoute = location.pathname.startsWith('/incoming-order/');
+  const isNative = Capacitor.isNativePlatform();
+
+  const refreshNativePermissions = useCallback(async () => {
+    if (!isNative) {
+      setPermissionsChecked(true);
+      return;
+    }
+    const nextReport = await checkAllNativePermissions();
+    if (nextReport) {
+      setPermissionsReport(nextReport);
+    }
+    setPermissionsChecked(true);
+  }, [isNative]);
 
   // Keep partner profile (status, kycStatus, cashInHand) synced live from auth-service
   const { data: livePartner } = useQuery<DeliveryPartnerProfile | null>({
@@ -93,18 +128,131 @@ export default function DeliveryLayout() {
     }
   }, [livePartner, updatePartnerProfile]);
 
-  const { data: activeAssignments } = useQuery<DeliveryAssignment[]>({
+  const {
+    data: activeAssignments = [],
+    isError: isAssignmentsError,
+  } = useQuery<DeliveryAssignment[]>({
     queryKey: ['delivery-active-assignments'],
     queryFn: async () => {
       const resp = await api.get('/delivery/assignments?scope=active');
       return resp.data?.data?.items || [];
     },
-    enabled: partner?.status === 'active',
-    refetchInterval: 20_000,
+    enabled: isAuthenticated && partner?.status === 'active',
+    refetchInterval: 5_000,
+    placeholderData: (prev) => prev,
   });
 
   const primaryActiveAssignment = activeAssignments?.[0];
   const geo = useGeolocationSync(primaryActiveAssignment?.id || null);
+
+  const isKycVerified = partner?.kycStatus === 'verified';
+  const isFullyVerified =
+    partner?.status === 'active' && Boolean(partner?.isActive) && isKycVerified;
+  const isOnDuty =
+    partner?.availabilityStatus === 'online' || partner?.availabilityStatus === 'on_delivery';
+  const needsMandatoryPermissions =
+    isNative && permissionsReport !== null && !isAllNativePermissionsGranted(permissionsReport);
+
+  useEffect(() => {
+    if (!isAuthenticated || partner?.status !== 'active') return;
+    requestOrderAlertPermission().catch(() => undefined);
+    refreshNativePermissions();
+
+    if (!isNative) return;
+
+    consumePendingNativeLaunchRoute().then((route) => {
+      if (route) {
+        navigate(route, { replace: true });
+      }
+    });
+
+    const unsubLaunch = subscribeNativeLaunchRoute((route) => {
+      navigate(route);
+    });
+
+    const handle = CapApp.addListener('appStateChange', ({ isActive }) => {
+      if (isActive) {
+        refreshNativePermissions();
+        geo.pingNow();
+        queryClient.invalidateQueries({ queryKey: ['delivery-active-assignments'] });
+        consumePendingNativeLaunchRoute().then((route) => {
+          if (route) {
+            navigate(route, { replace: true });
+          }
+        });
+      }
+    });
+
+    return () => {
+      unsubLaunch();
+      handle.then((h) => h.remove()).catch(() => undefined);
+    };
+  }, [isAuthenticated, partner?.status, isNative, queryClient, navigate, refreshNativePermissions]);
+
+  useEffect(() => {
+    if (!isNative) return;
+    if (
+      !isAuthenticated ||
+      !token ||
+      partner?.status !== 'active' ||
+      !isOnDuty ||
+      !permissionsChecked ||
+      needsMandatoryPermissions
+    ) {
+      stopNativeOrderMonitor().catch(() => undefined);
+      return;
+    }
+
+    const gatewayBase = (import.meta.env.VITE_API_GATEWAY_URL || '').replace(/\/+$/, '');
+    const fallbackGateway = (import.meta.env.VITE_API_FALLBACK_URL || '').replace(/\/+$/, '');
+    const apiBaseUrl = gatewayBase ? `${gatewayBase}/api/v1` : '';
+    const fallbackApiBaseUrl = fallbackGateway ? `${fallbackGateway}/api/v1` : '';
+    if (apiBaseUrl || fallbackApiBaseUrl) {
+      startNativeOrderMonitor({
+        apiBaseUrl,
+        fallbackApiBaseUrl,
+        authToken: token,
+        refreshToken: refreshToken || '',
+        partnerId: partner.partnerId,
+      }).catch(() => undefined);
+    }
+  }, [
+    isNative,
+    isAuthenticated,
+    token,
+    refreshToken,
+    partner?.status,
+    partner?.partnerId,
+    isOnDuty,
+    permissionsChecked,
+    needsMandatoryPermissions,
+  ]);
+
+  useEffect(() => {
+    if (!isAuthenticated || partner?.status !== 'active' || needsMandatoryPermissions) return;
+    if (isIncomingOrderRoute) return;
+
+    const nextPending = resolveNextPendingAlert(activeAssignments, promptedAssignmentIdsRef.current);
+    if (!nextPending) return;
+
+    promptedAssignmentIdsRef.current.add(nextPending.id);
+    navigate(`/incoming-order/${nextPending.id}`);
+  }, [activeAssignments, isAuthenticated, partner?.status, needsMandatoryPermissions, isIncomingOrderRoute, navigate]);
+
+  const invalidatePartnerState = async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['delivery-me'] }),
+      queryClient.invalidateQueries({ queryKey: ['delivery-active-assignments'] }),
+      queryClient.invalidateQueries({ queryKey: ['delivery-available-orders'] }),
+      queryClient.invalidateQueries({ queryKey: ['delivery-assignment-detail'] }),
+      queryClient.invalidateQueries({ queryKey: ['delivery-history-assignments'] }),
+      queryClient.invalidateQueries({ queryKey: ['delivery-earnings'] }),
+    ]);
+  };
+
+  const handlePullRefresh = async () => {
+    await Promise.all([invalidatePartnerState(), geo.pingNow(), refreshNativePermissions()]);
+  };
 
   useEffect(() => {
     const onOnline = () => setIsOnlineNet(true);
@@ -121,11 +269,6 @@ export default function DeliveryLayout() {
     return <DeliveryPendingActivationView />;
   }
 
-  const isKycVerified = partner?.kycStatus === 'verified';
-  const isFullyVerified =
-    partner?.status === 'active' && Boolean(partner?.isActive) && isKycVerified;
-  const isOnDuty =
-    partner?.availabilityStatus === 'online' || partner?.availabilityStatus === 'on_delivery';
   const canToggleOnline =
     isFullyVerified && geo.isGpsReady && partner?.availabilityStatus !== 'on_delivery';
 
@@ -162,6 +305,9 @@ export default function DeliveryLayout() {
       });
       if (resp.data?.success && resp.data.data) {
         updatePartnerProfile(resp.data.data);
+        if (!checked) {
+          await stopNativeOrderMonitor();
+        }
       }
     } catch (err: unknown) {
       const axiosErr = err as { response?: { data?: { error?: { message?: string } } } };
@@ -182,6 +328,8 @@ export default function DeliveryLayout() {
   };
 
   const handleLogout = () => {
+    stopOrderBellAlert();
+    stopNativeOrderMonitor().catch(() => undefined);
     clearAuth();
     navigate('/login');
   };
@@ -296,8 +444,20 @@ export default function DeliveryLayout() {
         ? 'Complete active trip before going offline'
         : '';
 
+  if (isIncomingOrderRoute) {
+    return <Outlet context={{ geo, primaryActiveAssignment, isKycVerified, isFullyVerified }} />;
+  }
+
+  if (isNative && !permissionsChecked) {
+    return (
+      <Box sx={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
   return (
-    <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: '#F8FAFC' }}>
+    <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: '#F9FAFB' }}>
       {!isMobile && (
         <Drawer
           variant="permanent"
@@ -318,8 +478,8 @@ export default function DeliveryLayout() {
           elevation={0}
           sx={{
             bgcolor: '#FFFFFF',
-            color: '#172B30',
-            borderBottom: '1px solid #E2E8F0',
+            color: '#111827',
+            borderBottom: '1px solid #E5E7EB',
           }}
         >
           <Toolbar sx={{ justifyContent: 'space-between', px: { xs: 1.5, sm: 3 }, minHeight: 62 }}>
@@ -440,6 +600,13 @@ export default function DeliveryLayout() {
           </Alert>
         )}
 
+        {/* API Connectivity Error Banner */}
+        {isOnlineNet && isAssignmentsError && (
+          <Alert severity="error" sx={{ borderRadius: 0 }}>
+            Cannot reach dispatch server right now. Check Wi-Fi or USB <code>adb reverse tcp:4000</code> and pull down to retry.
+          </Alert>
+        )}
+
         {/* Duty Error Banner */}
         {dutyError && (
           <Alert severity="error" onClose={() => setDutyError(null)} sx={{ borderRadius: 0 }}>
@@ -541,33 +708,42 @@ export default function DeliveryLayout() {
           </Alert>
         )}
 
-        {/* Main View */}
+        {/* Main View with Mobile Pull-to-Refresh & Mandatory Permissions Gate */}
         <Box
           component="main"
           sx={{
             flex: 1,
-            p: { xs: 1.75, sm: 3 },
+            p: { xs: 1.5, sm: 3 },
             pb: { xs: 10, md: 4 },
             maxWidth: 960,
             width: '100%',
             mx: 'auto',
           }}
         >
-          <Outlet context={{ geo, primaryActiveAssignment, isKycVerified, isFullyVerified }} />
+          {needsMandatoryPermissions && permissionsReport ? (
+            <RiderPermissionsGate
+              report={permissionsReport}
+              onRefreshReport={refreshNativePermissions}
+            />
+          ) : (
+            <PullToRefreshContainer onRefresh={handlePullRefresh}>
+              <Outlet context={{ geo, primaryActiveAssignment, isKycVerified, isFullyVerified }} />
+            </PullToRefreshContainer>
+          )}
         </Box>
       </Box>
 
       {/* Mobile Bottom Navigation */}
-      {isMobile && (
+      {isMobile && !needsMandatoryPermissions && (
         <Paper
-          elevation={4}
+          elevation={0}
           sx={{
             position: 'fixed',
             bottom: 0,
             left: 0,
             right: 0,
             zIndex: 1200,
-            borderTop: '1px solid #E2E8F0',
+            borderTop: '1px solid #E5E7EB',
             pb: 'env(safe-area-inset-bottom)',
           }}
         >
@@ -576,7 +752,7 @@ export default function DeliveryLayout() {
             value={activeNavIndex}
             onChange={(_e, idx) => navigate(NAV_ITEMS[idx].path)}
             sx={{
-              height: 64,
+              height: 62,
               '& .Mui-selected': { color: '#FF7900', fontWeight: 800 },
             }}
           >
@@ -588,6 +764,7 @@ export default function DeliveryLayout() {
       )}
 
       {/* Mandatory Update Dialog inside Capacitor APK */}
+
       <Dialog open={updater.isForceUpdate} maxWidth="xs" fullWidth>
         <DialogTitle sx={{ fontWeight: 800, display: 'flex', alignItems: 'center', gap: 1 }}>
           <UpdateIcon color="primary" />

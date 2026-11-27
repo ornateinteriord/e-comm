@@ -392,3 +392,54 @@ export function MoreServiceIcon(props: ServiceIconProps) {
   );
 }
 
+export function DeliveryServiceIcon(props: ServiceIconProps) {
+  return (
+    <svg
+      viewBox="0 0 64 64"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      style={{ width: "100%", height: "100%", display: "block" }}
+      {...(props as any)}
+    >
+      <defs>
+        <linearGradient id="deliveryBoxGrad" x1="10" y1="16" x2="32" y2="38" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#FFA726" />
+          <stop offset="55%" stopColor="#FF7900" />
+          <stop offset="100%" stopColor="#E65100" />
+        </linearGradient>
+        <linearGradient id="deliveryBodyGrad" x1="18" y1="28" x2="52" y2="48" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#1E3A40" />
+          <stop offset="100%" stopColor="#0F172A" />
+        </linearGradient>
+        <filter id="deliveryShadow" x="-2" y="2" width="68" height="64" filterUnits="userSpaceOnUse">
+          <feDropShadow dx="0" dy="3.5" stdDeviation="2.8" floodColor="#172B30" floodOpacity="0.26" />
+        </filter>
+      </defs>
+      <g filter="url(#deliveryShadow)">
+        {/* Cargo Box */}
+        <rect x="10" y="18" width="20" height="17" rx="3.5" fill="url(#deliveryBoxGrad)" />
+        <rect x="13" y="21" width="14" height="3" rx="1.5" fill="#FFFFFF" opacity="0.85" />
+        <path d="M13 28H23" stroke="#FFE0B2" strokeWidth="2" strokeLinecap="round" />
+
+        {/* Scooter Chassis & Front Apron */}
+        <path
+          d="M12 37H35L39 22H44.5C46 22 47 23 47 24.5V26H42.5L40 37L49 38.5C51.5 39 53 41 53 43.5V45H12V37Z"
+          fill="url(#deliveryBodyGrad)"
+        />
+        {/* Seat */}
+        <path d="M24 34.5C24 33.1 25.1 32 26.5 32H34.5C35.9 32 37 33.1 37 34.5V37H24V34.5Z" fill="#FF7900" />
+        {/* Headlight */}
+        <circle cx="48.5" cy="30.5" r="2.8" fill="#FDE047" />
+        {/* Handlebar */}
+        <path d="M39 22H47.5" stroke="#64748B" strokeWidth="3" strokeLinecap="round" />
+        {/* Wheels */}
+        <circle cx="18" cy="46.5" r="6.5" fill="#0F172A" />
+        <circle cx="18" cy="46.5" r="2.8" fill="#E2E8F0" />
+        <circle cx="46" cy="46.5" r="6.5" fill="#0F172A" />
+        <circle cx="46" cy="46.5" r="2.8" fill="#E2E8F0" />
+      </g>
+    </svg>
+  );
+}
+
+

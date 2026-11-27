@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Alert,
   Box,
@@ -23,6 +23,7 @@ import {
 } from '@mui/icons-material';
 import type { DeliveryAssignment } from '@ornate/types';
 import api from '../../api/client';
+import { resolveVisibleReceiverName } from '../../utils/navigation';
 import SignaturePad from './SignaturePad';
 
 interface ProofOfDeliveryDialogProps {
@@ -41,7 +42,7 @@ export default function ProofOfDeliveryDialog({
   onCompleted,
 }: ProofOfDeliveryDialogProps) {
   const [otp, setOtp] = useState('');
-  const [recipientName, setRecipientName] = useState(assignment.dropLocation?.name || '');
+  const [recipientName, setRecipientName] = useState(() => resolveVisibleReceiverName(assignment));
   const [notes, setNotes] = useState('');
   const [codCollected, setCodCollected] = useState(!assignment.isCod);
   const [photoUrl, setPhotoUrl] = useState<string | undefined>(undefined);
@@ -49,6 +50,25 @@ export default function ProofOfDeliveryDialog({
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    setError(null);
+    setCodCollected(!assignment.isCod);
+    const unlockedName = resolveVisibleReceiverName(assignment);
+    if (unlockedName) {
+      setRecipientName(unlockedName);
+    }
+  }, [open, assignment.id, assignment.status, assignment.isCod, assignment.dropLocation?.name]);
+
+  useEffect(() => {
+    setOtp('');
+    setNotes('');
+    setPhotoUrl(undefined);
+    setSignatureDataUrl(undefined);
+    setRecipientName(resolveVisibleReceiverName(assignment));
+    setCodCollected(!assignment.isCod);
+  }, [assignment.id]);
 
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -94,11 +114,12 @@ export default function ProofOfDeliveryDialog({
 
     setIsSubmitting(true);
     try {
+      const fallbackName = resolveVisibleReceiverName(assignment) || undefined;
       const resp = await api.post(`/delivery/assignments/${assignment.id}/complete`, {
         otp: otp.trim(),
         photoUrl,
         signatureDataUrl,
-        recipientName: recipientName.trim() || assignment.dropLocation?.name,
+        recipientName: recipientName.trim() || fallbackName,
         notes: notes.trim() || undefined,
         codCollected: assignment.isCod ? codCollected : false,
         codCollectedPaise: assignment.isCod ? assignment.codAmountPaise : 0,
@@ -118,27 +139,42 @@ export default function ProofOfDeliveryDialog({
   };
 
   return (
-    <Dialog open={open} onClose={() => !isSubmitting && onClose()} fullWidth maxWidth="sm">
-      <DialogTitle sx={{ fontWeight: 800 }}>Complete Delivery — Proof of Delivery</DialogTitle>
-      <Box component="form" onSubmit={handleSubmit}>
-        <DialogContent dividers>
-          <Stack spacing={2.5}>
+    <Dialog
+      open={open}
+      onClose={() => !isSubmitting && onClose()}
+      fullWidth
+      maxWidth="sm"
+      scroll="paper"
+    >
+      <DialogTitle sx={{ fontWeight: 800, fontSize: '1.05rem', py: 1.75 }}>
+        Complete Delivery — Verification
+      </DialogTitle>
+      <Box
+        component="form"
+        onSubmit={handleSubmit}
+        sx={{ display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}
+      >
+        <DialogContent dividers sx={{ py: 2 }}>
+          <Stack spacing={2}>
             {error && <Alert severity="error">{error}</Alert>}
 
             {assignment.isCod && (
               <Paper
                 elevation={0}
                 sx={{
-                  p: 2,
+                  p: 1.75,
                   bgcolor: '#FFFBEB',
-                  border: '1.5px solid #F59E0B',
+                  border: '1px solid #F59E0B',
                   borderRadius: 2,
                 }}
               >
-                <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
-                  <RupeeIcon sx={{ color: '#B45309' }} />
-                  <Typography variant="subtitle1" sx={{ color: '#92400E', fontWeight: 800 }}>
-                    Collect Cash on Delivery: ₹{(assignment.codAmountPaise / 100).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.75 }}>
+                  <RupeeIcon fontSize="small" sx={{ color: '#B45309' }} />
+                  <Typography variant="subtitle2" sx={{ color: '#92400E', fontWeight: 800 }}>
+                    Collect Cash on Delivery: ₹
+                    {(assignment.codAmountPaise / 100).toLocaleString('en-IN', {
+                      minimumFractionDigits: 2,
+                    })}
                   </Typography>
                 </Stack>
                 <FormControlLabel
@@ -151,7 +187,7 @@ export default function ProofOfDeliveryDialog({
                   }
                   label={
                     <Typography variant="body2" sx={{ fontWeight: 700, color: '#78350F' }}>
-                      I have collected the full cash amount from the customer
+                      I have collected the full cash amount
                     </Typography>
                   }
                 />
@@ -159,21 +195,26 @@ export default function ProofOfDeliveryDialog({
             )}
 
             <Box>
-              <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
+              <Stack direction="row" alignItems="center" spacing={0.75} sx={{ mb: 0.75 }}>
                 <OtpIcon fontSize="small" color="primary" />
-                <Typography variant="subtitle2" sx={{ color: '#172B30', fontWeight: 700 }}>
-                  Customer Verification OTP (Required)
+                <Typography variant="subtitle2" sx={{ color: '#111827', fontWeight: 700 }}>
+                  Customer 4-Digit OTP
                 </Typography>
               </Stack>
               <TextField
                 fullWidth
-                placeholder="Enter 4-digit OTP"
+                placeholder="Enter 4-digit customer OTP"
                 value={otp}
                 onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
                 inputProps={{
                   inputMode: 'numeric',
                   maxLength: 6,
-                  style: { fontSize: '1.35rem', letterSpacing: '0.35em', fontWeight: 800, textAlign: 'center' },
+                  style: {
+                    fontSize: otp ? '1.3rem' : '0.95rem',
+                    letterSpacing: otp ? '0.35em' : 'normal',
+                    fontWeight: otp ? 800 : 500,
+                    textAlign: 'center',
+                  },
                 }}
                 autoFocus
               />
@@ -181,14 +222,15 @@ export default function ProofOfDeliveryDialog({
 
             <TextField
               fullWidth
-              label="Received By (Name)"
+              label="Received By (Customer / Recipient Name)"
+              placeholder="Enter recipient name"
               value={recipientName}
               onChange={(e) => setRecipientName(e.target.value)}
             />
 
             <Box>
-              <Typography variant="caption" sx={{ fontWeight: 700, color: '#475569', display: 'block', mb: 0.75 }}>
-                Delivery Photo Proof (Camera / Upload)
+              <Typography variant="caption" sx={{ fontWeight: 700, color: '#4B5563', display: 'block', mb: 0.75 }}>
+                Parcel Photo Proof (Optional)
               </Typography>
               <Button
                 component="label"
@@ -197,7 +239,7 @@ export default function ProofOfDeliveryDialog({
                 disabled={isUploadingPhoto}
                 startIcon={isUploadingPhoto ? <CircularProgress size={18} /> : <CameraIcon />}
               >
-                {isUploadingPhoto ? 'Uploading Photo...' : photoUrl ? 'Retake / Replace Photo' : 'Capture / Upload Parcel Photo'}
+                {isUploadingPhoto ? 'Uploading Photo...' : photoUrl ? 'Retake / Replace Photo' : 'Capture / Upload Photo'}
                 <input
                   type="file"
                   accept="image/*"
@@ -207,11 +249,11 @@ export default function ProofOfDeliveryDialog({
                 />
               </Button>
               {photoUrl && (
-                <Box sx={{ mt: 1.5, borderRadius: 2, overflow: 'hidden', border: '1px solid #E2E8F0', maxHeight: 160 }}>
+                <Box sx={{ mt: 1.25, borderRadius: 2, overflow: 'hidden', border: '1px solid #E5E7EB', maxHeight: 150 }}>
                   <img
                     src={photoUrl}
                     alt="POD Preview"
-                    style={{ width: '100%', maxHeight: 160, objectFit: 'cover', display: 'block' }}
+                    style={{ width: '100%', maxHeight: 150, objectFit: 'cover', display: 'block' }}
                   />
                 </Box>
               )}
@@ -224,14 +266,14 @@ export default function ProofOfDeliveryDialog({
               multiline
               rows={2}
               label="Handover Notes (Optional)"
-              placeholder="e.g. Left at security desk per customer request"
+              placeholder="e.g. Handed over at gate"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
             />
           </Stack>
         </DialogContent>
-        <DialogActions sx={{ px: 3, py: 2 }}>
-          <Button onClick={onClose} disabled={isSubmitting}>
+        <DialogActions sx={{ px: 2.5, py: 1.5, bgcolor: '#FFFFFF' }}>
+          <Button onClick={onClose} disabled={isSubmitting} color="inherit">
             Cancel
           </Button>
           <Button
@@ -240,7 +282,6 @@ export default function ProofOfDeliveryDialog({
             color="success"
             disabled={isSubmitting || isUploadingPhoto}
             startIcon={isSubmitting ? <CircularProgress size={18} color="inherit" /> : <CheckCircleIcon />}
-            sx={{ background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)' }}
           >
             {isSubmitting ? 'Verifying...' : 'Confirm Delivery'}
           </Button>

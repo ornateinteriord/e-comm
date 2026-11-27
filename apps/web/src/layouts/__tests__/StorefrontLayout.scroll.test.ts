@@ -20,6 +20,7 @@ const ALL_NON_SPLIT_ROUTES = [
   '/terms-and-conditions',
   '/contact',
   '/contact-us',
+  '/delivery',
   '/data-deletion-requests',
   '/whatsapp-test',
   '/does-not-exist',

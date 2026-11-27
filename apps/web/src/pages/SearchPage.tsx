@@ -15,6 +15,7 @@ import {
 import api from '../api/client';
 import ProductCard from '../components/ProductCard';
 import MobileSplitStorefront from '../components/MobileSplitHome';
+import PageBreadcrumbs from '../components/PageBreadcrumbs';
 import type { SearchResult } from '@ornate/types';
 
 
@@ -193,6 +194,20 @@ export default function SearchPage() {
 
   return (
     <Container maxWidth="lg" sx={{ py: { xs: 3, md: 5 }, pb: { xs: 12, md: 8 } }}>
+      <PageBreadcrumbs
+        items={[
+          { label: 'Home', to: '/' },
+          ...(categoryParam
+            ? [
+                { label: 'Catalog', to: '/search' },
+                {
+                  label:
+                    categories.find((c) => c.slug === categoryParam)?.name || categoryParam,
+                },
+              ]
+            : [{ label: queryParam ? `Search: "${queryParam}"` : 'Catalog' }]),
+        ]}
+      />
       {/* Search Header Bar */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 2, mb: 3 }}>
         <Box>

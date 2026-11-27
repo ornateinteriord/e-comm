@@ -38,6 +38,7 @@ import {
 } from "@mui/icons-material";
 import {
   ShoppingServiceIcon,
+  DeliveryServiceIcon,
   FlightServiceIcon,
   HotelServiceIcon,
   TaxiServiceIcon,
@@ -46,6 +47,7 @@ import {
   GiftCardServiceIcon,
   MoreServiceIcon,
 } from "./ServiceIcons";
+import PageBreadcrumbs, { type BreadcrumbItem } from "./PageBreadcrumbs";
 import { useDebounce } from "../hooks/useDebounce";
 import { useUIStore } from "../store/ui.store";
 import api from "../api/client";
@@ -78,6 +80,12 @@ const SERVICES: ServiceItem[] = [
     name: "Shopping",
     IconComponent: ShoppingServiceIcon,
     tintColor: "rgba(249, 115, 22, 0.08)",
+  },
+  {
+    id: "delivery",
+    name: "Delivery",
+    IconComponent: DeliveryServiceIcon,
+    tintColor: "rgba(16, 185, 129, 0.08)",
   },
   {
     id: "flight",
@@ -415,6 +423,11 @@ export default function MobileSplitStorefront({
 
   // ── Service click handler ──────────────────────────────────────────────────
   const handleServiceClick = (service: ServiceItem) => {
+    if (service.id === "delivery") {
+      navigate("/delivery");
+      return;
+    }
+
     if (service.id === "shopping") {
       setActiveService("shopping");
       setLeftMode("categories");
@@ -906,6 +919,54 @@ export default function MobileSplitStorefront({
                 Close
               </Button>
             </Box>
+          </Box>
+        )}
+
+        {/* Compact Breadcrumbs when browsing categories or search */}
+        {(isCategoryView || isSearching) && (
+          <Box
+            sx={{
+              px: 1.5,
+              py: 0.65,
+              borderBottom: `1px solid ${borderColor}`,
+              bgcolor: isLight ? "#FFFFFF" : "#0F172A",
+            }}
+          >
+            <PageBreadcrumbs
+              compact
+              items={(() => {
+                const trail: BreadcrumbItem[] = [
+                  {
+                    label: "Home",
+                    onClick: () => {
+                      setSearchTerm("");
+                      setSelectedCategory(null);
+                      setLeftMode("services");
+                      setSearchParams({});
+                      closeMobileSearch();
+                    },
+                  },
+                ];
+
+                if (isSearching) {
+                  trail.push({ label: `Search: "${debouncedSearch}"` });
+                } else if (selectedCategory) {
+                  trail.push({
+                    label: "Categories",
+                    onClick: () => handleSelectCategory(null),
+                  });
+                  trail.push({
+                    label:
+                      visibleCategories.find((c) => c.slug === selectedCategory)?.name ||
+                      selectedCategory,
+                  });
+                } else if (isCategoryView) {
+                  trail.push({ label: "Categories" });
+                }
+
+                return trail;
+              })()}
+            />
           </Box>
         )}
 

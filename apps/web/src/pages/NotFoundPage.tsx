@@ -12,6 +12,7 @@ import {
   ShoppingBag as ShoppingBagIcon,
 } from '@mui/icons-material';
 import { useAuthStore } from '../store/auth.store';
+import PageBreadcrumbs from '../components/PageBreadcrumbs';
 
 export default function NotFoundPage() {
   const navigate = useNavigate();
@@ -38,6 +39,7 @@ export default function NotFoundPage() {
       }}
     >
       <Container maxWidth="sm">
+        <PageBreadcrumbs items={[{ label: 'Home', to: '/' }, { label: 'Page Not Found' }]} sx={{ mb: 2 }} />
         <Paper
           elevation={0}
           sx={{

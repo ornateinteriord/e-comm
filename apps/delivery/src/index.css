@@ -46,3 +46,17 @@ body {
 .online-pulse {
   animation: pulseRing 2s infinite;
 }
+
+@keyframes radarSweepClockwise {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.radar-sweep-arm {
+  animation: radarSweepClockwise 2.2s linear infinite;
+  will-change: transform;
+}

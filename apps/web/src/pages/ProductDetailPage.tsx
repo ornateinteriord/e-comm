@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link as RouterLink } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 import {
   Box, Container, Grid, Typography, Button, Chip,
-  Breadcrumbs, Link, CircularProgress, Paper, Stack, IconButton,
+  CircularProgress, Paper, Stack, IconButton,
   Table, TableBody, TableCell, TableRow, Alert, useMediaQuery, useTheme,
 } from '@mui/material';
 import {
@@ -11,7 +11,6 @@ import {
   FlashOn as BuyNowIcon,
   FavoriteBorder as WishlistIcon,
   Favorite as WishlistFilledIcon,
-  NavigateNext as NextIcon,
   Add as AddIcon,
   Remove as RemoveIcon,
   LocalShipping as ShippingIcon,
@@ -21,6 +20,7 @@ import {
 } from '@mui/icons-material';
 import api from '../api/client';
 import { useCartStore } from '../store/cart.store';
+import PageBreadcrumbs from '../components/PageBreadcrumbs';
 import type { PublicProduct, ProductVariant } from '@ornate/types';
 
 
@@ -110,17 +110,19 @@ export default function ProductDetailPage() {
     <Box sx={{ pb: { xs: 12, md: 8 } }}>
       <Container maxWidth="lg" sx={{ py: { xs: 2.5, md: 4 } }}>
         {/* Breadcrumbs */}
-        <Breadcrumbs separator={<NextIcon sx={{ fontSize: 14 }} />} sx={{ mb: 3 }}>
-          <Link component={RouterLink} to="/" color="inherit" underline="hover" sx={{ fontSize: '0.85rem', fontWeight: 600 }}>
-            Home
-          </Link>
-          <Link component={RouterLink} to="/search" color="inherit" underline="hover" sx={{ fontSize: '0.85rem', fontWeight: 600 }}>
-            {product.categoryName || 'Products'}
-          </Link>
-          <Typography color="text.primary" sx={{ fontSize: '0.85rem', fontWeight: 800 }} noWrap>
-            {product.name}
-          </Typography>
-        </Breadcrumbs>
+        <PageBreadcrumbs
+          items={[
+            { label: 'Home', to: '/' },
+            {
+              label: product.categoryName || 'Products',
+              to: (product as any).categorySlug
+                ? `/categories/${(product as any).categorySlug}`
+                : '/search',
+            },
+            { label: product.name },
+          ]}
+          sx={{ mb: 3 }}
+        />
 
         {addedNotice && (
           <Alert
@@ -301,10 +303,27 @@ export default function ProductDetailPage() {
               </Typography>
 
               {/* SKU & Availability */}
-              <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 3 }}>
+              <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap" sx={{ mb: 3 }}>
                 <Typography variant="caption" color="text.secondary" fontWeight={600}>
                   SKU: {selectedVariant ? selectedVariant.sku : product.sku}
                 </Typography>
+                {product.netQuantity && (
+                  <>
+                    <Typography variant="caption" color="text.secondary">·</Typography>
+                    <Chip
+                      label={`Net Qty: ${product.netQuantity}`}
+                      size="small"
+                      sx={{
+                        height: 22,
+                        fontSize: '0.72rem',
+                        fontWeight: 800,
+                        bgcolor: isLight ? '#FFF7ED' : 'rgba(255, 121, 0, 0.16)',
+                        color: '#FF7900',
+                        border: '1px solid rgba(255, 121, 0, 0.3)',
+                      }}
+                    />
+                  </>
+                )}
                 <Typography variant="caption" color="text.secondary">·</Typography>
                 <Typography variant="caption" color="#16a34a" fontWeight={700}>
                   {product.stock > 0 ? 'Verified In-Stock' : 'Out of Stock'}

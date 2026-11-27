@@ -27,6 +27,7 @@ import type { DeliveryVehicleType } from '@ornate/types';
 import api from '../api/client';
 import { useDeliveryAuthStore } from '../store/auth.store';
 import { useAppReleaseUpdater } from '../hooks/useAppReleaseUpdater';
+import { stopNativeOrderMonitor, stopOrderBellAlert } from '../utils/orderAlertAudio';
 
 export default function ProfilePage() {
   const navigate = useNavigate();
@@ -113,6 +114,8 @@ export default function ProfilePage() {
   };
 
   const handleLogout = () => {
+    stopOrderBellAlert();
+    stopNativeOrderMonitor().catch(() => undefined);
     clearAuth();
     navigate('/login');
   };

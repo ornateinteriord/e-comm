@@ -49,6 +49,7 @@ import type { Address } from '@ornate/types';
 import { useCartStore, calcOrderTotals } from '../store/cart.store';
 import { useAuthStore } from '../store/auth.store';
 import api from '../api/client';
+import PageBreadcrumbs from '../components/PageBreadcrumbs';
 
 export type { PaymentGatewayType, PaymentGatewayConfig } from '../utils/payment-script';
 export { loadScript } from '../utils/payment-script';
@@ -374,7 +375,7 @@ export default function CheckoutPage() {
         password: loginPassword,
       });
 
-      setAuth(data.data.accessToken, data.data.user);
+      setAuth(data.data.accessToken, data.data.user, data.data.refreshToken);
       setLoginDialogOpen(false);
     } catch (err: any) {
       setLoginError(err.response?.data?.error?.message || 'Login failed. Please check credentials.');
@@ -621,6 +622,13 @@ export default function CheckoutPage() {
 
   return (
     <Container maxWidth="lg" sx={{ py: { xs: 3, md: 6 } }}>
+      <PageBreadcrumbs
+        items={[
+          { label: 'Home', to: '/' },
+          { label: 'Shopping Bag', to: '/cart' },
+          { label: 'Checkout' },
+        ]}
+      />
       <Typography variant="h4" fontWeight={800} letterSpacing="-0.02em" sx={{ mb: { xs: 2.5, md: 4 }, fontSize: { xs: '1.65rem', md: '2.125rem' } }}>
         Checkout & Payment
       </Typography>

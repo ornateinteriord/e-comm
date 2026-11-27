@@ -57,6 +57,7 @@ import {
 import { load } from '@cashfreepayments/cashfree-js';
 import { useAuthStore } from '../store/auth.store';
 import api from '../api/client';
+import PageBreadcrumbs from '../components/PageBreadcrumbs';
 
 export default function WalletPage() {
   const theme = useTheme();
@@ -206,11 +207,19 @@ export default function WalletPage() {
 
   if (!isAuthenticated) {
     return (
-      <Container maxWidth="md" sx={{ py: 8, textAlign: 'center' }}>
+      <Container maxWidth="md" sx={{ py: 6 }}>
+        <PageBreadcrumbs
+          items={[
+            { label: 'Home', to: '/' },
+            { label: 'Account', to: '/account' },
+            { label: 'My Wallet' },
+          ]}
+        />
         <Paper
           elevation={0}
           sx={{
             p: 6,
+            textAlign: 'center',
             borderRadius: '16px',
             border: '1px solid',
             borderColor: 'divider',
@@ -247,6 +256,13 @@ export default function WalletPage() {
 
   return (
     <Container maxWidth="lg" sx={{ py: 5 }}>
+      <PageBreadcrumbs
+        items={[
+          { label: 'Home', to: '/' },
+          { label: 'Account', to: '/account' },
+          { label: 'My Wallet' },
+        ]}
+      />
       {/* Top Banner Feedbacks */}
       {isVerifyingTopup && (
         <Alert severity="info" icon={<CircularProgress size={20} />} sx={{ mb: 3, borderRadius: '10px' }}>

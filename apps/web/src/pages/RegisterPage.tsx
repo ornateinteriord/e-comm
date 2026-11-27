@@ -36,9 +36,11 @@ import {
 } from '@mui/icons-material';
 import { useAuthStore } from '../store/auth.store';
 import api from '../api/client';
+import PageBreadcrumbs from '../components/PageBreadcrumbs';
 
 export interface RegistrationSummary {
   accessToken: string;
+  refreshToken?: string;
   user: any;
   username: string;
   password: string;
@@ -131,7 +133,7 @@ export default function RegisterPage() {
 
   const handleProceedToAccount = () => {
     if (successDetails?.accessToken && successDetails?.user) {
-      setAuth(successDetails.accessToken, successDetails.user);
+      setAuth(successDetails.accessToken, successDetails.user, successDetails.refreshToken);
     }
     setShowSuccessDialog(false);
     const redirectUrl = searchParams.get('redirect') || '/';
@@ -294,6 +296,7 @@ export default function RegisterPage() {
 
       setSuccessDetails({
         accessToken: data?.data?.accessToken,
+        refreshToken: data?.data?.refreshToken,
         user: registeredUser,
         username: registeredUser?.username || payload.username,
         password: payload.password,
@@ -323,7 +326,8 @@ export default function RegisterPage() {
   }
 
   return (
-    <Container maxWidth="sm" sx={{ py: { xs: 4, sm: 8 } }}>
+    <Container maxWidth="sm" sx={{ py: { xs: 3, sm: 6 } }}>
+      <PageBreadcrumbs items={[{ label: 'Home', to: '/' }, { label: 'Create Account' }]} sx={{ mb: 2 }} />
       <Paper
         elevation={0}
         sx={{

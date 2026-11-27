@@ -43,7 +43,7 @@ export default function LoginPage() {
         setError('Access denied. This account does not have administrative permissions.');
         return;
       }
-      setAuth(data.data.accessToken, loggedUser);
+      setAuth(data.data.accessToken, loggedUser, data.data.refreshToken);
       navigate('/');
     } catch (err: any) {
       setError(err.response?.data?.error?.message || 'Authentication failed. Please verify credentials.');

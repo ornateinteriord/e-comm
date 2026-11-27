@@ -6,6 +6,7 @@ import {
 } from '@mui/material';
 import { ShoppingBagOutlined as OrderIcon } from '@mui/icons-material';
 import api from '../api/client';
+import PageBreadcrumbs from '../components/PageBreadcrumbs';
 import type { Order } from '@ornate/types';
 
 export default function OrdersPage() {
@@ -29,6 +30,12 @@ export default function OrdersPage() {
 
   return (
     <Container maxWidth="lg" sx={{ py: 6 }}>
+      <PageBreadcrumbs
+        items={[
+          { label: 'Home', to: '/' },
+          { label: 'My Orders' },
+        ]}
+      />
       <Typography variant="h4" fontWeight={800} letterSpacing="-0.02em" sx={{ mb: 4 }}>
         My Orders
       </Typography>

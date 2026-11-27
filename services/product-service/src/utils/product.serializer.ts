@@ -74,6 +74,7 @@ export function serializePublicProduct(product: IProduct): PublicProduct {
     isFeatured: Boolean(product.isFeatured),
     seoTitle: product.seoTitle,
     seoDescription: product.seoDescription,
+    netQuantity: product.netQuantity || undefined,
     weight: product.weight,
     dimensions: product.dimensions,
     sellerId: (product as any).sellerId || (product as any).storeId,

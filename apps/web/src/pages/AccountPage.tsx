@@ -59,6 +59,7 @@ import {
   WarningAmber as WarningIcon,
 } from '@mui/icons-material';
 import CustomerReferralQrDialog from '../components/referral/CustomerReferralQrDialog';
+import PageBreadcrumbs from '../components/PageBreadcrumbs';
 import { useAuthStore } from '../store/auth.store';
 import api from '../api/client';
 import type { Address } from '@ornate/types';
@@ -572,6 +573,12 @@ export default function AccountPage() {
   return (
     <Box sx={{ bgcolor: '#F8FAFC', minHeight: '100vh', py: { xs: 3, md: 5 } }}>
       <Container maxWidth="lg">
+        <PageBreadcrumbs
+          items={[
+            { label: 'Home', to: '/' },
+            { label: 'My Account' },
+          ]}
+        />
         {/* ==================== 1. HERO PROFILE BANNER ==================== */}
         <Paper
           elevation={0}

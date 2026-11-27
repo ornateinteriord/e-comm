@@ -33,6 +33,7 @@ import {
 import { useCartStore, calcOrderTotals } from '../store/cart.store';
 import { useAuthStore } from '../store/auth.store';
 import api from '../api/client';
+import PageBreadcrumbs from '../components/PageBreadcrumbs';
 
 export default function CartPage() {
   const navigate = useNavigate();
@@ -111,7 +112,7 @@ export default function CartPage() {
         password: loginPassword,
       });
 
-      setAuth(data.data.accessToken, data.data.user);
+      setAuth(data.data.accessToken, data.data.user, data.data.refreshToken);
       setLoginDialogOpen(false);
       // Seamlessly continue with the exact same cart to checkout
       navigate('/checkout');
@@ -124,32 +125,34 @@ export default function CartPage() {
 
   if (items.length === 0) {
     return (
-      <Container
-        maxWidth="md"
-        sx={{
-          py: { xs: 8, md: 12 },
-          textAlign: 'center',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          flex: 1,
-        }}
-      >
-        <EmptyCartIcon sx={{ fontSize: 72, color: 'text.disabled', mb: 2 }} />
-        <Typography variant="h5" fontWeight={800} sx={{ mb: 1 }}>Your shopping bag is empty</Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 4 }}>
-          Looks like you haven't added anything to your cart yet.
-        </Typography>
-        <Button variant="contained" component={RouterLink} to="/search" size="large" sx={{ borderRadius: 2, fontWeight: 700 }}>
-          Start Shopping
-        </Button>
+      <Container maxWidth="lg" sx={{ py: { xs: 3, md: 6 } }}>
+        <PageBreadcrumbs items={[{ label: 'Home', to: '/' }, { label: 'Shopping Bag' }]} />
+        <Box
+          sx={{
+            py: { xs: 6, md: 10 },
+            textAlign: 'center',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <EmptyCartIcon sx={{ fontSize: 72, color: 'text.disabled', mb: 2 }} />
+          <Typography variant="h5" fontWeight={800} sx={{ mb: 1 }}>Your shopping bag is empty</Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 4 }}>
+            Looks like you haven't added anything to your cart yet.
+          </Typography>
+          <Button variant="contained" component={RouterLink} to="/search" size="large" sx={{ borderRadius: 2, fontWeight: 700 }}>
+            Start Shopping
+          </Button>
+        </Box>
       </Container>
     );
   }
 
   return (
     <Container maxWidth="lg" sx={{ py: { xs: 3, md: 6 } }}>
+      <PageBreadcrumbs items={[{ label: 'Home', to: '/' }, { label: 'Shopping Bag' }]} />
       <Typography variant="h4" fontWeight={800} letterSpacing="-0.02em" sx={{ mb: { xs: 2.5, md: 4 }, fontSize: { xs: '1.65rem', md: '2.125rem' } }}>
         Shopping Bag ({items.reduce((acc, i) => acc + i.quantity, 0)})
       </Typography>

@@ -65,6 +65,7 @@ export interface IProduct extends Document {
   seoTitle?: string;
   seoDescription?: string;
   taxClass?: string;
+  netQuantity?: string;
   weight?: number;
   dimensions?: { l: number; w: number; h: number };
   sellerId?: string;
@@ -150,6 +151,7 @@ const productSchema = new Schema<IProduct>(
     seoTitle: { type: String },
     seoDescription: { type: String },
     taxClass: { type: String },
+    netQuantity: { type: String, trim: true },
     weight: { type: Number },
     dimensions: {
       l: { type: Number },

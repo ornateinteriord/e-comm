@@ -1,9 +1,11 @@
 import { Container, Typography, Paper, Box, Divider, Stack } from '@mui/material';
 import { Gavel as GavelIcon } from '@mui/icons-material';
+import PageBreadcrumbs from '../components/PageBreadcrumbs';
 
 export default function TermsPage() {
   return (
     <Container maxWidth="md" sx={{ py: { xs: 4, md: 8 } }}>
+      <PageBreadcrumbs items={[{ label: 'Home', to: '/' }, { label: 'Terms & Conditions' }]} />
       <Paper
         elevation={0}
         sx={{

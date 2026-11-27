@@ -303,7 +303,7 @@ export default function ProductCard({ product }: ProductCardProps) {
             fontWeight: 700,
             fontSize: { xs: '0.78rem', sm: '0.92rem' },
             lineHeight: 1.3,
-            mb: 0.5,
+            mb: product.netQuantity ? 0.25 : 0.5,
             display: '-webkit-box',
             WebkitLineClamp: 2,
             WebkitBoxOrient: 'vertical',
@@ -314,6 +314,21 @@ export default function ProductCard({ product }: ProductCardProps) {
         >
           {product.name}
         </Typography>
+
+        {product.netQuantity && (
+          <Typography
+            variant="caption"
+            sx={{
+              color: 'text.secondary',
+              fontWeight: 700,
+              fontSize: { xs: '0.66rem', sm: '0.74rem' },
+              mb: 0.4,
+              display: 'block',
+            }}
+          >
+            Net Qty: {product.netQuantity}
+          </Typography>
+        )}
 
         {/* 4-Tier Pricing Showcase */}
         <Box sx={{ mt: 'auto', pt: 0.5 }}>

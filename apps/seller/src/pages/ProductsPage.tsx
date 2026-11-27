@@ -39,6 +39,30 @@ import api from '../api/client';
 import { useSellerAuthStore } from '../store/auth.store';
 import { ProductImageUploader, type ProductImageItem } from '../components/ProductImageUploader';
 
+const NET_QUANTITY_UNITS = [
+  'ml', 'L', 'g', 'kg', 'mg', 'pcs', 'pack', 'pair', 'set', 'box', 'bottle', 'jar', 'tab', 'cap', 'cm', 'm',
+];
+
+function sanitizeDecimalInput(value: string): string {
+  const cleaned = value.replace(/[^\d.]/g, '');
+  const parts = cleaned.split('.');
+  return parts.length > 1 ? `${parts[0]}.${parts.slice(1).join('').slice(0, 2)}` : parts[0];
+}
+
+function sanitizeIntegerInput(value: string): string {
+  return value.replace(/\D/g, '');
+}
+
+function parseNetQuantity(raw?: string | null): { value: string; unit: string } {
+  if (!raw || !String(raw).trim()) return { value: '', unit: 'ml' };
+  const trimmed = String(raw).trim();
+  const match = trimmed.match(/^(\d+(?:\.\d+)?)\s*([a-zA-Z]+)$/);
+  if (match) {
+    return { value: match[1], unit: match[2] };
+  }
+  return { value: sanitizeDecimalInput(trimmed), unit: 'ml' };
+}
+
 export default function ProductsPage() {
   const { seller, updateSellerProfile } = useSellerAuthStore();
   const [products, setProducts] = useState<any[]>([]);
@@ -76,6 +100,8 @@ export default function ProductsPage() {
   const [inwardPrice, setInwardPrice] = useState('');
   const [stock, setStock] = useState('10');
   const [lowStockThreshold, setLowStockThreshold] = useState('3');
+  const [netQtyValue, setNetQtyValue] = useState('');
+  const [netQtyUnit, setNetQtyUnit] = useState('ml');
   const [images, setImages] = useState<ProductImageItem[]>([]);
   const [shortDescription, setShortDescription] = useState('');
   const [addStatus, setAddStatus] = useState<'active' | 'inactive'>('active');
@@ -94,6 +120,8 @@ export default function ProductsPage() {
   const [editInwardPrice, setEditInwardPrice] = useState('');
   const [editStock, setEditStock] = useState('10');
   const [editLowStockThreshold, setEditLowStockThreshold] = useState('3');
+  const [editNetQtyValue, setEditNetQtyValue] = useState('');
+  const [editNetQtyUnit, setEditNetQtyUnit] = useState('ml');
   const [editImages, setEditImages] = useState<ProductImageItem[]>([]);
   const [editShortDescription, setEditShortDescription] = useState('');
   const [editStatus, setEditStatus] = useState<'active' | 'inactive'>('active');
@@ -177,6 +205,9 @@ export default function ProductsPage() {
     setEditInwardPrice(inwardPaise > 0 ? String(inwardPaise / 100) : '');
     setEditStock(String(prod.stock ?? 0));
     setEditLowStockThreshold(String(prod.lowStockThreshold ?? 3));
+    const parsedEditQty = parseNetQuantity(prod.netQuantity);
+    setEditNetQtyValue(parsedEditQty.value);
+    setEditNetQtyUnit(parsedEditQty.unit);
     setEditShortDescription(prod.shortDescription || '');
     const isActive = prod.status === 'active' && prod.isPublished !== false;
     setEditStatus(isActive ? 'active' : 'inactive');
@@ -225,6 +256,7 @@ export default function ProductsPage() {
       const payload: Record<string, any> = {
         name: editName.trim(),
         brand: editBrand.trim() || undefined,
+        netQuantity: editNetQtyValue.trim() ? `${editNetQtyValue.trim()} ${editNetQtyUnit}`.trim() : null,
         shortDescription: editShortDescription.trim() || undefined,
         stock: parseInt(editStock, 10) || 0,
         lowStockThreshold: parseInt(editLowStockThreshold, 10) || 3,
@@ -290,6 +322,7 @@ export default function ProductsPage() {
         sku: sku.trim().toUpperCase(),
         brand: brand.trim() || undefined,
         subcategoryId: seller?.subcategoryId || undefined,
+        netQuantity: netQtyValue.trim() ? `${netQtyValue.trim()} ${netQtyUnit}`.trim() : null,
         shortDescription: shortDescription.trim() || undefined,
         stock: parseInt(stock, 10) || 0,
         lowStockThreshold: parseInt(lowStockThreshold, 10) || 3,
@@ -319,6 +352,8 @@ export default function ProductsPage() {
         setMrp('');
         setSellingPrice('');
         setInwardPrice('');
+        setNetQtyValue('');
+        setNetQtyUnit('ml');
         setImages([]);
         setShortDescription('');
         setAddStatus('active');
@@ -701,14 +736,42 @@ export default function ProductsPage() {
                   helperText={`Seller capacity: ${seller?.currentStockTotal ?? 0} / ${seller?.maxStockLimit ?? 2500} units`}
                 />
               </Grid>
+              <Grid item xs={12} sm={6}>
+                <Box sx={{ display: 'flex', gap: 1 }}>
+                  <TextField
+                    fullWidth
+                    label="Net Quantity"
+                    type="text"
+                    placeholder="e.g. 200, 500, 1.5"
+                    value={netQtyValue}
+                    onChange={(e) => setNetQtyValue(sanitizeDecimalInput(e.target.value))}
+                    inputProps={{ inputMode: 'decimal' }}
+                    helperText="Weight / volume / pack count (ml, g, kg, pcs)"
+                  />
+                  <TextField
+                    select
+                    label="Unit"
+                    value={netQtyUnit}
+                    onChange={(e) => setNetQtyUnit(e.target.value)}
+                    sx={{ minWidth: 100 }}
+                  >
+                    {NET_QUANTITY_UNITS.map((u) => (
+                      <MenuItem key={u} value={u}>
+                        {u}
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                </Box>
+              </Grid>
               <Grid item xs={12} sm={4}>
                 <TextField
                   fullWidth
                   label="MRP (₹) *"
                   placeholder="e.g. 29999"
-                  type="number"
+                  type="text"
                   value={mrp}
-                  onChange={(e) => setMrp(e.target.value)}
+                  onChange={(e) => setMrp(sanitizeDecimalInput(e.target.value))}
+                  inputProps={{ inputMode: 'decimal' }}
                   InputProps={{ startAdornment: <InputAdornment position="start">₹</InputAdornment> }}
                 />
               </Grid>
@@ -717,9 +780,10 @@ export default function ProductsPage() {
                   fullWidth
                   label="Selling Price (₹) *"
                   placeholder="e.g. 24999"
-                  type="number"
+                  type="text"
                   value={sellingPrice}
-                  onChange={(e) => setSellingPrice(e.target.value)}
+                  onChange={(e) => setSellingPrice(sanitizeDecimalInput(e.target.value))}
+                  inputProps={{ inputMode: 'decimal' }}
                   InputProps={{ startAdornment: <InputAdornment position="start">₹</InputAdornment> }}
                 />
               </Grid>
@@ -728,9 +792,10 @@ export default function ProductsPage() {
                   fullWidth
                   label="Cost / Inward (₹)"
                   placeholder="e.g. 22000"
-                  type="number"
+                  type="text"
                   value={inwardPrice}
-                  onChange={(e) => setInwardPrice(e.target.value)}
+                  onChange={(e) => setInwardPrice(sanitizeDecimalInput(e.target.value))}
+                  inputProps={{ inputMode: 'decimal' }}
                   InputProps={{ startAdornment: <InputAdornment position="start">₹</InputAdornment> }}
                 />
               </Grid>
@@ -738,18 +803,20 @@ export default function ProductsPage() {
                 <TextField
                   fullWidth
                   label="Stock Inventory *"
-                  type="number"
+                  type="text"
                   value={stock}
-                  onChange={(e) => setStock(e.target.value)}
+                  onChange={(e) => setStock(sanitizeIntegerInput(e.target.value))}
+                  inputProps={{ inputMode: 'numeric' }}
                 />
               </Grid>
               <Grid item xs={12} sm={6}>
                 <TextField
                   fullWidth
                   label="Low Stock Alert Threshold"
-                  type="number"
+                  type="text"
                   value={lowStockThreshold}
-                  onChange={(e) => setLowStockThreshold(e.target.value)}
+                  onChange={(e) => setLowStockThreshold(sanitizeIntegerInput(e.target.value))}
+                  inputProps={{ inputMode: 'numeric' }}
                 />
               </Grid>
 
@@ -899,13 +966,41 @@ export default function ProductsPage() {
                   value={editingProduct?.subcategoryName ? `${editingProduct.subcategoryName} (${editingProduct.categoryName || seller?.categoryName || 'General'})` : (editingProduct?.categoryName || seller?.categoryName || 'General')}
                 />
               </Grid>
+              <Grid item xs={12} sm={6}>
+                <Box sx={{ display: 'flex', gap: 1 }}>
+                  <TextField
+                    fullWidth
+                    label="Net Quantity"
+                    type="text"
+                    placeholder="e.g. 200, 500, 1.5"
+                    value={editNetQtyValue}
+                    onChange={(e) => setEditNetQtyValue(sanitizeDecimalInput(e.target.value))}
+                    inputProps={{ inputMode: 'decimal' }}
+                    helperText="Weight / volume / pack count (ml, g, kg, pcs)"
+                  />
+                  <TextField
+                    select
+                    label="Unit"
+                    value={editNetQtyUnit}
+                    onChange={(e) => setEditNetQtyUnit(e.target.value)}
+                    sx={{ minWidth: 100 }}
+                  >
+                    {NET_QUANTITY_UNITS.map((u) => (
+                      <MenuItem key={u} value={u}>
+                        {u}
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                </Box>
+              </Grid>
               <Grid item xs={12} sm={4}>
                 <TextField
                   fullWidth
                   label="MRP (₹) *"
-                  type="number"
+                  type="text"
                   value={editMrp}
-                  onChange={(e) => setEditMrp(e.target.value)}
+                  onChange={(e) => setEditMrp(sanitizeDecimalInput(e.target.value))}
+                  inputProps={{ inputMode: 'decimal' }}
                   InputProps={{ startAdornment: <InputAdornment position="start">₹</InputAdornment> }}
                 />
               </Grid>
@@ -913,9 +1008,10 @@ export default function ProductsPage() {
                 <TextField
                   fullWidth
                   label="Selling Price (₹) *"
-                  type="number"
+                  type="text"
                   value={editSellingPrice}
-                  onChange={(e) => setEditSellingPrice(e.target.value)}
+                  onChange={(e) => setEditSellingPrice(sanitizeDecimalInput(e.target.value))}
+                  inputProps={{ inputMode: 'decimal' }}
                   InputProps={{ startAdornment: <InputAdornment position="start">₹</InputAdornment> }}
                 />
               </Grid>
@@ -923,9 +1019,10 @@ export default function ProductsPage() {
                 <TextField
                   fullWidth
                   label="Cost / Inward (₹)"
-                  type="number"
+                  type="text"
                   value={editInwardPrice}
-                  onChange={(e) => setEditInwardPrice(e.target.value)}
+                  onChange={(e) => setEditInwardPrice(sanitizeDecimalInput(e.target.value))}
+                  inputProps={{ inputMode: 'decimal' }}
                   InputProps={{ startAdornment: <InputAdornment position="start">₹</InputAdornment> }}
                 />
               </Grid>
@@ -933,18 +1030,20 @@ export default function ProductsPage() {
                 <TextField
                   fullWidth
                   label="Stock Inventory *"
-                  type="number"
+                  type="text"
                   value={editStock}
-                  onChange={(e) => setEditStock(e.target.value)}
+                  onChange={(e) => setEditStock(sanitizeIntegerInput(e.target.value))}
+                  inputProps={{ inputMode: 'numeric' }}
                 />
               </Grid>
               <Grid item xs={12} sm={6}>
                 <TextField
                   fullWidth
                   label="Low Stock Alert Threshold"
-                  type="number"
+                  type="text"
                   value={editLowStockThreshold}
-                  onChange={(e) => setEditLowStockThreshold(e.target.value)}
+                  onChange={(e) => setEditLowStockThreshold(sanitizeIntegerInput(e.target.value))}
+                  inputProps={{ inputMode: 'numeric' }}
                 />
               </Grid>
 

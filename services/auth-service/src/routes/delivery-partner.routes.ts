@@ -2,6 +2,7 @@ import { Router } from 'express';
 import {
   registerDeliveryPartner,
   loginDeliveryPartner,
+  refreshDeliveryPartner,
   getDeliveryPartnerMe,
   updateDeliveryPartnerMe,
   uploadDeliveryPartnerDocument,
@@ -27,6 +28,7 @@ const router: Router = Router();
 // Public auth & APK release endpoints
 router.post('/delivery/register', registerDeliveryPartner);
 router.post('/delivery/login', loginDeliveryPartner);
+router.post('/delivery/refresh', refreshDeliveryPartner);
 router.get('/delivery/app-release', getDeliveryAppRelease);
 router.get('/delivery/app-download', downloadDeliveryAppApk);
 

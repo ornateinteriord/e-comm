@@ -305,6 +305,7 @@ const serviceRoutes: Array<{ path: string; target: string }> = [
   // Delivery Partner Auth, Profile, KYC, APK Release & POD Uploads (auth-service)
   { path: '/api/v1/delivery/register', target: authTarget },
   { path: '/api/v1/delivery/login', target: authTarget },
+  { path: '/api/v1/delivery/refresh', target: authTarget },
   { path: '/api/v1/delivery/me', target: authTarget },
   { path: '/api/v1/delivery/upload-pod', target: authTarget },
   { path: '/api/v1/delivery/app-release', target: authTarget },

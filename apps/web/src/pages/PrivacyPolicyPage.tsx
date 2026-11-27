@@ -1,10 +1,12 @@
 import { Container, Typography, Paper, Box, Divider, Stack, Link } from '@mui/material';
 import { Link as RouterLink } from 'react-router';
 import { Shield as ShieldIcon } from '@mui/icons-material';
+import PageBreadcrumbs from '../components/PageBreadcrumbs';
 
 export default function PrivacyPolicyPage() {
   return (
     <Container maxWidth="md" sx={{ py: { xs: 4, md: 8 } }}>
+      <PageBreadcrumbs items={[{ label: 'Home', to: '/' }, { label: 'Privacy Policy' }]} />
       <Paper
         elevation={0}
         sx={{

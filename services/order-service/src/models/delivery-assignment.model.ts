@@ -9,6 +9,9 @@ import type {
 import {
   ACTIVE_DELIVERY_STATUSES,
   DELIVERY_ASSIGNMENT_STATUSES,
+  formatDropAreaLabel,
+  isDropLocationUnlocked,
+  maskDropLocationUntilPickup,
 } from '../domain/delivery-lifecycle.js';
 
 export interface IDeliveryAssignment extends Document {
@@ -192,5 +195,13 @@ export function sanitizeAssignmentForPartner(assignment: IDeliveryAssignment) {
   const obj = assignment.toJSON() as Record<string, unknown>;
   obj.otpRequired = Boolean(obj.deliveryOtp);
   delete obj.deliveryOtp;
+
+  const unlocked = isDropLocationUnlocked(assignment.status, assignment.pickedUpAt);
+  obj.isDropLocked = !unlocked;
+  obj.dropAreaLabel = formatDropAreaLabel(assignment.dropLocation);
+  if (!unlocked && assignment.dropLocation) {
+    obj.dropLocation = maskDropLocationUntilPickup(assignment.dropLocation);
+  }
+
   return obj;
 }

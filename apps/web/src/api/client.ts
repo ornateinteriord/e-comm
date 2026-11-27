@@ -21,7 +21,7 @@ const api = axios.create({
 });
 
 let isRefreshing = false;
-let refreshQueue: Array<(token: string) => void> = [];
+let refreshQueue: Array<{ resolve: (token: string) => void; reject: (err: unknown) => void }> = [];
 
 api.interceptors.request.use((config) => {
   const token = useAuthStore.getState().accessToken;
@@ -35,8 +35,12 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
-    // Reject and purge auth immediately on 403 Forbidden
-    if (error.response?.status === 403) {
+    // Purge auth on account-level 403 restrictions, not general endpoint permission errors
+    const errCode = error.response?.data?.error?.code;
+    if (
+      error.response?.status === 403 &&
+      ['ADMIN_ACCESS_RESTRICTED', 'CUSTOMER_ACCESS_RESTRICTED', 'ACCOUNT_SUSPENDED'].includes(errCode)
+    ) {
       useAuthStore.getState().clearAuth();
       return Promise.reject(error);
     }
@@ -52,8 +56,8 @@ api.interceptors.response.use(
       originalRequest._retry = true;
 
       if (isRefreshing) {
-        return new Promise<string>((resolve) => {
-          refreshQueue.push(resolve);
+        return new Promise<string>((resolve, reject) => {
+          refreshQueue.push({ resolve, reject });
         }).then((token) => {
           originalRequest.headers.Authorization = `Bearer ${token}`;
           return api(originalRequest);
@@ -65,9 +69,10 @@ api.interceptors.response.use(
         const refreshUrl = import.meta.env.VITE_API_GATEWAY_URL
           ? `${import.meta.env.VITE_API_GATEWAY_URL}/api/v1/auth/refresh`
           : '/api/v1/auth/refresh';
+        const storedRefreshToken = useAuthStore.getState().refreshToken;
         const { data } = await axios.post(
           refreshUrl,
-          {},
+          storedRefreshToken ? { refreshToken: storedRefreshToken } : {},
           {
             withCredentials: true,
             headers: {
@@ -78,13 +83,18 @@ api.interceptors.response.use(
           },
         );
         const newToken: string = data.data.accessToken;
-        useAuthStore.getState().setAccessToken(newToken);
-        refreshQueue.forEach((resolve) => resolve(newToken));
+        const newRefreshToken: string | undefined = data.data.refreshToken;
+        useAuthStore.getState().setAccessToken(newToken, newRefreshToken);
+        refreshQueue.forEach(({ resolve }) => resolve(newToken));
         refreshQueue = [];
         originalRequest.headers.Authorization = `Bearer ${newToken}`;
         return api(originalRequest);
-      } catch (refreshErr) {
-        useAuthStore.getState().clearAuth();
+      } catch (refreshErr: any) {
+        const status = refreshErr?.response?.status;
+        if (status === 401 || status === 403) {
+          useAuthStore.getState().clearAuth();
+        }
+        refreshQueue.forEach(({ reject }) => reject(refreshErr));
         refreshQueue = [];
         return Promise.reject(refreshErr);
       } finally {

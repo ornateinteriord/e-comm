@@ -25,6 +25,7 @@ const RegisterPage = React.lazy(() => import('./pages/RegisterPage.tsx'));
 const PrivacyPolicyPage = React.lazy(() => import('./pages/PrivacyPolicyPage.tsx'));
 const TermsPage = React.lazy(() => import('./pages/TermsPage.tsx'));
 const ContactPage = React.lazy(() => import('./pages/ContactPage.tsx'));
+const DeliveryPartnerPage = React.lazy(() => import('./pages/DeliveryPartnerPage.tsx'));
 const DataDeletionInstructionsPage = React.lazy(() => import('./pages/DataDeletionInstructionsPage.tsx'));
 const WhatsAppTestPage = React.lazy(() => import('./pages/WhatsAppTestPage.tsx'));
 const NotFoundPage = React.lazy(() => import('./pages/NotFoundPage.tsx'));
@@ -71,6 +72,8 @@ export default function App() {
             <Route path="terms-and-conditions" element={<TermsPage />} />
             <Route path="contact" element={<ContactPage />} />
             <Route path="contact-us" element={<ContactPage />} />
+            <Route path="delivery" element={<DeliveryPartnerPage />} />
+            <Route path="delivery-partner" element={<DeliveryPartnerPage />} />
             <Route path="data-deletion-requests" element={<DataDeletionInstructionsPage />} />
             <Route path="data-deletion-instructions" element={<DataDeletionInstructionsPage />} />
             <Route path="data-deletion" element={<DataDeletionInstructionsPage />} />

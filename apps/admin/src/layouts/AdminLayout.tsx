@@ -34,6 +34,7 @@ const NAV_ITEMS = [
   { text: 'Categories', path: '/categories', icon: <CategoriesIcon /> },
   { text: 'Partner Sellers', path: '/sellers', icon: <StorefrontIcon /> },
   { text: 'Delivery Partners', path: '/delivery-partners', icon: <DeliveryIcon /> },
+  { text: 'Rider Test', path: '/rider-test', icon: <DeliveryIcon /> },
   { text: 'Orders & Fulfillment', path: '/orders', icon: <OrdersIcon /> },
   { text: 'Live Inventory', path: '/inventory', icon: <InventoryIcon /> },
   { text: 'Tax Invoices', path: '/invoices', icon: <InvoicesIcon /> },

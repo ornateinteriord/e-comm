@@ -94,8 +94,8 @@ export default function RegisterPage() {
       });
 
       if (resp.data?.success) {
-        const { accessToken, partner } = resp.data.data;
-        setAuth(accessToken, partner);
+        const { accessToken, refreshToken, partner } = resp.data.data;
+        setAuth(accessToken, partner, refreshToken);
         navigate('/');
       }
     } catch (err: unknown) {

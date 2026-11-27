@@ -12,6 +12,7 @@ import {
   ArrowBack as BackIcon,
 } from '@mui/icons-material';
 import api from '../api/client';
+import PageBreadcrumbs from '../components/PageBreadcrumbs';
 import type { Order } from '@ornate/types';
 
 const STEPS = ['pending', 'confirmed', 'processing', 'packed', 'shipped', 'delivered'];
@@ -73,6 +74,13 @@ export default function OrderDetailPage() {
 
   return (
     <Container maxWidth="lg" sx={{ py: 6 }}>
+      <PageBreadcrumbs
+        items={[
+          { label: 'Home', to: '/' },
+          { label: 'My Orders', to: '/orders' },
+          { label: `Order #${order.orderNumber}` },
+        ]}
+      />
       {/* Header */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4, flexWrap: 'wrap', gap: 2 }}>
         <Box>

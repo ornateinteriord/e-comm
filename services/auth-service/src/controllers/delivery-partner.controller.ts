@@ -7,7 +7,14 @@ import {
   isPartnerKycComplete,
 } from '../models/delivery-partner.model.js';
 import { AppRelease, getDeliveryAppReleaseInfo } from '../models/app-release.model.js';
-import { signAccessToken, signRefreshToken } from '../utils/jwt.js';
+import {
+  signAccessToken,
+  signRefreshToken,
+  verifyRefreshToken,
+  setRefreshCookie,
+  clearRefreshCookie,
+  extractRefreshToken,
+} from '../utils/jwt.js';
 import { uploadToImageKit } from '../utils/imagekit.js';
 import { createLogger } from '@ornate/logger';
 
@@ -194,6 +201,7 @@ export async function registerDeliveryPartner(req: Request, res: Response): Prom
     await partner.save();
 
     const tokens = buildPartnerTokens(partner);
+    setRefreshCookie(res, tokens.refreshToken, 'deliveryRefreshToken', req);
     log.info({ partnerId: partner.partnerId, status: partner.status }, 'Delivery partner registered');
 
     res.status(201).json({
@@ -278,6 +286,7 @@ export async function loginDeliveryPartner(req: Request, res: Response): Promise
     await partner.save();
 
     const tokens = buildPartnerTokens(partner);
+    setRefreshCookie(res, tokens.refreshToken, 'deliveryRefreshToken', req);
     log.info({ partnerId: partner.partnerId }, 'Delivery partner logged in');
 
     res.json({
@@ -293,6 +302,59 @@ export async function loginDeliveryPartner(req: Request, res: Response): Promise
     res.status(500).json({
       success: false,
       error: { code: 'LOGIN_FAILED', message: 'Login failed. Please try again.' },
+    });
+  }
+}
+
+/**
+ * POST /api/v1/delivery/refresh
+ */
+export async function refreshDeliveryPartner(req: Request, res: Response): Promise<void> {
+  try {
+    const token = extractRefreshToken(req, ['deliveryRefreshToken', 'refreshToken']);
+    if (!token) {
+      res.status(401).json({
+        success: false,
+        error: { code: 'NO_REFRESH_TOKEN', message: 'Delivery partner refresh token missing.' },
+      });
+      return;
+    }
+
+    let payload: { userId: string };
+    try {
+      payload = verifyRefreshToken(token);
+    } catch {
+      clearRefreshCookie(res, 'deliveryRefreshToken', req);
+      res.status(401).json({
+        success: false,
+        error: { code: 'INVALID_REFRESH_TOKEN', message: 'Invalid or expired delivery refresh token.' },
+      });
+      return;
+    }
+
+    const partner = await DeliveryPartner.findById(payload.userId);
+    if (!partner || partner.status === 'suspended') {
+      clearRefreshCookie(res, 'deliveryRefreshToken', req);
+      res.status(401).json({
+        success: false,
+        error: { code: 'PARTNER_INACTIVE', message: 'Delivery partner account not found or suspended.' },
+      });
+      return;
+    }
+
+    const tokens = buildPartnerTokens(partner);
+    setRefreshCookie(res, tokens.refreshToken, 'deliveryRefreshToken', req);
+
+    res.json({
+      success: true,
+      data: tokens,
+    });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Failed to refresh delivery session.';
+    log.error({ err: message }, 'Error refreshing delivery partner token');
+    res.status(500).json({
+      success: false,
+      error: { code: 'REFRESH_FAILED', message },
     });
   }
 }

@@ -16,16 +16,16 @@ export const deliveryTheme: Theme = createTheme({
       contrastText: '#FFFFFF',
     },
     background: {
-      default: '#F8FAFC',
+      default: '#F9FAFB',
       paper: '#FFFFFF',
     },
     text: {
-      primary: '#172B30',
-      secondary: '#475569',
+      primary: '#111827',
+      secondary: '#4B5563',
     },
-    divider: '#E2E8F0',
+    divider: '#E5E7EB',
     success: {
-      main: '#10B981',
+      main: '#059669',
       light: '#ECFDF5',
       dark: '#047857',
     },
@@ -55,22 +55,29 @@ export const deliveryTheme: Theme = createTheme({
     button: { fontWeight: 700, textTransform: 'none', letterSpacing: '0.01em' },
   },
   shape: {
-    borderRadius: 10,
+    borderRadius: 8,
   },
   components: {
     MuiButton: {
       styleOverrides: {
         root: {
-          borderRadius: 10,
-          minHeight: 42,
-          padding: '8px 18px',
+          borderRadius: 8,
+          minHeight: 40,
+          padding: '7px 14px',
           boxShadow: 'none',
         },
         containedPrimary: {
-          background: 'linear-gradient(135deg, #FF7900 0%, #FF8F26 100%)',
+          backgroundColor: '#FF7900',
           '&:hover': {
-            background: 'linear-gradient(135deg, #E85D04 0%, #FF7900 100%)',
-            boxShadow: '0 4px 12px rgba(255, 121, 0, 0.25)',
+            backgroundColor: '#EA580C',
+            boxShadow: 'none',
+          },
+        },
+        containedSuccess: {
+          backgroundColor: '#059669',
+          '&:hover': {
+            backgroundColor: '#047857',
+            boxShadow: 'none',
           },
         },
       },

@@ -50,6 +50,7 @@ export const createProductSchema = z.object({
     seoTitle: z.string().max(70).optional(),
     seoDescription: z.string().max(160).optional(),
     taxClass: z.string().optional(),
+    netQuantity: z.string().max(50).nullable().optional(),
     weight: z.number().nonnegative().optional(),
     dimensions: z
       .object({ l: z.number().nonnegative(), w: z.number().nonnegative(), h: z.number().nonnegative() })

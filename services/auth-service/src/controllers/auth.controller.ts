@@ -10,13 +10,14 @@ import {
   signAccessToken,
   signRefreshToken,
   verifyRefreshToken,
+  setRefreshCookie,
+  clearRefreshCookie,
+  extractRefreshToken,
 } from '../utils/jwt.js';
 import { createLogger } from '@ornate/logger';
 
 const log = createLogger('auth-controller');
 const BCRYPT_ROUNDS = Number(process.env.BCRYPT_ROUNDS ?? 12);
-const COOKIE_SECURE = process.env.COOKIE_SECURE === 'true';
-const COOKIE_DOMAIN = process.env.COOKIE_DOMAIN ?? 'localhost';
 
 const ADMIN_ROLES = [
   'admin',
@@ -28,13 +29,6 @@ const ADMIN_ROLES = [
   'support',
 ];
 
-function getCookieDomain(): string | undefined {
-  if (process.env.COOKIE_DOMAIN && process.env.COOKIE_DOMAIN !== 'localhost') {
-    return process.env.COOKIE_DOMAIN;
-  }
-  return undefined;
-}
-
 export function getClientType(req: Request): 'admin' | 'storefront' {
   const header = String(req.headers['x-client-type'] || '').trim().toLowerCase();
   if (header === 'admin') return 'admin';
@@ -45,44 +39,6 @@ export function getClientType(req: Request): 'admin' | 'storefront' {
     return 'admin';
   }
   return 'storefront';
-}
-
-function setRefreshCookie(res: Response, token: string, cookieName: string = 'refreshToken'): void {
-  const domain = getCookieDomain();
-  const cookieOpts: any = {
-    httpOnly: true,
-    secure: COOKIE_SECURE,
-    sameSite: 'strict',
-    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-    path: '/api/v1/auth',
-  };
-  if (domain) cookieOpts.domain = domain;
-  res.cookie(cookieName, token, cookieOpts);
-}
-
-function clearRefreshCookie(res: Response, specificCookieName?: string): void {
-  const domain = getCookieDomain();
-  const names = specificCookieName
-    ? [specificCookieName]
-    : ['refreshToken', 'customerRefreshToken', 'adminRefreshToken'];
-
-  for (const name of names) {
-    if (domain) {
-      res.clearCookie(name, {
-        httpOnly: true,
-        secure: COOKIE_SECURE,
-        sameSite: 'strict',
-        domain,
-        path: '/api/v1/auth',
-      });
-    }
-    res.clearCookie(name, {
-      httpOnly: true,
-      secure: COOKIE_SECURE,
-      sameSite: 'strict',
-      path: '/api/v1/auth',
-    });
-  }
 }
 
 // GET/POST /api/v1/auth/verify-referral?code=:code
@@ -244,8 +200,8 @@ export async function register(req: Request, res: Response, next: NextFunction):
 
     const accessToken = signAccessToken({ userId: customer.id, email: customer.email, role: customer.role });
     const refreshToken = signRefreshToken({ userId: customer.id });
-    clearRefreshCookie(res);
-    setRefreshCookie(res, refreshToken, 'customerRefreshToken');
+    clearRefreshCookie(res, undefined, req);
+    setRefreshCookie(res, refreshToken, 'customerRefreshToken', req);
 
     await AuditLog.create({
       action: 'auth.register',
@@ -264,6 +220,7 @@ export async function register(req: Request, res: Response, next: NextFunction):
       success: true,
       data: {
         accessToken,
+        refreshToken,
         user: {
           id: customer.id,
           customerId: customer.customerId,
@@ -363,12 +320,12 @@ export async function login(req: Request, res: Response, next: NextFunction): Pr
         return;
       }
 
-      clearRefreshCookie(res, 'customerRefreshToken');
-      clearRefreshCookie(res, 'refreshToken');
+      clearRefreshCookie(res, 'customerRefreshToken', req);
+      clearRefreshCookie(res, 'refreshToken', req);
 
       const accessToken = signAccessToken({ userId: admin.id, email: admin.email, role: admin.role });
       const refreshToken = signRefreshToken({ userId: admin.id });
-      setRefreshCookie(res, refreshToken, 'adminRefreshToken');
+      setRefreshCookie(res, refreshToken, 'adminRefreshToken', req);
 
       await AuditLog.create({
         action: 'auth.login',
@@ -384,6 +341,7 @@ export async function login(req: Request, res: Response, next: NextFunction): Pr
         success: true,
         data: {
           accessToken,
+          refreshToken,
           user: {
             id: admin.id,
             email: admin.email,
@@ -449,12 +407,12 @@ export async function login(req: Request, res: Response, next: NextFunction): Pr
       return;
     }
 
-    clearRefreshCookie(res, 'adminRefreshToken');
-    clearRefreshCookie(res, 'refreshToken');
+    clearRefreshCookie(res, 'adminRefreshToken', req);
+    clearRefreshCookie(res, 'refreshToken', req);
 
     const accessToken = signAccessToken({ userId: customer.id, email: customer.email, role: customer.role });
     const refreshToken = signRefreshToken({ userId: customer.id });
-    setRefreshCookie(res, refreshToken, 'customerRefreshToken');
+    setRefreshCookie(res, refreshToken, 'customerRefreshToken', req);
 
     await AuditLog.create({
       action: 'auth.login',
@@ -470,6 +428,7 @@ export async function login(req: Request, res: Response, next: NextFunction): Pr
       success: true,
       data: {
         accessToken,
+        refreshToken,
         user: {
           id: customer.id,
           customerId: customer.customerId,
@@ -509,11 +468,11 @@ export async function login(req: Request, res: Response, next: NextFunction): Pr
 export async function logout(req: Request, res: Response): Promise<void> {
   const clientType = getClientType(req);
   if (clientType === 'admin') {
-    clearRefreshCookie(res, 'adminRefreshToken');
+    clearRefreshCookie(res, 'adminRefreshToken', req);
   } else {
-    clearRefreshCookie(res, 'customerRefreshToken');
+    clearRefreshCookie(res, 'customerRefreshToken', req);
   }
-  clearRefreshCookie(res, 'refreshToken');
+  clearRefreshCookie(res, 'refreshToken', req);
   res.json({ success: true, data: null, message: 'Logged out successfully.' });
 }
 
@@ -522,12 +481,12 @@ export async function refresh(req: Request, res: Response, next: NextFunction): 
   try {
     const clientType = getClientType(req);
 
-    let token: string | undefined;
-    if (clientType === 'admin') {
-      token = (req.cookies?.adminRefreshToken || req.cookies?.refreshToken) as string | undefined;
-    } else {
-      token = (req.cookies?.customerRefreshToken || req.cookies?.refreshToken) as string | undefined;
-    }
+    const token = extractRefreshToken(
+      req,
+      clientType === 'admin'
+        ? ['adminRefreshToken', 'refreshToken']
+        : ['customerRefreshToken', 'refreshToken'],
+    );
 
     if (!token) {
       res.status(401).json({
@@ -541,7 +500,7 @@ export async function refresh(req: Request, res: Response, next: NextFunction): 
     try {
       payload = verifyRefreshToken(token);
     } catch {
-      clearRefreshCookie(res);
+      clearRefreshCookie(res, undefined, req);
       res.status(401).json({
         success: false,
         error: { code: 'INVALID_REFRESH_TOKEN', message: 'Invalid or expired refresh token.' },
@@ -553,8 +512,8 @@ export async function refresh(req: Request, res: Response, next: NextFunction): 
     if (clientType === 'admin') {
       const admin = await Admin.findById(payload.userId);
       if (!admin || !admin.isActive) {
-        clearRefreshCookie(res, 'adminRefreshToken');
-        clearRefreshCookie(res, 'refreshToken');
+        clearRefreshCookie(res, 'adminRefreshToken', req);
+        clearRefreshCookie(res, 'refreshToken', req);
         res.status(401).json({
           success: false,
           error: { code: 'USER_NOT_FOUND', message: 'Admin account not found or inactive.' },
@@ -564,17 +523,17 @@ export async function refresh(req: Request, res: Response, next: NextFunction): 
 
       const accessToken = signAccessToken({ userId: admin.id, email: admin.email, role: admin.role });
       const newRefreshToken = signRefreshToken({ userId: admin.id });
-      setRefreshCookie(res, newRefreshToken, 'adminRefreshToken');
+      setRefreshCookie(res, newRefreshToken, 'adminRefreshToken', req);
 
-      res.json({ success: true, data: { accessToken } });
+      res.json({ success: true, data: { accessToken, refreshToken: newRefreshToken } });
       return;
     }
 
     // Customer refresh session
     const customer = await Customer.findById(payload.userId);
     if (!customer || !customer.isActive) {
-      clearRefreshCookie(res, 'customerRefreshToken');
-      clearRefreshCookie(res, 'refreshToken');
+      clearRefreshCookie(res, 'customerRefreshToken', req);
+      clearRefreshCookie(res, 'refreshToken', req);
       res.status(401).json({
         success: false,
         error: { code: 'USER_NOT_FOUND', message: 'Customer account not found or inactive.' },
@@ -584,9 +543,9 @@ export async function refresh(req: Request, res: Response, next: NextFunction): 
 
     const accessToken = signAccessToken({ userId: customer.id, email: customer.email, role: customer.role });
     const newRefreshToken = signRefreshToken({ userId: customer.id });
-    setRefreshCookie(res, newRefreshToken, 'customerRefreshToken');
+    setRefreshCookie(res, newRefreshToken, 'customerRefreshToken', req);
 
-    res.json({ success: true, data: { accessToken } });
+    res.json({ success: true, data: { accessToken, refreshToken: newRefreshToken } });
   } catch (err) {
     next(err);
   }

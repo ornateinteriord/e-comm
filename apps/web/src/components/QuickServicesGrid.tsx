@@ -3,6 +3,7 @@ import { useNavigate } from "react-router";
 import { Box, Typography, Container, useTheme, Snackbar, Alert } from "@mui/material";
 import {
   ShoppingServiceIcon,
+  DeliveryServiceIcon,
   FlightServiceIcon,
   HotelServiceIcon,
   TaxiServiceIcon,
@@ -29,6 +30,13 @@ const SERVICES: ServiceItem[] = [
     IconComponent: ShoppingServiceIcon,
     path: "/search",
     tintColor: "rgba(249, 115, 22, 0.08)",
+  },
+  {
+    id: "delivery",
+    name: "Delivery",
+    IconComponent: DeliveryServiceIcon,
+    path: "/delivery",
+    tintColor: "rgba(16, 185, 129, 0.08)",
   },
   {
     id: "flight",
@@ -126,9 +134,9 @@ export default function QuickServicesGrid() {
           sx={{
             display: "grid",
             gridTemplateColumns: {
-              xs: "repeat(4, 1fr)",
-              sm: "repeat(4, 1fr)",
-              md: "repeat(8, 1fr)",
+              xs: "repeat(3, 1fr)",
+              sm: "repeat(3, 1fr)",
+              md: "repeat(9, 1fr)",
             },
             columnGap: { xs: 1, sm: 2, md: 3 },
             rowGap: { xs: 2, sm: 2.5, md: 3 },

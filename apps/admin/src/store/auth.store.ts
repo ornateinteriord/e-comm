@@ -4,9 +4,10 @@ import type { PublicUser, UserRole } from '@ornate/types';
 
 interface AuthState {
   accessToken: string | null;
+  refreshToken: string | null;
   user: PublicUser | null;
-  setAuth: (token: string, user: PublicUser) => void;
-  setAccessToken: (token: string) => void;
+  setAuth: (token: string, user: PublicUser, refreshToken?: string | null) => void;
+  setAccessToken: (token: string, refreshToken?: string | null) => void;
   clearAuth: () => void;
   isAuthenticated: boolean;
   hasRole: (...roles: UserRole[]) => boolean;
@@ -30,18 +31,28 @@ export const useAdminAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({
       accessToken: null,
+      refreshToken: null,
       user: null,
       isAuthenticated: false,
-      setAuth: (token, user) => {
+      setAuth: (token, user, refreshToken) => {
         if (user && user.role === 'customer') {
           console.warn('[Admin Auth] Customer accounts cannot access the admin store');
-          set({ accessToken: null, user: null, isAuthenticated: false });
+          set({ accessToken: null, refreshToken: null, user: null, isAuthenticated: false });
           return;
         }
-        set({ accessToken: token, user, isAuthenticated: true });
+        set((state) => ({
+          accessToken: token,
+          refreshToken: refreshToken !== undefined ? refreshToken : state.refreshToken,
+          user,
+          isAuthenticated: true,
+        }));
       },
-      setAccessToken: (token) => set({ accessToken: token }),
-      clearAuth: () => set({ accessToken: null, user: null, isAuthenticated: false }),
+      setAccessToken: (token, refreshToken) =>
+        set((state) => ({
+          accessToken: token,
+          refreshToken: refreshToken !== undefined ? refreshToken : state.refreshToken,
+        })),
+      clearAuth: () => set({ accessToken: null, refreshToken: null, user: null, isAuthenticated: false }),
       hasRole: (...roles) => {
         const u = get().user;
         if (!u) return false;
@@ -54,6 +65,7 @@ export const useAdminAuthStore = create<AuthState>()(
       partialize: (state) => ({
         user: state.isAuthenticated && state.user?.role !== 'customer' ? state.user : null,
         accessToken: state.user?.role !== 'customer' ? state.accessToken : null,
+        refreshToken: state.user?.role !== 'customer' ? state.refreshToken : null,
         isAuthenticated: state.isAuthenticated && state.user?.role !== 'customer',
       }),
       onRehydrateStorage: () => (state) => {

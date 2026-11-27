@@ -25,6 +25,7 @@ import {
   AccountBalanceWalletOutlined as WalletIcon,
   Login as LoginIcon,
   PersonAddOutlined as PersonAddIcon,
+  TwoWheeler as DeliveryBikeIcon,
 } from '@mui/icons-material';
 import { useCartStore } from '../store/cart.store';
 import { useAuthStore } from '../store/auth.store';
@@ -886,7 +887,26 @@ export default function StorefrontLayout() {
           ))}
         </List>
 
-        <Box sx={{ mt: 'auto', p: 2, borderTop: `1px solid ${isLight ? '#E5E7EB' : '#1E293B'}` }}>
+        <Box sx={{ mt: 'auto', p: 2, borderTop: `1px solid ${isLight ? '#E5E7EB' : '#1E293B'}`, display: 'flex', flexDirection: 'column', gap: 1 }}>
+          <Button
+            component={RouterLink}
+            to="/delivery"
+            onClick={() => setDrawerOpen(false)}
+            fullWidth
+            variant="outlined"
+            size="small"
+            startIcon={<DeliveryBikeIcon sx={{ color: '#FF7900' }} />}
+            sx={{
+              borderColor: isLight ? '#E5E7EB' : '#334155',
+              color: isLight ? '#172B30' : '#F8FAFC',
+              borderRadius: 1,
+              fontWeight: 700,
+              py: 1,
+              '&:hover': { borderColor: '#FF7900', color: '#FF7900' },
+            }}
+          >
+            Delivery Partner & Rider APK
+          </Button>
           <Button
             component={RouterLink}
             to="http://localhost:5174"

@@ -17,6 +17,60 @@ function generateSlug(name: string, sku: string): string {
   return `${slugify(name, { lower: true, strict: true })}-${sku.toLowerCase()}`;
 }
 
+/**
+ * Ensures `category` always points to a root category (parent === null).
+ * If a subcategory ID was passed as `category`, promotes its parent to `category`
+ * and assigns that category as the subcategory.
+ */
+async function resolveCategoryAssignment(params: {
+  category?: unknown;
+  subcategory?: unknown;
+  subcategoryId?: unknown;
+  subcategoryName?: unknown;
+}): Promise<{
+  categoryId: string | undefined;
+  subcategory: mongoose.Types.ObjectId | null;
+  subcategoryId: string | undefined;
+  subcategoryName: string | undefined;
+}> {
+  let categoryId = params.category ? String(params.category).trim() : undefined;
+  let rawSubcatId = params.subcategoryId
+    ? String(params.subcategoryId).trim()
+    : params.subcategory
+      ? String(params.subcategory).trim()
+      : undefined;
+  let finalSubcatName = params.subcategoryName ? String(params.subcategoryName).trim() : undefined;
+
+  if (categoryId && mongoose.Types.ObjectId.isValid(categoryId)) {
+    const catDoc = await Category.findById(categoryId).select('name parent').catch(() => null);
+    if (catDoc && catDoc.parent) {
+      if (!rawSubcatId) {
+        rawSubcatId = catDoc._id.toString();
+        finalSubcatName = catDoc.name;
+      }
+      categoryId = catDoc.parent.toString();
+    }
+  }
+
+  let subcatDoc: any = null;
+  if (rawSubcatId && mongoose.Types.ObjectId.isValid(rawSubcatId)) {
+    subcatDoc = await Category.findById(rawSubcatId).select('name parent').catch(() => null);
+    if (subcatDoc) {
+      finalSubcatName = subcatDoc.name;
+      if (!categoryId && subcatDoc.parent) {
+        categoryId = subcatDoc.parent.toString();
+      }
+    }
+  }
+
+  return {
+    categoryId,
+    subcategory: subcatDoc ? subcatDoc._id : null,
+    subcategoryId: subcatDoc ? subcatDoc._id.toString() : rawSubcatId || undefined,
+    subcategoryName: finalSubcatName,
+  };
+}
+
 // GET /api/v1/products
 export async function listProducts(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
@@ -151,7 +205,12 @@ export async function adminListProducts(req: Request, res: Response, next: NextF
     if (search) filter.$text = { $search: search };
 
     const [products, total] = await Promise.all([
-      Product.find(filter).populate('category', 'name slug').skip(skip).limit(limit).sort({ createdAt: -1 }),
+      Product.find(filter)
+        .populate('category', 'name slug')
+        .populate('subcategory', 'name slug')
+        .skip(skip)
+        .limit(limit)
+        .sort({ createdAt: -1 }),
       Product.countDocuments(filter),
     ]);
 
@@ -181,7 +240,7 @@ export async function createProduct(req: Request, res: Response, next: NextFunct
       name, sku, brand, shortDescription, longDescription,
       category, subcategory, pricing, stock, lowStockThreshold,
       status, isPublished, isFeatured, attributes, variants, seoTitle, seoDescription,
-      taxClass, weight, dimensions, images,
+      taxClass, netQuantity, weight, dimensions, images,
     } = req.body;
 
     // Validate prices
@@ -210,31 +269,28 @@ export async function createProduct(req: Request, res: Response, next: NextFunct
 
     const slug = generateSlug(name, sku);
 
-    // Resolve subcategory details
-    const rawSubcatId = req.body.subcategoryId || (subcategory ? String(subcategory) : null);
-    let subcatDoc: any = null;
-    let finalSubcatName = req.body.subcategoryName;
-    if (rawSubcatId && mongoose.Types.ObjectId.isValid(rawSubcatId)) {
-      subcatDoc = await Category.findById(rawSubcatId).catch(() => null);
-      if (subcatDoc) {
-        finalSubcatName = subcatDoc.name;
-      }
-    }
+    // Resolve category (must be root) and subcategory details
+    const resolvedCat = await resolveCategoryAssignment({
+      category,
+      subcategory,
+      subcategoryId: req.body.subcategoryId,
+      subcategoryName: req.body.subcategoryName,
+    });
 
     // Allocate stock to an active seller in this subcategory up to seller capacity limit
     const incomingStock = stock ?? 0;
     const allocation = await allocateStockForProduct({
-      subcategoryId: rawSubcatId,
-      categoryId: category ? String(category) : null,
+      subcategoryId: resolvedCat.subcategoryId ?? null,
+      categoryId: resolvedCat.categoryId ?? null,
       stock: incomingStock,
     });
 
     const product = await Product.create({
       name, slug, sku: sku.toUpperCase(), brand, shortDescription, longDescription,
-      category,
-      subcategory: subcatDoc ? subcatDoc._id : (subcategory && mongoose.Types.ObjectId.isValid(String(subcategory)) ? subcategory : null),
-      subcategoryId: rawSubcatId || (subcatDoc ? subcatDoc._id.toString() : undefined),
-      subcategoryName: finalSubcatName,
+      category: resolvedCat.categoryId ?? category,
+      subcategory: resolvedCat.subcategory,
+      subcategoryId: resolvedCat.subcategoryId,
+      subcategoryName: resolvedCat.subcategoryName,
       sellerId: allocation.sellerId,
       sellerName: allocation.sellerName,
       storeId: allocation.storeId,
@@ -250,7 +306,9 @@ export async function createProduct(req: Request, res: Response, next: NextFunct
       isFeatured: Boolean(isFeatured),
       attributes: attributes ?? [],
       variants: (variants ?? []).map((v: Record<string, unknown>) => ({ ...v, id: uuidv4() })),
-      seoTitle, seoDescription, taxClass, weight, dimensions,
+      seoTitle, seoDescription, taxClass,
+      netQuantity: netQuantity ? String(netQuantity).trim() : undefined,
+      weight, dimensions,
       images: (images ?? []).map((img: any, idx: number) => ({
         id: img.id || uuidv4(),
         url: img.url,
@@ -316,22 +374,29 @@ export async function updateProduct(req: Request, res: Response, next: NextFunct
       'name', 'brand', 'shortDescription', 'longDescription', 'category',
       'subcategory', 'subcategoryId', 'subcategoryName',
       'stock', 'lowStockThreshold', 'status', 'isPublished', 'isFeatured',
-      'attributes', 'seoTitle', 'seoDescription', 'taxClass', 'weight', 'dimensions',
+      'attributes', 'seoTitle', 'seoDescription', 'taxClass', 'netQuantity', 'weight', 'dimensions',
     ];
 
-    if (updates.subcategoryId || updates.subcategory) {
-      const subId = String(updates.subcategoryId || updates.subcategory || '');
-      if (subId && mongoose.Types.ObjectId.isValid(subId)) {
-        const subDoc = await Category.findById(subId).select('name');
-        if (subDoc) {
-          updates.subcategory = subDoc._id;
-          updates.subcategoryId = subDoc._id.toString();
-          updates.subcategoryName = subDoc.name;
-        }
-      } else if (!subId) {
-        updates.subcategory = null;
-        updates.subcategoryId = undefined;
-        updates.subcategoryName = undefined;
+    if ('netQuantity' in updates) {
+      updates.netQuantity = updates.netQuantity ? String(updates.netQuantity).trim() : undefined;
+    }
+
+    if ('category' in updates || 'subcategoryId' in updates || 'subcategory' in updates) {
+      const hasSubcatField = 'subcategoryId' in updates || 'subcategory' in updates;
+      const subIdVal = updates.subcategoryId || updates.subcategory;
+      const resolvedCat = await resolveCategoryAssignment({
+        category: updates.category ?? product.category,
+        subcategory: hasSubcatField ? subIdVal : undefined,
+        subcategoryId: hasSubcatField ? subIdVal : undefined,
+        subcategoryName: updates.subcategoryName,
+      });
+      if (resolvedCat.categoryId) {
+        updates.category = resolvedCat.categoryId;
+      }
+      if (hasSubcatField || resolvedCat.subcategory) {
+        updates.subcategory = resolvedCat.subcategory;
+        updates.subcategoryId = resolvedCat.subcategoryId;
+        updates.subcategoryName = resolvedCat.subcategoryName;
       }
     }
 
@@ -427,7 +492,9 @@ export async function deleteProduct(req: Request, res: Response, next: NextFunct
 // GET /api/v1/admin/products/:id
 export async function getAdminProduct(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const product = await Product.findById(req.params.id).populate('category', 'name slug');
+    const product = await Product.findById(req.params.id)
+      .populate('category', 'name slug')
+      .populate('subcategory', 'name slug');
     if (!product) {
       res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Product not found.' } });
       return;
@@ -544,7 +611,7 @@ export async function sellerCreateProduct(req: Request, res: Response, next: Nex
       name, sku, brand, shortDescription, longDescription,
       pricing, stock, lowStockThreshold,
       status, isPublished, attributes, variants,
-      seoTitle, seoDescription, taxClass, weight, dimensions, images,
+      seoTitle, seoDescription, taxClass, netQuantity, weight, dimensions, images,
     } = req.body;
 
     const pricePayload = {
@@ -624,6 +691,7 @@ export async function sellerCreateProduct(req: Request, res: Response, next: Nex
       seoTitle,
       seoDescription,
       taxClass,
+      netQuantity: netQuantity ? String(netQuantity).trim() : undefined,
       weight,
       dimensions,
       sellerId: allocation.sellerId || sellerId,
@@ -670,12 +738,13 @@ export async function sellerUpdateProduct(req: Request, res: Response, next: Nex
       return;
     }
 
-    const { name, brand, shortDescription, longDescription, pricing, stock, lowStockThreshold, status, isPublished, images } = req.body;
+    const { name, brand, shortDescription, longDescription, pricing, stock, lowStockThreshold, status, isPublished, netQuantity, images } = req.body;
 
     if (name) product.name = name;
     if (brand !== undefined) product.brand = brand;
     if (shortDescription !== undefined) product.shortDescription = shortDescription;
     if (longDescription !== undefined) product.longDescription = longDescription;
+    if (netQuantity !== undefined) product.netQuantity = netQuantity ? String(netQuantity).trim() : undefined;
     if (stock !== undefined) product.stock = Number(stock);
     if (lowStockThreshold !== undefined) product.lowStockThreshold = Number(lowStockThreshold);
     if (status) {

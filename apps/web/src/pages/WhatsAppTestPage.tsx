@@ -26,6 +26,7 @@ import {
   ExpandMore as ExpandMoreIcon,
 } from '@mui/icons-material';
 import api from '../api/client';
+import PageBreadcrumbs from '../components/PageBreadcrumbs';
 
 export default function WhatsAppTestPage() {
   const [phone, setPhone] = useState('916361888927');
@@ -230,6 +231,7 @@ export default function WhatsAppTestPage() {
 
   return (
     <Container maxWidth="md" sx={{ py: 4 }}>
+      <PageBreadcrumbs items={[{ label: 'Home', to: '/' }, { label: 'WhatsApp Test' }]} />
       <Paper sx={{ p: 3, mb: 3 }} elevation={2}>
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
           <Typography variant="h5" fontWeight={700}>

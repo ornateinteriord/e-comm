@@ -22,13 +22,88 @@ import type { AdminProduct } from '@ornate/types';
 import { ProductImageUploader, type ProductImageItem } from '../components/ProductImageUploader';
 
 export const DEFAULT_CATEGORIES = [
-  { id: '6ad1ef935be79206b89816e5', _id: '6ad1ef935be79206b89816e5', name: 'Electronics & Audio', slug: 'electronics' },
-  { id: '6ad1ef935be79206b89816e6', _id: '6ad1ef935be79206b89816e6', name: 'Fashion & Apparel', slug: 'clothing' },
-  { id: '6ad1ef935be79206b89816e7', _id: '6ad1ef935be79206b89816e7', name: 'Watches & Accessories', slug: 'accessories' },
-  { id: '6ad1ef935be79206b89816e8', _id: '6ad1ef935be79206b89816e8', name: 'Home, Living & Coffee', slug: 'home-kitchen' },
-  { id: '6ad1ef935be79206b89816e9', _id: '6ad1ef935be79206b89816e9', name: 'Fitness & Outdoors', slug: 'sports' },
-  { id: '6ad1ef935be79206b89816ea', _id: '6ad1ef935be79206b89816ea', name: 'Books & Stationery', slug: 'books' },
+  { id: '6ad1ef935be79206b89816e5', _id: '6ad1ef935be79206b89816e5', name: 'Electronics & Audio', slug: 'electronics', parent: null, parentId: null, children: [] as any[] },
+  { id: '6ad1ef935be79206b89816e6', _id: '6ad1ef935be79206b89816e6', name: 'Fashion & Apparel', slug: 'clothing', parent: null, parentId: null, children: [] as any[] },
+  { id: '6ad1ef935be79206b89816e7', _id: '6ad1ef935be79206b89816e7', name: 'Watches & Accessories', slug: 'accessories', parent: null, parentId: null, children: [] as any[] },
+  { id: '6ad1ef935be79206b89816e8', _id: '6ad1ef935be79206b89816e8', name: 'Home, Living & Coffee', slug: 'home-kitchen', parent: null, parentId: null, children: [] as any[] },
+  { id: '6ad1ef935be79206b89816e9', _id: '6ad1ef935be79206b89816e9', name: 'Fitness & Outdoors', slug: 'sports', parent: null, parentId: null, children: [] as any[] },
+  { id: '6ad1ef935be79206b89816ea', _id: '6ad1ef935be79206b89816ea', name: 'Books & Stationery', slug: 'books', parent: null, parentId: null, children: [] as any[] },
 ];
+
+const NET_QUANTITY_UNITS = [
+  'ml', 'L', 'g', 'kg', 'mg', 'pcs', 'pack', 'pair', 'set', 'box', 'bottle', 'jar', 'tab', 'cap', 'cm', 'm',
+];
+
+function sanitizeDecimalInput(value: string): string {
+  const cleaned = value.replace(/[^\d.]/g, '');
+  const parts = cleaned.split('.');
+  return parts.length > 1 ? `${parts[0]}.${parts.slice(1).join('').slice(0, 2)}` : parts[0];
+}
+
+function sanitizeIntegerInput(value: string): string {
+  return value.replace(/\D/g, '');
+}
+
+function parseNetQuantity(raw?: string | null): { value: string; unit: string } {
+  if (!raw || !String(raw).trim()) return { value: '', unit: 'ml' };
+  const trimmed = String(raw).trim();
+  const match = trimmed.match(/^(\d+(?:\.\d+)?)\s*([a-zA-Z]+)$/);
+  if (match) {
+    return { value: match[1], unit: match[2] };
+  }
+  return { value: sanitizeDecimalInput(trimmed), unit: 'ml' };
+}
+
+function normalizeCategoryTree(rawList: any[]) {
+  const mapItem = (cat: any) => ({
+    id: String(cat.id || cat._id || ''),
+    _id: String(cat._id || cat.id || ''),
+    name: cat.name,
+    slug: cat.slug,
+    parent: cat.parent ? String(cat.parent) : null,
+    parentId: cat.parentId ? String(cat.parentId) : null,
+    children: Array.isArray(cat.children)
+      ? cat.children.map((sc: any) => ({
+          id: String(sc.id || sc._id || ''),
+          _id: String(sc._id || sc.id || ''),
+          name: sc.name,
+          slug: sc.slug,
+          parent: sc.parent ? String(sc.parent) : null,
+          parentId: sc.parentId ? String(sc.parentId) : null,
+        }))
+      : [],
+  });
+
+  const normalized = rawList.map(mapItem);
+  const rootMap = new Map<string, ReturnType<typeof mapItem>>();
+  const childrenByParent = new Map<string, ReturnType<typeof mapItem>[]>();
+
+  for (const item of normalized) {
+    const pId = item.parent || item.parentId;
+    if (!pId) {
+      rootMap.set(item.id, item);
+    } else {
+      const list = childrenByParent.get(pId) || [];
+      list.push(item);
+      childrenByParent.set(pId, list);
+    }
+  }
+
+  for (const [rootId, root] of rootMap.entries()) {
+    const extraChildren = childrenByParent.get(rootId) || [];
+    if (extraChildren.length > 0) {
+      const seen = new Set(root.children.map((c: any) => c.id));
+      for (const ch of extraChildren) {
+        if (!seen.has(ch.id)) {
+          root.children.push(ch);
+          seen.add(ch.id);
+        }
+      }
+    }
+  }
+
+  return Array.from(rootMap.values());
+}
 
 export default function ProductsPage() {
   const queryClient = useQueryClient();
@@ -71,14 +146,16 @@ export default function ProductsPage() {
     brand: '',
     category: '',
     subcategoryId: '',
+    netQtyValue: '',
+    netQtyUnit: 'ml',
     shortDescription: '',
     longDescription: '',
-    mrp: 1000,
-    sellingPrice: 800,
+    mrp: '1000',
+    sellingPrice: '800',
     dealPrice: '',
-    inwardPrice: 400,
-    stock: 50,
-    lowStockThreshold: 5,
+    inwardPrice: '400',
+    stock: '50',
+    lowStockThreshold: '5',
     status: 'active',
     isPublished: true,
     isFeatured: false,
@@ -94,22 +171,14 @@ export default function ProductsPage() {
   });
 
   const { data: rawCategories } = useQuery({
-    queryKey: ['admin-categories'],
+    queryKey: ['admin-categories-tree'],
     queryFn: async () => {
       try {
         const res = await api.get('/categories?tree=true');
         const raw = res.data?.data?.categories || res.data?.data || res.data || [];
         const rawList = Array.isArray(raw) ? raw : [];
         if (rawList.length > 0) {
-          return rawList.map((cat: any) => ({
-            id: String(cat.id || cat._id || ''),
-            _id: String(cat._id || cat.id || ''),
-            name: cat.name,
-            slug: cat.slug,
-            parent: cat.parent ? String(cat.parent) : null,
-            parentId: cat.parentId ? String(cat.parentId) : null,
-            children: cat.children || [],
-          }));
+          return normalizeCategoryTree(rawList);
         }
       } catch {
         // Fallback to /admin/categories
@@ -118,15 +187,7 @@ export default function ProductsPage() {
           const raw2 = res2.data?.data?.categories || res2.data?.data || res2.data || [];
           const rawList2 = Array.isArray(raw2) ? raw2 : [];
           if (rawList2.length > 0) {
-            return rawList2.map((cat: any) => ({
-              id: String(cat.id || cat._id || ''),
-              _id: String(cat._id || cat.id || ''),
-              name: cat.name,
-              slug: cat.slug,
-              parent: cat.parent ? String(cat.parent) : null,
-              parentId: cat.parentId ? String(cat.parentId) : null,
-              children: cat.children || [],
-            }));
+            return normalizeCategoryTree(rawList2);
           }
         } catch {
           // Fall through to default categories
@@ -134,7 +195,7 @@ export default function ProductsPage() {
       }
       return DEFAULT_CATEGORIES;
     },
-    initialData: DEFAULT_CATEGORIES,
+    placeholderData: DEFAULT_CATEGORIES,
   });
 
   const categories = rawCategories && rawCategories.length > 0 ? rawCategories : DEFAULT_CATEGORIES;
@@ -146,10 +207,25 @@ export default function ProductsPage() {
         throw new Error('Please select a Category / Department.');
       }
 
-      const mrpPaise = Math.round(Number(form.mrp) * 100);
-      const sellingPaise = Math.round(Number(form.sellingPrice) * 100);
-      const inwardPaise = Math.round(Number(form.inwardPrice) * 100);
-      const dealPaise = form.dealPrice ? Math.round(Number(form.dealPrice) * 100) : null;
+      if (!form.mrp.trim() || !form.sellingPrice.trim() || !form.inwardPrice.trim()) {
+        throw new Error('Please enter valid numeric values for MRP, Selling Price, and Inward Cost Price.');
+      }
+
+      const mrpNum = Number(form.mrp);
+      const sellingNum = Number(form.sellingPrice);
+      const inwardNum = Number(form.inwardPrice);
+      const dealNum = form.dealPrice.trim() ? Number(form.dealPrice) : null;
+      const stockNum = form.stock.trim() ? parseInt(form.stock, 10) : 0;
+      const thresholdNum = form.lowStockThreshold.trim() ? parseInt(form.lowStockThreshold, 10) : 5;
+
+      if ([mrpNum, sellingNum, inwardNum].some((n) => Number.isNaN(n) || n < 0)) {
+        throw new Error('Prices must be valid non-negative numbers.');
+      }
+
+      const mrpPaise = Math.round(mrpNum * 100);
+      const sellingPaise = Math.round(sellingNum * 100);
+      const inwardPaise = Math.round(inwardNum * 100);
+      const dealPaise = dealNum !== null && !Number.isNaN(dealNum) ? Math.round(dealNum * 100) : null;
 
       if (inwardPaise > sellingPaise) {
         throw new Error('Inward Price cannot exceed Selling Price (negative margin).');
@@ -161,6 +237,10 @@ export default function ProductsPage() {
         throw new Error('Deal Price must be lower than Selling Price.');
       }
 
+      const netQuantity = form.netQtyValue.trim()
+        ? `${form.netQtyValue.trim()} ${form.netQtyUnit}`.trim()
+        : null;
+
       const payload = {
         name: form.name,
         sku: form.sku.toUpperCase(),
@@ -168,6 +248,7 @@ export default function ProductsPage() {
         category: targetCategory,
         subcategory: form.subcategoryId || null,
         subcategoryId: form.subcategoryId || null,
+        netQuantity,
         shortDescription: form.shortDescription,
         longDescription: form.longDescription,
         pricing: {
@@ -184,8 +265,8 @@ export default function ProductsPage() {
             }
             : null,
         },
-        stock: Number(form.stock),
-        lowStockThreshold: Number(form.lowStockThreshold),
+        stock: Number.isNaN(stockNum) ? 0 : stockNum,
+        lowStockThreshold: Number.isNaN(thresholdNum) ? 5 : thresholdNum,
         status: form.status,
         isPublished: form.isPublished,
         isFeatured: form.isFeatured,
@@ -290,14 +371,16 @@ export default function ProductsPage() {
       brand: '',
       category: defaultCatId,
       subcategoryId: '',
+      netQtyValue: '',
+      netQtyUnit: 'ml',
       shortDescription: '',
       longDescription: '',
-      mrp: 2999,
-      sellingPrice: 2299,
+      mrp: '2999',
+      sellingPrice: '2299',
       dealPrice: '',
-      inwardPrice: 1400,
-      stock: 50,
-      lowStockThreshold: 5,
+      inwardPrice: '1400',
+      stock: '50',
+      lowStockThreshold: '5',
       status: 'active',
       isPublished: true,
       isFeatured: false,
@@ -309,7 +392,30 @@ export default function ProductsPage() {
 
   const openEditDialog = (p: AdminProduct) => {
     setEditingProduct(p);
-    const catId = (p as any).category?._id || (p as any).category?.id || p.categoryId || (p as any).category || '';
+    let resolvedCatId = String((p as any).category?._id || (p as any).category?.id || p.categoryId || (p as any).category || '');
+    let resolvedSubcatId =
+      p.subcategoryId ||
+      (typeof (p as any).subcategory === 'object'
+        ? (p as any).subcategory?._id || (p as any).subcategory?.id
+        : (p as any).subcategory) ||
+      '';
+
+    // If an older record had a subcategory in `category`, resolve it to its parent root category
+    const isRoot = categories.some((c: any) => (c.id || c._id) === resolvedCatId);
+    if (!isRoot && resolvedCatId) {
+      for (const rootCat of categories) {
+        const matchSub = (rootCat.children || []).find((sc: any) => (sc.id || sc._id) === resolvedCatId);
+        if (matchSub) {
+          if (!resolvedSubcatId) {
+            resolvedSubcatId = matchSub.id || matchSub._id;
+          }
+          resolvedCatId = rootCat.id || rootCat._id;
+          break;
+        }
+      }
+    }
+
+    const parsedNetQty = parseNetQuantity(p.netQuantity);
     const initialImages: ProductImageItem[] = (p.images || []).map((img, idx) => ({
       id: img.id || `img_${idx}`,
       url: img.url,
@@ -322,21 +428,18 @@ export default function ProductsPage() {
       name: p.name,
       sku: p.sku,
       brand: p.brand || '',
-      category: String(catId),
-      subcategoryId:
-        p.subcategoryId ||
-        (typeof (p as any).subcategory === 'object'
-          ? (p as any).subcategory?._id || (p as any).subcategory?.id
-          : (p as any).subcategory) ||
-        '',
+      category: resolvedCatId,
+      subcategoryId: String(resolvedSubcatId || ''),
+      netQtyValue: parsedNetQty.value,
+      netQtyUnit: parsedNetQty.unit,
       shortDescription: p.shortDescription || '',
       longDescription: p.longDescription || '',
-      mrp: ((p.pricing?.mrp ?? 0) / 100),
-      sellingPrice: ((p.pricing?.sellingPrice ?? 0) / 100),
+      mrp: String((p.pricing?.mrp ?? 0) / 100),
+      sellingPrice: String((p.pricing?.sellingPrice ?? 0) / 100),
       dealPrice: p.pricing?.dealPrice ? String(p.pricing.dealPrice / 100) : '',
-      inwardPrice: ((p.pricing?.inwardPrice ?? 0) / 100),
-      stock: p.stock,
-      lowStockThreshold: p.lowStockThreshold || 5,
+      inwardPrice: String((p.pricing?.inwardPrice ?? 0) / 100),
+      stock: String(p.stock ?? 0),
+      lowStockThreshold: String(p.lowStockThreshold || 5),
       status: p.status || (p.isPublished ? 'active' : 'inactive'),
       isPublished: p.isPublished ?? (p.status === 'active'),
       isFeatured: Boolean(p.isFeatured),
@@ -368,10 +471,12 @@ export default function ProductsPage() {
     );
   }) || [];
 
-  const computedMargin = form.sellingPrice > 0
-    ? (((form.sellingPrice - form.inwardPrice) / form.sellingPrice) * 100).toFixed(1)
+  const sellingNum = Number(form.sellingPrice) || 0;
+  const inwardNum = Number(form.inwardPrice) || 0;
+  const computedMargin = sellingNum > 0
+    ? (((sellingNum - inwardNum) / sellingNum) * 100).toFixed(1)
     : '0';
-  const computedProfit = Math.max(0, form.sellingPrice - form.inwardPrice);
+  const computedProfit = Math.max(0, sellingNum - inwardNum);
   const currentSponsor = productsData?.items?.find((p) => p.isFeatured);
 
   return (
@@ -557,6 +662,11 @@ export default function ProductsPage() {
                             {product.brand && (
                               <Typography variant="caption" sx={{ color: '#2563eb', fontWeight: 700, display: 'block' }}>
                                 {product.brand}
+                              </Typography>
+                            )}
+                            {product.netQuantity && (
+                              <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 700, display: 'block', fontSize: '0.7rem' }}>
+                                Net Qty: {product.netQuantity}
                               </Typography>
                             )}
                           </Box>
@@ -846,6 +956,36 @@ export default function ProductsPage() {
               </TextField>
             </Grid>
 
+            <Grid item xs={12} sm={6}>
+              <Box sx={{ display: 'flex', gap: 1 }}>
+                <TextField
+                  label="Net Quantity"
+                  type="text"
+                  fullWidth
+                  size="small"
+                  placeholder="e.g. 200, 500, 1.5"
+                  value={form.netQtyValue}
+                  onChange={(e) => setForm({ ...form, netQtyValue: sanitizeDecimalInput(e.target.value) })}
+                  inputProps={{ inputMode: 'decimal' }}
+                  helperText="Weight / volume / pack count (e.g. 200 ml, 1 kg, 500 g)"
+                />
+                <TextField
+                  select
+                  label="Unit"
+                  size="small"
+                  value={form.netQtyUnit}
+                  onChange={(e) => setForm({ ...form, netQtyUnit: e.target.value })}
+                  sx={{ minWidth: 105 }}
+                >
+                  {NET_QUANTITY_UNITS.map((u) => (
+                    <MenuItem key={u} value={u}>
+                      {u}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </Box>
+            </Grid>
+
             {/* 4-Tier Pricing Configuration */}
             <Grid item xs={12}>
               <Paper elevation={0} sx={{ p: 2.5, bgcolor: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
@@ -865,47 +1005,51 @@ export default function ProductsPage() {
                   <Grid item xs={6} sm={3}>
                     <TextField
                       label="MRP (₹)"
-                      type="number"
+                      type="text"
                       required
                       fullWidth
                       size="small"
                       value={form.mrp}
-                      onChange={(e) => setForm({ ...form, mrp: Number(e.target.value) })}
+                      onChange={(e) => setForm({ ...form, mrp: sanitizeDecimalInput(e.target.value) })}
+                      inputProps={{ inputMode: 'decimal' }}
                       helperText="Maximum Retail Price"
                     />
                   </Grid>
                   <Grid item xs={6} sm={3}>
                     <TextField
                       label="Selling Price (₹)"
-                      type="number"
+                      type="text"
                       required
                       fullWidth
                       size="small"
                       value={form.sellingPrice}
-                      onChange={(e) => setForm({ ...form, sellingPrice: Number(e.target.value) })}
+                      onChange={(e) => setForm({ ...form, sellingPrice: sanitizeDecimalInput(e.target.value) })}
+                      inputProps={{ inputMode: 'decimal' }}
                       helperText="Customer Selling Price"
                     />
                   </Grid>
                   <Grid item xs={6} sm={3}>
                     <TextField
                       label="Deal Price (₹, optional)"
-                      type="number"
+                      type="text"
                       fullWidth
                       size="small"
                       value={form.dealPrice}
-                      onChange={(e) => setForm({ ...form, dealPrice: e.target.value })}
+                      onChange={(e) => setForm({ ...form, dealPrice: sanitizeDecimalInput(e.target.value) })}
+                      inputProps={{ inputMode: 'decimal' }}
                       helperText="Promo Flash Deal"
                     />
                   </Grid>
                   <Grid item xs={6} sm={3}>
                     <TextField
                       label="Inward Cost Price (₹)"
-                      type="number"
+                      type="text"
                       required
                       fullWidth
                       size="small"
                       value={form.inwardPrice}
-                      onChange={(e) => setForm({ ...form, inwardPrice: Number(e.target.value) })}
+                      onChange={(e) => setForm({ ...form, inwardPrice: sanitizeDecimalInput(e.target.value) })}
+                      inputProps={{ inputMode: 'decimal' }}
                       helperText="Seller Supplier Cost"
                     />
                   </Grid>
@@ -917,21 +1061,23 @@ export default function ProductsPage() {
             <Grid item xs={12} sm={6}>
               <TextField
                 label="Stock Quantity"
-                type="number"
+                type="text"
                 fullWidth
                 size="small"
                 value={form.stock}
-                onChange={(e) => setForm({ ...form, stock: Number(e.target.value) })}
+                onChange={(e) => setForm({ ...form, stock: sanitizeIntegerInput(e.target.value) })}
+                inputProps={{ inputMode: 'numeric' }}
               />
             </Grid>
             <Grid item xs={12} sm={6}>
               <TextField
                 label="Low Stock Threshold"
-                type="number"
+                type="text"
                 fullWidth
                 size="small"
                 value={form.lowStockThreshold}
-                onChange={(e) => setForm({ ...form, lowStockThreshold: Number(e.target.value) })}
+                onChange={(e) => setForm({ ...form, lowStockThreshold: sanitizeIntegerInput(e.target.value) })}
+                inputProps={{ inputMode: 'numeric' }}
               />
             </Grid>
 

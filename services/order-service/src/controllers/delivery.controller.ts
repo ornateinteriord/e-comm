@@ -8,14 +8,19 @@ import {
 } from '../models/delivery-assignment.model.js';
 import {
   ACTIVE_DELIVERY_STATUSES,
+  DEFAULT_PICKUP_GEOFENCE_METERS,
   calculateHaversineKm,
   calculatePartnerPayoutPaise,
   canTransitionDelivery,
+  formatDropAreaLabel,
   generateDeliveryOtp,
   isDeliveryAssignmentStatus,
+  maskDropLocationUntilPickup,
   nextDeliveryStatuses,
   resolveCodDetails,
+  validateStopGeofence,
 } from '../domain/delivery-lifecycle.js';
+import { geocodeStopLocation } from '../utils/geocode.js';
 import { canTransitionOrder } from '../domain/order-lifecycle.js';
 import { distributeOrderCommissions } from '../utils/commission.js';
 import { triggerInvoiceGeneration } from './order.controller.js';
@@ -166,7 +171,10 @@ function ensurePartnerReadyForDispatch(partner: PartnerDoc, res: Response): bool
   return true;
 }
 
-async function resolvePickupLocationForOrder(order: IOrder): Promise<DeliveryStopLocation> {
+async function resolvePickupLocationForOrder(
+  order: IOrder,
+  options: { geocode?: boolean } = {},
+): Promise<DeliveryStopLocation> {
   const firstSellerId =
     order.items.find((it) => it.sellerId || it.storeId)?.sellerId ||
     order.items[0]?.storeId;
@@ -189,7 +197,7 @@ async function resolvePickupLocationForOrder(order: IOrder): Promise<DeliverySto
     }
   }
 
-  return {
+  const stop: DeliveryStopLocation = {
     name: sellerDoc?.name || sellerDoc?.ownerName || process.env.SELLER_NAME || 'E-Shopy Fulfillment Hub',
     phone: sellerDoc?.mobileNumber || process.env.SELLER_PHONE || '9876543210',
     line1: sellerDoc?.address?.line1 || process.env.SELLER_ADDRESS || '42 Industrial Area, Sector 5',
@@ -200,10 +208,24 @@ async function resolvePickupLocationForOrder(order: IOrder): Promise<DeliverySto
     lat: typeof sellerDoc?.location?.lat === 'number' ? sellerDoc.location.lat : undefined,
     lng: typeof sellerDoc?.location?.lng === 'number' ? sellerDoc.location.lng : undefined,
   };
+
+  if (options.geocode && (typeof stop.lat !== 'number' || typeof stop.lng !== 'number')) {
+    const resolved = await geocodeStopLocation(stop);
+    if (resolved) {
+      stop.lat = resolved.lat;
+      stop.lng = resolved.lng;
+    }
+  }
+
+  return stop;
 }
 
-function buildDropLocationForOrder(order: IOrder): DeliveryStopLocation {
-  return {
+async function buildDropLocationForOrder(
+  order: IOrder,
+  options: { geocode?: boolean } = {},
+): Promise<DeliveryStopLocation> {
+  const shipping = order.shippingAddress as unknown as Record<string, unknown> | undefined;
+  const stop: DeliveryStopLocation = {
     name: order.shippingAddress?.name || order.customerName || 'Customer',
     phone: order.shippingAddress?.phone || '9999999999',
     line1: order.shippingAddress?.line1 || 'Customer Address',
@@ -211,7 +233,42 @@ function buildDropLocationForOrder(order: IOrder): DeliveryStopLocation {
     city: order.shippingAddress?.city || '',
     state: order.shippingAddress?.state || '',
     pincode: order.shippingAddress?.pincode || '',
+    lat: typeof shipping?.lat === 'number' ? shipping.lat : undefined,
+    lng: typeof shipping?.lng === 'number' ? shipping.lng : undefined,
   };
+
+  if (options.geocode && (typeof stop.lat !== 'number' || typeof stop.lng !== 'number')) {
+    const resolved = await geocodeStopLocation(stop);
+    if (resolved) {
+      stop.lat = resolved.lat;
+      stop.lng = resolved.lng;
+    }
+  }
+
+  return stop;
+}
+
+async function ensureAssignmentStopCoords(assignment: IDeliveryAssignment): Promise<void> {
+  let modified = false;
+  if (typeof assignment.pickupLocation?.lat !== 'number' || typeof assignment.pickupLocation?.lng !== 'number') {
+    const pCoords = await geocodeStopLocation(assignment.pickupLocation || {});
+    if (pCoords) {
+      assignment.pickupLocation.lat = pCoords.lat;
+      assignment.pickupLocation.lng = pCoords.lng;
+      modified = true;
+    }
+  }
+  if (typeof assignment.dropLocation?.lat !== 'number' || typeof assignment.dropLocation?.lng !== 'number') {
+    const dCoords = await geocodeStopLocation(assignment.dropLocation || {});
+    if (dCoords) {
+      assignment.dropLocation.lat = dCoords.lat;
+      assignment.dropLocation.lng = dCoords.lng;
+      modified = true;
+    }
+  }
+  if (modified) {
+    await assignment.save();
+  }
 }
 
 function buildOrderDeliverySnapshot(assignment: IDeliveryAssignment): OrderDeliveryDetails {
@@ -305,8 +362,8 @@ async function createAssignmentForOrder(params: {
     throw err;
   }
 
-  const pickupLocation = await resolvePickupLocationForOrder(order);
-  const dropLocation = buildDropLocationForOrder(order);
+  const pickupLocation = await resolvePickupLocationForOrder(order, { geocode: true });
+  const dropLocation = await buildDropLocationForOrder(order, { geocode: true });
   const distanceKm = calculateHaversineKm(
     partner.currentLocation?.lat,
     partner.currentLocation?.lng,
@@ -432,7 +489,7 @@ export async function getAvailableOrdersForDelivery(
     const items = await Promise.all(
       candidateOrders.map(async (order) => {
         const pickupLocation = await resolvePickupLocationForOrder(order);
-        const dropLocation = buildDropLocationForOrder(order);
+        const dropLocation = await buildDropLocationForOrder(order);
         const distanceKm = calculateHaversineKm(
           partner.currentLocation?.lat,
           partner.currentLocation?.lng,
@@ -463,7 +520,9 @@ export async function getAvailableOrdersForDelivery(
             image: it.image,
           })),
           pickupLocation,
-          dropLocation,
+          dropLocation: maskDropLocationUntilPickup(dropLocation),
+          isDropLocked: true,
+          dropAreaLabel: formatDropAreaLabel(dropLocation),
         };
       }),
     );
@@ -610,6 +669,7 @@ export async function getMyAssignmentById(
       return;
     }
 
+    await ensureAssignmentStopCoords(assignment);
     res.json({ success: true, data: sanitizeAssignmentForPartner(assignment) });
   } catch (err) {
     next(err);
@@ -795,6 +855,49 @@ export async function updateDeliveryProgress(
       return;
     }
 
+    await ensureAssignmentStopCoords(assignment);
+
+    const parsedLat = typeof lat === 'number' && !Number.isNaN(lat) ? lat : undefined;
+    const parsedLng = typeof lng === 'number' && !Number.isNaN(lng) ? lng : undefined;
+    const radiusEnv = Number(
+      status === 'arrived_customer'
+        ? process.env.DELIVERY_CUSTOMER_RADIUS_METERS ?? process.env.DELIVERY_PICKUP_RADIUS_METERS
+        : process.env.DELIVERY_PICKUP_RADIUS_METERS,
+    );
+    const maxRadiusMeters =
+      Number.isFinite(radiusEnv) && radiusEnv > 0
+        ? radiusEnv
+        : DEFAULT_PICKUP_GEOFENCE_METERS;
+
+    const geofenceCheck = validateStopGeofence({
+      status,
+      riderLat: parsedLat,
+      riderLng: parsedLng,
+      pickupLat: assignment.pickupLocation?.lat,
+      pickupLng: assignment.pickupLocation?.lng,
+      pickupName: assignment.pickupLocation?.name,
+      pickupLine1: assignment.pickupLocation?.line1,
+      dropLat: assignment.dropLocation?.lat,
+      dropLng: assignment.dropLocation?.lng,
+      dropName: assignment.dropLocation?.name,
+      dropLine1: assignment.dropLocation?.line1,
+      maxRadiusMeters,
+    });
+    if (!geofenceCheck.ok) {
+      res.status(422).json({
+        success: false,
+        error: {
+          code: geofenceCheck.code,
+          message: geofenceCheck.message,
+          details: {
+            distanceMeters: geofenceCheck.distanceMeters,
+            maxRadiusMeters: geofenceCheck.maxRadiusMeters,
+          },
+        },
+      });
+      return;
+    }
+
     if (status === 'failed' && !String(reason || note || '').trim()) {
       res.status(422).json({
         success: false,
@@ -961,6 +1064,44 @@ export async function completeDeliveryWithPod(
           code: 'INVALID_TRANSITION',
           message: `Cannot complete delivery from '${assignment.status}' status. Pick up the order first.`,
           details: { allowed: nextDeliveryStatuses(assignment.status) },
+        },
+      });
+      return;
+    }
+
+    await ensureAssignmentStopCoords(assignment);
+    const parsedLat = typeof lat === 'number' && !Number.isNaN(lat) ? lat : undefined;
+    const parsedLng = typeof lng === 'number' && !Number.isNaN(lng) ? lng : undefined;
+    const customerRadiusEnv = Number(
+      process.env.DELIVERY_CUSTOMER_RADIUS_METERS ?? process.env.DELIVERY_PICKUP_RADIUS_METERS,
+    );
+    const customerGeofence = validateStopGeofence({
+      status: 'delivered',
+      riderLat: parsedLat,
+      riderLng: parsedLng,
+      pickupLat: assignment.pickupLocation?.lat,
+      pickupLng: assignment.pickupLocation?.lng,
+      pickupName: assignment.pickupLocation?.name,
+      pickupLine1: assignment.pickupLocation?.line1,
+      dropLat: assignment.dropLocation?.lat,
+      dropLng: assignment.dropLocation?.lng,
+      dropName: assignment.dropLocation?.name,
+      dropLine1: assignment.dropLocation?.line1,
+      maxRadiusMeters:
+        Number.isFinite(customerRadiusEnv) && customerRadiusEnv > 0
+          ? customerRadiusEnv
+          : DEFAULT_PICKUP_GEOFENCE_METERS,
+    });
+    if (!customerGeofence.ok) {
+      res.status(422).json({
+        success: false,
+        error: {
+          code: customerGeofence.code,
+          message: customerGeofence.message,
+          details: {
+            distanceMeters: customerGeofence.distanceMeters,
+            maxRadiusMeters: customerGeofence.maxRadiusMeters,
+          },
         },
       });
       return;
@@ -1383,6 +1524,402 @@ export async function adminListDeliveryAssignments(
 
     const items = await DeliveryAssignment.find(filter).sort({ createdAt: -1 }).limit(100);
     res.json({ success: true, data: { items: items.map((i) => i.toJSON()) } });
+  } catch (err) {
+    next(err);
+  }
+}
+
+function getProductDb() {
+  const conn = mongoose.connection as unknown as {
+    getClient?: () => { db: (name: string) => mongoose.mongo.Db };
+    client?: { db: (name: string) => mongoose.mongo.Db };
+    useDb: (name: string) => { db?: mongoose.mongo.Db };
+  };
+  const dbName = process.env.PRODUCT_DB_NAME ?? 'ornate_products';
+  const client = typeof conn.getClient === 'function' ? conn.getClient() : conn.client;
+  return client ? client.db(dbName) : conn.useDb(dbName).db!;
+}
+
+const DEFAULT_RIDER_TEST_SLUG =
+  'cubegrid-9-cubby-modular-toy-and-file-organizer-frn-str-004';
+
+async function resolveTestProductDoc(slug?: string) {
+  const productDb = getProductDb();
+  const cleanSlug = (slug || DEFAULT_RIDER_TEST_SLUG).trim();
+  const bySlug = await productDb.collection('products').findOne({ slug: cleanSlug });
+  if (bySlug) return bySlug;
+
+  // Allow matching by trailing SKU fragment (e.g., FRN-STR-004) if slug differs slightly
+  const maybeSku = cleanSlug.split('-').slice(-3).join('-').toUpperCase();
+  if (maybeSku) {
+    const bySku = await productDb.collection('products').findOne({ sku: maybeSku });
+    if (bySku) return bySku;
+  }
+  return null;
+}
+
+async function resolveApprovedStoreForProduct(product: Record<string, any>) {
+  const authDb = getAuthDb();
+  const storesCol = authDb.collection('stores');
+
+  const sellerOrStoreId = product.sellerId || product.storeId;
+  let storeDoc: Record<string, any> | null = null;
+
+  if (sellerOrStoreId) {
+    storeDoc = await storesCol.findOne({
+      $or: [
+        { sellerId: sellerOrStoreId },
+        { storeId: sellerOrStoreId },
+        ...(mongoose.Types.ObjectId.isValid(String(sellerOrStoreId))
+          ? [{ _id: new mongoose.Types.ObjectId(String(sellerOrStoreId)) }]
+          : []),
+      ],
+    });
+  }
+
+  if (!storeDoc && product.subcategoryId) {
+    storeDoc = await storesCol.findOne({ subcategoryId: String(product.subcategoryId) });
+  }
+  if (!storeDoc && product.category) {
+    storeDoc = await storesCol.findOne({ categoryId: String(product.category) });
+  }
+  if (!storeDoc) {
+    storeDoc = await storesCol.findOne({}, { sort: { isActive: -1, createdAt: 1 } });
+  }
+
+  if (storeDoc && (storeDoc.status !== 'active' || !storeDoc.isActive)) {
+    await storesCol.updateOne(
+      { _id: storeDoc._id },
+      { $set: { status: 'active', isActive: true, updatedAt: new Date() } },
+    );
+    storeDoc = { ...storeDoc, status: 'active', isActive: true };
+  }
+
+  return storeDoc;
+}
+
+/**
+ * GET /api/v1/admin/delivery/rider-test/context
+ * Returns product preview, resolved store status, eligible riders, and recent assignments for quick rider testing.
+ */
+export async function getAdminRiderTestContext(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const slug = String(req.query.slug || DEFAULT_RIDER_TEST_SLUG).trim();
+    const product = await resolveTestProductDoc(slug);
+    const store = product ? await resolveApprovedStoreForProduct(product) : null;
+
+    const authDb = getAuthDb();
+    const rawPartners = await authDb
+      .collection('delivery_partners')
+      .find({})
+      .sort({ availabilityStatus: -1, lastActiveAt: -1, createdAt: -1 })
+      .toArray();
+
+    const partners = (rawPartners as PartnerDoc[]).map((p) => ({
+      id: String(p._id),
+      partnerId: p.partnerId,
+      name: p.name,
+      mobileNumber: p.mobileNumber,
+      city: p.city || 'Bengaluru',
+      pincode: p.pincode || '560001',
+      status: p.status,
+      isActive: Boolean(p.isActive),
+      kycStatus: p.kycStatus || 'unverified',
+      availabilityStatus: p.availabilityStatus || 'offline',
+      currentLocation: p.currentLocation || null,
+    }));
+
+    // Rank: active + verified + online > active + verified > active > rest
+    partners.sort((a, b) => {
+      const score = (p: (typeof partners)[number]) =>
+        (p.availabilityStatus === 'online' ? 100 : p.availabilityStatus === 'on_delivery' ? 40 : 0) +
+        (p.kycStatus === 'verified' ? 20 : 0) +
+        (p.status === 'active' && p.isActive ? 10 : 0);
+      return score(b) - score(a);
+    });
+
+    const recentAssignments = await DeliveryAssignment.find({})
+      .sort({ createdAt: -1 })
+      .limit(8);
+
+    res.json({
+      success: true,
+      data: {
+        slug,
+        product: product
+          ? {
+              id: String(product._id),
+              name: product.name,
+              slug: product.slug,
+              sku: product.sku,
+              stock: product.stock ?? 0,
+              status: product.status,
+              isPublished: Boolean(product.isPublished),
+              sellerId: product.sellerId || product.storeId || store?.sellerId || null,
+              sellerName: product.sellerName || product.storeName || store?.name || null,
+              image: product.images?.[0]?.url || '',
+              pricing: product.pricing || {},
+            }
+          : null,
+        store: store
+          ? {
+              id: String(store._id),
+              sellerId: store.sellerId || store.storeId,
+              name: store.name,
+              ownerName: store.ownerName,
+              status: store.status,
+              isActive: Boolean(store.isActive),
+              city: store.address?.city || 'Bengaluru',
+              pincode: store.address?.pincode || '560001',
+            }
+          : null,
+        partners,
+        recentAssignments: recentAssignments.map((a) => a.toJSON()),
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * POST /api/v1/admin/delivery/rider-test/assign
+ * Creates an already-paid, store-accepted, packed order for the CubeGrid product and assigns it to a rider immediately.
+ */
+export async function adminCreateAndAssignTestOrder(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const slug = String(req.body?.productSlug || DEFAULT_RIDER_TEST_SLUG).trim();
+    const requestedPartnerId = String(req.body?.partnerId || '').trim();
+    const quantity = Math.max(1, Math.min(5, Number(req.body?.quantity || 1)));
+
+    const product = await resolveTestProductDoc(slug);
+    if (!product) {
+      res.status(404).json({
+        success: false,
+        error: {
+          code: 'PRODUCT_NOT_FOUND',
+          message: `Product "${slug}" was not found in ornate_products.`,
+        },
+      });
+      return;
+    }
+
+    const productDb = getProductDb();
+    if (product.status !== 'active' || !product.isPublished || (product.stock ?? 0) < quantity) {
+      await productDb.collection('products').updateOne(
+        { _id: product._id },
+        {
+          $set: {
+            status: 'active',
+            isPublished: true,
+            stock: Math.max(Number(product.stock || 0), 25),
+            updatedAt: new Date(),
+          },
+        },
+      );
+    }
+
+    const store = await resolveApprovedStoreForProduct(product);
+    const resolvedSellerId =
+      store?.sellerId || store?.storeId || product.sellerId || product.storeId || 'SLR-TEST-001';
+    const resolvedSellerName =
+      store?.name || product.sellerName || product.storeName || process.env.SELLER_NAME || 'E-Shopy Fulfillment Hub';
+
+    // Keep product linked to the resolved approved store if unassigned
+    if (!product.sellerId && store) {
+      await productDb.collection('products').updateOne(
+        { _id: product._id },
+        {
+          $set: {
+            sellerId: resolvedSellerId,
+            sellerName: resolvedSellerName,
+            storeId: resolvedSellerId,
+            storeName: resolvedSellerName,
+            assignmentStatus: 'assigned',
+          },
+        },
+      );
+    }
+
+    const authDb = getAuthDb();
+    const partnersCol = authDb.collection('delivery_partners');
+    let partner: PartnerDoc | null = null;
+
+    if (requestedPartnerId) {
+      partner = (await partnersCol.findOne({
+        $or: [
+          { partnerId: requestedPartnerId },
+          ...(mongoose.Types.ObjectId.isValid(requestedPartnerId)
+            ? [{ _id: new mongoose.Types.ObjectId(requestedPartnerId) }]
+            : []),
+        ],
+      })) as PartnerDoc | null;
+    } else {
+      partner = (await partnersCol.findOne(
+        { status: 'active', isActive: true, kycStatus: 'verified', availabilityStatus: 'online' },
+        { sort: { lastActiveAt: -1 } },
+      )) as PartnerDoc | null;
+
+      if (!partner) {
+        partner = (await partnersCol.findOne(
+          { status: 'active', isActive: true, kycStatus: 'verified' },
+          { sort: { lastActiveAt: -1 } },
+        )) as PartnerDoc | null;
+      }
+
+      if (!partner) {
+        partner = (await partnersCol.findOne({}, { sort: { lastActiveAt: -1, createdAt: 1 } })) as PartnerDoc | null;
+      }
+    }
+
+    if (!partner) {
+      res.status(404).json({
+        success: false,
+        error: {
+          code: 'NO_DELIVERY_PARTNER',
+          message: 'No delivery partner account exists yet. Register a rider in the Delivery App first.',
+        },
+      });
+      return;
+    }
+
+    // Ensure partner is approved/verified so assignment test works smoothly without KYC/status blocks
+    const partnerFix: Record<string, unknown> = {};
+    if (partner.status !== 'active' || !partner.isActive) {
+      partnerFix.status = 'active';
+      partnerFix.isActive = true;
+    }
+    if (partner.kycStatus !== 'verified') {
+      partnerFix.kycStatus = 'verified';
+      partnerFix.kycVerifiedAt = new Date();
+    }
+    if (Object.keys(partnerFix).length > 0) {
+      await partnersCol.updateOne({ _id: partner._id }, { $set: partnerFix });
+      partner = { ...partner, ...partnerFix } as PartnerDoc;
+    }
+
+    const customer = await authDb.collection('customers').findOne({}, { sort: { createdAt: -1 } });
+    const customerId = customer ? String(customer._id) : 'test_customer_rider_dispatch';
+    const customerName = customer?.name || customer?.fullName || 'Test Customer';
+    const customerEmail = customer?.email || 'testcustomer@eshopy.biz';
+    const customerPhone = customer?.mobileNumber || customer?.phone || '9876543210';
+
+    const shippingAddress = {
+      name: customerName,
+      phone: customerPhone,
+      line1: customer?.address?.line1 || '100 Feet Road, Indiranagar',
+      line2: customer?.address?.line2 || 'Near Metro Station',
+      city: customer?.city || store?.address?.city || 'Bengaluru',
+      state: customer?.state || store?.address?.state || 'Karnataka',
+      pincode: customer?.pincode || '560038',
+      country: 'India',
+    };
+
+    const rawPricing = product.pricing || {};
+    const dealActive = Boolean(rawPricing.deal?.isActive && rawPricing.dealPrice);
+    const unitSelling = Number(rawPricing.sellingPrice ?? rawPricing.mrp ?? 199900);
+    const unitMrp = Number(rawPricing.mrp ?? unitSelling);
+    const unitApplicable = Number(dealActive ? rawPricing.dealPrice : unitSelling);
+    const discountPerUnit = Math.max(0, unitMrp - unitApplicable);
+    const lineTotal = unitApplicable * quantity;
+    const taxAmount = Math.round((lineTotal * 0.18) / 1.18);
+    const now = new Date();
+
+    const orderNumber = `ORD-${Date.now().toString().slice(-6)}-${Math.floor(1000 + Math.random() * 9000)}`;
+    const order = await Order.create({
+      orderNumber,
+      userId: customerId,
+      customerEmail,
+      customerName,
+      shippingAddress,
+      billingAddress: shippingAddress,
+      items: [
+        {
+          productId: String(product._id),
+          variantId: null,
+          name: product.name,
+          sku: product.sku || 'FRN-STR-004',
+          image: product.images?.[0]?.url || '',
+          categoryId: product.category ? String(product.category) : undefined,
+          categoryName: product.categoryName || 'Furniture',
+          subcategoryId: product.subcategoryId || undefined,
+          subcategoryName: product.subcategoryName || undefined,
+          sellerId: resolvedSellerId,
+          sellerName: resolvedSellerName,
+          storeId: resolvedSellerId,
+          storeName: resolvedSellerName,
+          itemStatus: 'packed',
+          sellerAcceptanceStatus: 'accepted',
+          sellerAcceptedAt: now.toISOString(),
+          quantity,
+          unitMrp,
+          unitSellingPrice: unitSelling,
+          unitApplicablePrice: unitApplicable,
+          discount: discountPerUnit,
+          taxRate: 18,
+          taxAmount,
+          lineTotal,
+        },
+      ],
+      pricing: {
+        subtotal: lineTotal,
+        couponDiscount: 0,
+        shippingCharge: 0,
+        tax: taxAmount,
+        grandTotal: lineTotal,
+        walletAmountPaid: 0,
+        gatewayAmount: lineTotal,
+      },
+      paymentStatus: 'paid',
+      fulfilmentStatus: 'packed',
+      sellerAcceptanceStatus: 'accepted',
+      sellerAcceptedAt: now,
+      paymentMethod: 'Razorpay (Admin Rider Test)',
+      paymentReference: `PAY-TEST-${Date.now().toString().slice(-8)}`,
+      statusHistory: [
+        {
+          status: 'confirmed',
+          changedBy: req.user?.email || 'Admin Rider Test',
+          changedAt: now.toISOString(),
+          note: 'Test order payment approved (paid).',
+        },
+        {
+          status: 'packed',
+          changedBy: `${resolvedSellerName} (${resolvedSellerId})`,
+          changedAt: now.toISOString(),
+          note: 'Store approved, packed, and marked ready for rider pickup.',
+        },
+      ],
+    });
+
+    const assignment = await createAssignmentForOrder({
+      order,
+      partner,
+      mode: 'admin_assigned',
+      actorLabel: req.user?.email || 'Admin Rider Test',
+    });
+
+    res.status(201).json({
+      success: true,
+      data: {
+        order,
+        assignment: assignment.toJSON(),
+        partner: {
+          partnerId: partner.partnerId,
+          name: partner.name,
+          availabilityStatus: partner.availabilityStatus,
+        },
+      },
+      message: `Test order #${order.orderNumber} assigned to ${partner.name} (${partner.partnerId}).`,
+    });
   } catch (err) {
     next(err);
   }

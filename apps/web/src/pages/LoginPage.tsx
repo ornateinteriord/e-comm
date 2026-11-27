@@ -23,6 +23,7 @@ import {
 } from '@mui/icons-material';
 import { useAuthStore } from '../store/auth.store';
 import api from '../api/client';
+import PageBreadcrumbs from '../components/PageBreadcrumbs';
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -78,7 +79,7 @@ export default function LoginPage() {
         setError('Admin and staff accounts must log in via the Admin Portal, not the web storefront.');
         return;
       }
-      setAuth(data.data.accessToken, loggedUser);
+      setAuth(data.data.accessToken, loggedUser, data.data.refreshToken);
       const searchParams = new URLSearchParams(window.location.search);
       const targetRedirect = searchParams.get('redirect') || '/';
       navigate(targetRedirect);
@@ -97,13 +98,14 @@ export default function LoginPage() {
     <Container
       maxWidth="xs"
       sx={{
-        py: { xs: 4, sm: 8 },
+        py: { xs: 3, sm: 6 },
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'center',
         flex: 1,
       }}
     >
+      <PageBreadcrumbs items={[{ label: 'Home', to: '/' }, { label: 'Sign In' }]} sx={{ mb: 2 }} />
       <Paper
         elevation={0}
         sx={{

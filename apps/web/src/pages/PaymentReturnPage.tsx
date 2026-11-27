@@ -24,6 +24,7 @@ import {
 } from '@mui/icons-material';
 import api from '../api/client';
 import { useCartStore } from '../store/cart.store';
+import PageBreadcrumbs from '../components/PageBreadcrumbs';
 
 type PaymentState = 'verifying' | 'success' | 'failed' | 'pending_timeout' | 'user_dropped';
 
@@ -223,7 +224,14 @@ export default function PaymentReturnPage() {
   }, [attempt, status, verifyPayment]);
 
   return (
-    <Container maxWidth="sm" sx={{ py: { xs: 6, md: 10 } }}>
+    <Container maxWidth="sm" sx={{ py: { xs: 4, md: 8 } }}>
+      <PageBreadcrumbs
+        items={[
+          { label: 'Home', to: '/' },
+          { label: 'Checkout', to: '/checkout' },
+          { label: 'Payment Status' },
+        ]}
+      />
       <Paper
         elevation={0}
         sx={{

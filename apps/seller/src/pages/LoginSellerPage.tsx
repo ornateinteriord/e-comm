@@ -57,8 +57,8 @@ export default function LoginSellerPage() {
       }));
 
       if (resp.data?.success) {
-        const { accessToken, seller, store } = resp.data.data;
-        setAuth(accessToken, seller || store);
+        const { accessToken, refreshToken, seller, store } = resp.data.data;
+        setAuth(accessToken, seller || store, refreshToken);
         navigate('/');
       }
     } catch (err: any) {

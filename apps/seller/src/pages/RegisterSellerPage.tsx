@@ -65,7 +65,7 @@ export default function RegisterSellerPage() {
   // Dialog State
   const [successDetails, setSuccessDetails] = useState<SellerRegistrationDetails | null>(null);
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
-  const [tempAuthData, setTempAuthData] = useState<{ token: string; seller: any } | null>(null);
+  const [tempAuthData, setTempAuthData] = useState<{ token: string; refreshToken?: string; seller: any } | null>(null);
 
   useEffect(() => {
     if (isAuthenticated && !showSuccessDialog) {
@@ -253,9 +253,9 @@ export default function RegisterSellerPage() {
       const resp = await api.post('/seller/register', payload);
 
       if (resp.data?.success) {
-        const { accessToken, seller } = resp.data.data;
+        const { accessToken, refreshToken, seller } = resp.data.data;
         const resolvedId = seller.sellerId || seller.storeId;
-        setTempAuthData({ token: accessToken, seller });
+        setTempAuthData({ token: accessToken, refreshToken, seller });
         setSuccessDetails({
           sellerId: resolvedId,
           storeId: resolvedId,
@@ -284,7 +284,7 @@ export default function RegisterSellerPage() {
 
   const handleProceedToDashboard = () => {
     if (tempAuthData) {
-      setAuth(tempAuthData.token, tempAuthData.seller);
+      setAuth(tempAuthData.token, tempAuthData.seller, tempAuthData.refreshToken);
     }
     setShowSuccessDialog(false);
     navigate('/');

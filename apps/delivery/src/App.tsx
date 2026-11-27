@@ -11,6 +11,7 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import OrdersFeedPage from './pages/OrdersFeedPage';
 import ActiveDeliveryPage from './pages/ActiveDeliveryPage';
+import IncomingOrderPage from './pages/IncomingOrderPage';
 import EarningsPage from './pages/EarningsPage';
 import ProfilePage from './pages/ProfilePage';
 
@@ -62,6 +63,7 @@ export default function App() {
               }
             >
               <Route index element={<OrdersFeedPage />} />
+              <Route path="incoming-order/:id" element={<IncomingOrderPage />} />
               <Route path="active" element={<ActiveDeliveryPage />} />
               <Route path="deliveries/:id" element={<ActiveDeliveryPage />} />
               <Route path="earnings" element={<EarningsPage />} />

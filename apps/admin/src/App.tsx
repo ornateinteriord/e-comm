@@ -20,6 +20,7 @@ const ContactMessagesPage = React.lazy(() => import('./pages/ContactMessagesPage
 const CouponsPage = React.lazy(() => import('./pages/CouponsPage.tsx'));
 const AuditLogsPage = React.lazy(() => import('./pages/AuditLogsPage.tsx'));
 const SystemHealthPage = React.lazy(() => import('./pages/SystemHealthPage.tsx'));
+const RiderTestPage = React.lazy(() => import('./pages/RiderTestPage.tsx'));
 const NotFoundPage = React.lazy(() => import('./pages/NotFoundPage.tsx'));
 import ErrorBoundary from './components/ErrorBoundary.tsx';
 
@@ -81,6 +82,7 @@ export default function App() {
             <Route path="categories" element={<CategoriesPage />} />
             <Route path="sellers" element={<SellersPage />} />
             <Route path="delivery-partners" element={<DeliveryPartnersPage />} />
+            <Route path="rider-test" element={<RiderTestPage />} />
             <Route path="stores" element={<Navigate to="/sellers" replace />} />
             <Route path="orders" element={<OrdersPage />} />
             <Route path="inventory" element={<InventoryPage />} />

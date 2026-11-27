@@ -14,6 +14,8 @@ import {
   adminTrackOrderDelivery,
   adminCancelOrderDelivery,
   adminListDeliveryAssignments,
+  getAdminRiderTestContext,
+  adminCreateAndAssignTestOrder,
   getCustomerOrderDelivery,
 } from '../controllers/delivery.controller.js';
 import { attachUser, requireAuth, requireRole } from '../middleware/auth.middleware.js';
@@ -43,5 +45,7 @@ router.post('/admin/orders/:id/delivery/assign', requireAuth, adminOrderRoles, a
 router.get('/admin/orders/:id/delivery/track', requireAuth, adminOrderRoles, adminTrackOrderDelivery);
 router.post('/admin/orders/:id/delivery/cancel', requireAuth, adminOrderRoles, adminCancelOrderDelivery);
 router.get('/admin/delivery/assignments', requireAuth, adminOrderRoles, adminListDeliveryAssignments);
+router.get('/admin/delivery/rider-test/context', requireAuth, adminOrderRoles, getAdminRiderTestContext);
+router.post('/admin/delivery/rider-test/assign', requireAuth, adminOrderRoles, adminCreateAndAssignTestOrder);
 
 export default router;

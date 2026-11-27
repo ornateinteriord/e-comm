@@ -4,6 +4,7 @@ import {
   getAvailableCategories,
   registerSeller,
   loginSeller,
+  refreshSeller,
   getSellerMe,
   updateSellerMe,
   adminListSellers,
@@ -36,6 +37,11 @@ router.post('/api/v1/seller/login', loginSeller);
 router.post('/seller/login', loginSeller);
 router.post('/api/v1/store/login', loginSeller);
 router.post('/store/login', loginSeller);
+
+router.post('/api/v1/seller/refresh', refreshSeller);
+router.post('/seller/refresh', refreshSeller);
+router.post('/api/v1/store/refresh', refreshSeller);
+router.post('/store/refresh', refreshSeller);
 
 // Authenticated seller profile endpoints
 router.get('/api/v1/seller/me', attachUser, requireAuth, getSellerMe);

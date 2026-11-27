@@ -1,11 +1,17 @@
 import { describe, it, expect } from 'vitest';
 import {
   canTransitionDelivery,
+  formatDropAreaLabel,
+  isDropLocationUnlocked,
+  maskDropLocationUntilPickup,
   nextDeliveryStatuses,
   calculateHaversineKm,
+  calculateHaversineMeters,
   calculatePartnerPayoutPaise,
   generateDeliveryOtp,
   resolveCodDetails,
+  validatePickupGeofence,
+  validateStopGeofence,
 } from '../src/domain/delivery-lifecycle.js';
 
 describe('Order Service: Delivery Partner Lifecycle & Economics', () => {
@@ -78,6 +84,134 @@ describe('Order Service: Delivery Partner Lifecycle & Economics', () => {
           pricing: { grandTotal: 150000 },
         }),
       ).toEqual({ isCod: false, codAmountPaise: 0 });
+    });
+  });
+
+  describe('Pickup-First Drop Address Gating', () => {
+    it('keeps customer drop address locked before pickup and unlocks after picked_up', () => {
+      expect(isDropLocationUnlocked('assigned')).toBe(false);
+      expect(isDropLocationUnlocked('accepted')).toBe(false);
+      expect(isDropLocationUnlocked('arrived_pickup')).toBe(false);
+      expect(isDropLocationUnlocked('cancelled', null)).toBe(false);
+
+      expect(isDropLocationUnlocked('picked_up')).toBe(true);
+      expect(isDropLocationUnlocked('in_transit')).toBe(true);
+      expect(isDropLocationUnlocked('arrived_customer')).toBe(true);
+      expect(isDropLocationUnlocked('delivered')).toBe(true);
+      expect(isDropLocationUnlocked('failed', new Date())).toBe(true);
+    });
+
+    it('masks exact street, phone, and coordinates until pickup while preserving city/pincode area', () => {
+      const masked = maskDropLocationUntilPickup({
+        name: 'Aarav Sharma',
+        phone: '9876501234',
+        line1: 'Flat 402, Lotus Residency',
+        line2: 'Near Orion Mall',
+        city: 'Bengaluru',
+        state: 'Karnataka',
+        pincode: '560055',
+        lat: 13.011,
+        lng: 77.554,
+      });
+
+      expect(masked.phone).toBe('');
+      expect(masked.line2).toBe('');
+      expect(masked.lat).toBeUndefined();
+      expect(masked.lng).toBeUndefined();
+      expect(masked.line1).not.toContain('Lotus Residency');
+      expect(masked.name).not.toContain('Aarav');
+      expect(formatDropAreaLabel(masked)).toBe('Bengaluru - 560055');
+    });
+  });
+
+  describe('Pickup Location Geofence', () => {
+    it('blocks arrived_pickup and picked_up without live GPS or outside 300m radius', () => {
+      const noGps = validatePickupGeofence({
+        status: 'arrived_pickup',
+        pickupLat: 12.9716,
+        pickupLng: 77.5946,
+        pickupName: 'Ornate Hub',
+      });
+      expect(noGps.ok).toBe(false);
+      if (!noGps.ok) expect(noGps.code).toBe('GPS_REQUIRED');
+
+      const far = validatePickupGeofence({
+        status: 'picked_up',
+        riderLat: 12.89,
+        riderLng: 77.55,
+        pickupLat: 12.9716,
+        pickupLng: 77.5946,
+        pickupName: 'Ornate Hub',
+        maxRadiusMeters: 300,
+      });
+      expect(far.ok).toBe(false);
+      if (!far.ok) {
+        expect(far.code).toBe('PICKUP_TOO_FAR');
+        expect(far.distanceMeters).toBeGreaterThan(5000);
+      }
+    });
+
+    it('allows arrived_pickup and picked_up within 300m and skips check for failed/cancelled', () => {
+      expect(calculateHaversineMeters(12.9716, 77.5946, 12.9722, 77.5949)).toBeLessThan(150);
+
+      const near = validatePickupGeofence({
+        status: 'picked_up',
+        riderLat: 12.9722,
+        riderLng: 77.5949,
+        pickupLat: 12.9716,
+        pickupLng: 77.5946,
+        pickupName: 'Ornate Hub',
+      });
+      expect(near.ok).toBe(true);
+
+      expect(validatePickupGeofence({ status: 'failed' }).ok).toBe(true);
+    });
+
+    it('blocks arrived_customer and delivered when rider has no GPS, is too far, or is still at pickup', () => {
+      const noGps = validateStopGeofence({
+        status: 'arrived_customer',
+        dropLat: 12.91,
+        dropLng: 77.61,
+      });
+      expect(noGps.ok).toBe(false);
+      if (!noGps.ok) expect(noGps.code).toBe('GPS_REQUIRED');
+
+      const stillAtPickupCoordsKnown = validateStopGeofence({
+        status: 'arrived_customer',
+        riderLat: 12.9716,
+        riderLng: 77.5946,
+        pickupLat: 12.9716,
+        pickupLng: 77.5946,
+        dropLat: 12.91,
+        dropLng: 77.61,
+        dropName: 'Customer2',
+      });
+      expect(stillAtPickupCoordsKnown.ok).toBe(false);
+      if (!stillAtPickupCoordsKnown.ok) expect(stillAtPickupCoordsKnown.code).toBe('CUSTOMER_TOO_FAR');
+
+      const stillAtPickupFallback = validateStopGeofence({
+        status: 'arrived_customer',
+        riderLat: 12.9716,
+        riderLng: 77.5946,
+        pickupLat: 12.9716,
+        pickupLng: 77.5946,
+        pickupLine1: '17th Main Rd, Vijayanagara',
+        dropLine1: '50, Bengaluru',
+      });
+      expect(stillAtPickupFallback.ok).toBe(false);
+      if (!stillAtPickupFallback.ok) expect(stillAtPickupFallback.code).toBe('STILL_AT_PICKUP');
+
+      const atCustomer = validateStopGeofence({
+        status: 'arrived_customer',
+        riderLat: 12.9102,
+        riderLng: 77.6104,
+        pickupLat: 12.9716,
+        pickupLng: 77.5946,
+        dropLat: 12.91,
+        dropLng: 77.61,
+        dropName: 'Customer2',
+      });
+      expect(atCustomer.ok).toBe(true);
     });
   });
 });

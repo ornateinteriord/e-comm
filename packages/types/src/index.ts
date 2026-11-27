@@ -165,6 +165,7 @@ export interface PublicProduct {
   isFeatured?: boolean;
   seoTitle?: string;
   seoDescription?: string;
+  netQuantity?: string;
   weight?: number;
   dimensions?: { l: number; w: number; h: number };
   sellerId?: string;
@@ -817,6 +818,8 @@ export interface DeliveryAssignment {
   status: DeliveryAssignmentStatus;
   pickupLocation: DeliveryStopLocation;
   dropLocation: DeliveryStopLocation;
+  isDropLocked?: boolean;
+  dropAreaLabel?: string;
   itemsSummary: Array<{
     productId: string;
     name: string;
@@ -875,6 +878,8 @@ export interface AvailableDeliveryOrder {
   }>;
   pickupLocation: DeliveryStopLocation;
   dropLocation: DeliveryStopLocation;
+  isDropLocked?: boolean;
+  dropAreaLabel?: string;
 }
 
 export interface DeliveryEarningsSummary {
