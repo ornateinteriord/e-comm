@@ -620,8 +620,8 @@ export default function CheckoutPage() {
   };
 
   return (
-    <Container maxWidth="lg" sx={{ py: 6 }}>
-      <Typography variant="h4" fontWeight={800} letterSpacing="-0.02em" sx={{ mb: 4 }}>
+    <Container maxWidth="lg" sx={{ py: { xs: 3, md: 6 } }}>
+      <Typography variant="h4" fontWeight={800} letterSpacing="-0.02em" sx={{ mb: { xs: 2.5, md: 4 }, fontSize: { xs: '1.65rem', md: '2.125rem' } }}>
         Checkout & Payment
       </Typography>
 
@@ -632,7 +632,7 @@ export default function CheckoutPage() {
       )}
 
       <form onSubmit={handlePlaceOrder}>
-        <Grid container spacing={4}>
+        <Grid container spacing={{ xs: 2.5, md: 4 }}>
           {/* Left Column: Address & Payment */}
           <Grid item xs={12} md={7}>
             {/* Step 1: Shipping Address */}

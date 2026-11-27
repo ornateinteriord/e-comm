@@ -149,23 +149,23 @@ export default function CartPage() {
   }
 
   return (
-    <Container maxWidth="lg" sx={{ py: 6 }}>
-      <Typography variant="h4" fontWeight={800} letterSpacing="-0.02em" sx={{ mb: 4 }}>
+    <Container maxWidth="lg" sx={{ py: { xs: 3, md: 6 } }}>
+      <Typography variant="h4" fontWeight={800} letterSpacing="-0.02em" sx={{ mb: { xs: 2.5, md: 4 }, fontSize: { xs: '1.65rem', md: '2.125rem' } }}>
         Shopping Bag ({items.reduce((acc, i) => acc + i.quantity, 0)})
       </Typography>
 
-      <Grid container spacing={4}>
+      <Grid container spacing={{ xs: 2.5, md: 4 }}>
         {/* Cart Items List */}
         <Grid item xs={12} md={8}>
-          <Paper elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: '8px', p: 3 }}>
+          <Paper elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: '8px', p: { xs: 2, sm: 3 } }}>
             {items.map((item, idx) => (
               <React.Fragment key={`${item.productId}_${item.variantId || 'base'}`}>
-                <Box sx={{ display: 'flex', gap: 3, py: 2.5, alignItems: 'center' }}>
+                <Box sx={{ display: 'flex', flexWrap: { xs: 'wrap', sm: 'nowrap' }, gap: { xs: 1.5, sm: 3 }, py: 2.5, alignItems: 'center' }}>
                   {/* Thumbnail */}
                   <Box
                     sx={{
-                      width: 80,
-                      height: 80,
+                      width: { xs: 68, sm: 80 },
+                      height: { xs: 68, sm: 80 },
                       borderRadius: '6px',
                       overflow: 'hidden',
                       bgcolor: '#f8fafc',
@@ -180,13 +180,13 @@ export default function CartPage() {
                   </Box>
 
                   {/* Details */}
-                  <Box sx={{ flexGrow: 1 }}>
+                  <Box sx={{ flex: '1 1 160px', minWidth: 0 }}>
                     <Typography
                       component={RouterLink}
                       to={`/products/${item.productSlug}`}
                       variant="subtitle1"
                       fontWeight={700}
-                      sx={{ textDecoration: 'none', color: 'text.primary', '&:hover': { color: 'primary.main' } }}
+                      sx={{ textDecoration: 'none', color: 'text.primary', display: 'block', '&:hover': { color: 'primary.main' } }}
                     >
                       {item.productName}
                     </Typography>
@@ -224,7 +224,7 @@ export default function CartPage() {
                   </Box>
 
                   {/* Item Total */}
-                  <Typography variant="subtitle1" fontWeight={800} sx={{ minWidth: 80, textAlign: 'right' }}>
+                  <Typography variant="subtitle1" fontWeight={800} sx={{ minWidth: { xs: 'auto', sm: 80 }, ml: { xs: 'auto', sm: 0 }, textAlign: 'right' }}>
                     ₹{(item.lineTotal / 100).toFixed(0)}
                   </Typography>
 

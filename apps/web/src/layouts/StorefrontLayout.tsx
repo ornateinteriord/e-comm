@@ -35,7 +35,7 @@ import { useDebounce } from '../hooks/useDebounce';
 import { DUMMY_CATEGORIES } from '../data/dummyData';
 import api from '../api/client';
 import Footer from '../components/Footer.tsx';
-
+import { getMainLayoutStyles } from './layoutScrollStyles';
 
 export default function StorefrontLayout() {
   const theme = useTheme();
@@ -171,18 +171,13 @@ export default function StorefrontLayout() {
     return 0;
   };
 
+  const layoutStyles = getMainLayoutStyles(isMobile, location.pathname);
+
   return (
     <Box
       sx={{
-        display: 'flex',
-        flexDirection: 'column',
-        height: isMobile ? '100dvh' : 'auto',
-        minHeight: isMobile ? '100dvh' : '100vh',
-        maxHeight: isMobile ? '100dvh' : 'none',
+        ...layoutStyles.outer,
         bgcolor: 'background.default',
-        width: '100%',
-        maxWidth: '100vw',
-        overflow: isMobile ? 'hidden' : 'visible',
       }}
     >
       {/* ---- Desktop Top Banner ---- */}
@@ -1140,38 +1135,12 @@ export default function StorefrontLayout() {
       </Menu>
 
       {/* Main Page Outlet */}
-      <Box
-        component="main"
-        sx={{
-          flex: isMobile && (location.pathname === '/' || location.pathname === '/search') ? 1 : '1 0 auto',
-          minHeight: 0,
-          height: isMobile && (location.pathname === '/' || location.pathname === '/search') ? '100%' : 'auto',
-          display: 'flex',
-          flexDirection: 'column',
-          overflowY: isMobile ? (location.pathname === '/' || location.pathname === '/search' ? 'hidden' : 'auto') : 'visible',
-          overflowX: isMobile ? 'hidden' : 'visible',
-          WebkitOverflowScrolling: 'touch',
-          overscrollBehaviorY: isMobile ? 'contain' : 'auto',
-        }}
-      >
-        <Box
-          sx={{
-            flex: isMobile && (location.pathname === '/' || location.pathname === '/search') ? 1 : '1 0 auto',
-            minHeight:
-              isMobile && location.pathname !== '/' && location.pathname !== '/search'
-                ? 'calc(100dvh - 56px - 60px - env(safe-area-inset-bottom, 0px))'
-                : 0,
-            height: isMobile && (location.pathname === '/' || location.pathname === '/search') ? '100%' : 'auto',
-            overflow: isMobile && (location.pathname === '/' || location.pathname === '/search') ? 'hidden' : 'visible',
-            display: 'flex',
-            flexDirection: 'column',
-            width: '100%',
-          }}
-        >
+      <Box component="main" sx={layoutStyles.main}>
+        <Box sx={layoutStyles.outletWrapper}>
           <Outlet />
         </Box>
         {/* Global Footer inside scrollable main container for mobile non-split pages */}
-        {isMobile && location.pathname !== '/' && location.pathname !== '/search' && <Footer />}
+        {isMobile && !layoutStyles.isSplitMobile && <Footer />}
       </Box>
 
       {/* Global Footer on Desktop */}

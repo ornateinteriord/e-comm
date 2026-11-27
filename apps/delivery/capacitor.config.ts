@@ -8,9 +8,13 @@ const config: CapacitorConfig = {
     androidScheme: 'https',
   },
   android: {
-    allowMixedContent: false,
+    allowMixedContent: true,
   },
   plugins: {
+    SystemBars: {
+      style: 'LIGHT',
+      insetsHandling: 'native',
+    },
     Geolocation: {
       permissions: ['location', 'coarseLocation'],
     },

@@ -517,7 +517,7 @@ export default function ProductDetailPage() {
           elevation={12}
           sx={{
             position: 'fixed',
-            bottom: 60, // Above bottom nav dock
+            bottom: 'calc(60px + env(safe-area-inset-bottom, 0px))', // Above bottom nav dock
             left: 0,
             right: 0,
             zIndex: 1050,
